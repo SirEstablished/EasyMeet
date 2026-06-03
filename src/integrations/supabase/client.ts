@@ -24,4 +24,39 @@ export interface Profile {
   role: AppRole;
   email_notifications: boolean;
   in_app_notifications: boolean;
+  website: string | null;
+  cover_url: string | null;
+  blue_tick: boolean;
+  white_tick: boolean;
+  gold_tick: boolean;
+  avg_rating: number;
+  review_count: number;
+}
+
+export interface Service {
+  id: string;
+  owner_id: string;
+  title: string;
+  description: string | null;
+  price_ngn: number;
+  image_url: string | null;
+  created_at: string;
+}
+
+export interface Review {
+  id: string;
+  professional_id: string;
+  reviewer_id: string;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+  reviewer?: Pick<Profile, "id" | "full_name" | "username" | "avatar_url"> | null;
+}
+
+export interface Post {
+  id: string;
+  author_id: string;
+  content: string;
+  image_url: string | null;
+  created_at: string;
 }
