@@ -56,7 +56,25 @@ export interface Review {
 export interface Post {
   id: string;
   author_id: string;
-  content: string;
-  image_url: string | null;
+  body: string | null;
+  content?: string | null;
+  image_url?: string | null;
+  media_urls: string[] | null;
+  media_type: "image" | "video" | null;
+  is_boosted: boolean;
+  boost_until: string | null;
   created_at: string;
+  author?: Pick<Profile, "id" | "full_name" | "username" | "avatar_url" | "role" | "blue_tick" | "white_tick" | "gold_tick"> | null;
+  like_count?: number;
+  comment_count?: number;
+  liked_by_me?: boolean;
+}
+
+export interface Comment {
+  id: string;
+  post_id: string;
+  author_id: string;
+  body: string;
+  created_at: string;
+  author?: Pick<Profile, "id" | "full_name" | "username" | "avatar_url"> | null;
 }

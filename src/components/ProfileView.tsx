@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { VerificationTicks } from "./VerificationTicks";
 import { StarRating } from "./StarRating";
 import { Globe, MapPin } from "lucide-react";
+import { PostCard } from "./PostCard";
+import { CommentsDrawer } from "./CommentsDrawer";
 
 function initialsOf(s: string) {
   return s
@@ -26,6 +28,7 @@ export function ProfileView({
   const [services, setServices] = useState<Service[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [commentsFor, setCommentsFor] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -39,7 +42,13 @@ export function ProfileView({
           .order("created_at", { ascending: false }),
         profile.role === "business"
           ? Promise.resolve({ data: [] as Post[] })
-          : supabase.from("posts").select("*").eq("author_id", profile.id).order("created_at", { ascending: false }),
+          : supabase
+              .from("posts")
+              .select(
+                "*, author:author_id(id, full_name, username, avatar_url, role, blue_tick, white_tick, gold_tick)",
+              )
+              .eq("author_id", profile.id)
+              .order("created_at", { ascending: false }),
       ]);
       if (cancelled) return;
       setServices((s as Service[]) ?? []);
@@ -215,17 +224,25 @@ export function ProfileView({
               {posts.length === 0 ? (
                 <EmptyState>No posts yet</EmptyState>
               ) : (
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="space-y-4">
                   {posts.map((p) => (
-                    <div key={p.id} className="rounded-xl border border-border bg-card p-4">
-                      <p className="text-sm whitespace-pre-wrap">{p.content}</p>
-                    </div>
+                    <PostCard
+                      key={p.id}
+                      post={p}
+                      onOpenComments={setCommentsFor}
+                      onDeleted={(id) => setPosts((cur) => cur.filter((x) => x.id !== id))}
+                    />
                   ))}
                 </div>
               )}
             </TabsContent>
           )}
         </Tabs>
+        <CommentsDrawer
+          postId={commentsFor}
+          open={!!commentsFor}
+          onOpenChange={(v) => !v && setCommentsFor(null)}
+        />
       </div>
     </div>
   );
