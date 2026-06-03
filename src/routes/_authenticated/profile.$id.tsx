@@ -1,10 +1,10 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase, type Profile } from "@/integrations/supabase/client";
 import { ProfileView } from "@/components/ProfileView";
 import { useAuth } from "@/lib/providers";
 import { Button } from "@/components/ui/button";
-import { Pencil } from "lucide-react";
+import { Pencil, MessageCircle } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/profile/$id")({
   component: PublicProfilePage,
@@ -52,6 +52,7 @@ function PublicProfilePage() {
   }
 
   const isMe = user?.id === profile.id;
+  const navigate = useNavigate();
 
   return (
     <ProfileView
@@ -63,7 +64,14 @@ function PublicProfilePage() {
               <Pencil className="h-4 w-4 mr-2" /> Edit profile
             </Link>
           </Button>
-        ) : null
+        ) : (
+          <Button
+            onClick={() => navigate({ to: "/messages" })}
+            className="bg-gradient-brand"
+          >
+            <MessageCircle className="h-4 w-4 mr-2" /> Message
+          </Button>
+        )
       }
     />
   );
