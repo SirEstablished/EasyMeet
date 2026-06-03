@@ -37,8 +37,6 @@ export function AuthModal() {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [forgotOpen, setForgotOpen] = useState(false);
-
   const reset = () => {
     setError(null);
     setInfo(null);
@@ -290,8 +288,6 @@ export function AuthModal() {
           </form>
         )}
 
-        {/* avoid unused var warning */}
-        <span className="hidden">{String(forgotOpen)}{setForgotOpen ? "" : ""}</span>
       </DialogContent>
     </Dialog>
   );
