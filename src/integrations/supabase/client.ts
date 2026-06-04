@@ -39,15 +39,16 @@ export interface Profile {
 
 export interface Service {
   id: string;
-  owner_id: string;
+  provider_id: string;
   title: string;
   description: string | null;
-  price_ngn: number;
+  price: number;
+  currency: string;
   image_url: string | null;
   created_at: string;
   category?: string | null;
   is_active?: boolean;
-  owner?: Pick<Profile, "id" | "full_name" | "username" | "avatar_url" | "role" | "blue_tick" | "white_tick" | "gold_tick"> | null;
+  provider?: Pick<Profile, "id" | "full_name" | "username" | "avatar_url" | "role" | "blue_tick" | "white_tick" | "gold_tick"> | null;
 }
 
 export interface Review {
