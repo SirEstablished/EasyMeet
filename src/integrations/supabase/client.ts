@@ -35,6 +35,7 @@ export interface Profile {
   business_type?: string | null;
   sells_products?: boolean;
   offers_services?: boolean;
+  phone?: string | null;
 }
 
 export interface Service {
