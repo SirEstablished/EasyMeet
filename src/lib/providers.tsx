@@ -74,7 +74,65 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .select("*")
       .eq("id", uid)
       .maybeSingle();
-    setProfile((data as Profile) ?? null);
+    let profileRow = (data as Profile) ?? null;
+
+    // Backfill signup metadata into the profile if missing
+    // (covers email-confirm flow where the upsert at signup couldn't run).
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const meta = (userData.user?.user_metadata ?? {}) as Record<string, unknown>;
+      const updates: Record<string, unknown> = {};
+      if (profileRow) {
+        if (!profileRow.full_name && typeof meta.full_name === "string")
+          updates.full_name = meta.full_name;
+        if (!profileRow.profession && typeof meta.profession === "string")
+          updates.profession = meta.profession;
+        if (!profileRow.business_type && typeof meta.business_type === "string")
+          updates.business_type = meta.business_type;
+        if (
+          (profileRow.sells_products === undefined || profileRow.sells_products === null) &&
+          typeof meta.sells_products === "boolean"
+        )
+          updates.sells_products = meta.sells_products;
+        if (
+          (profileRow.offers_services === undefined || profileRow.offers_services === null) &&
+          typeof meta.offers_services === "boolean"
+        )
+          updates.offers_services = meta.offers_services;
+        if (meta.role && profileRow.role !== meta.role) updates.role = meta.role;
+      } else {
+        // No row yet — create one from metadata
+        updates.id = uid;
+        if (typeof meta.full_name === "string") updates.full_name = meta.full_name;
+        if (typeof meta.role === "string") updates.role = meta.role;
+        if (typeof meta.profession === "string") updates.profession = meta.profession;
+        if (typeof meta.business_type === "string") updates.business_type = meta.business_type;
+        if (typeof meta.sells_products === "boolean") updates.sells_products = meta.sells_products;
+        if (typeof meta.offers_services === "boolean") updates.offers_services = meta.offers_services;
+      }
+      if (Object.keys(updates).length > (profileRow ? 0 : 1)) {
+        if (profileRow) {
+          const { data: updated } = await supabase
+            .from("profiles")
+            .update(updates)
+            .eq("id", uid)
+            .select("*")
+            .maybeSingle();
+          if (updated) profileRow = updated as Profile;
+        } else {
+          const { data: inserted } = await supabase
+            .from("profiles")
+            .upsert(updates, { onConflict: "id" })
+            .select("*")
+            .maybeSingle();
+          if (inserted) profileRow = inserted as Profile;
+        }
+      }
+    } catch {
+      // Non-fatal — fall through with whatever we have.
+    }
+
+    setProfile(profileRow);
   };
 
   useEffect(() => {
