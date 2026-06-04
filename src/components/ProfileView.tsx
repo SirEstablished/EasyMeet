@@ -67,7 +67,9 @@ export function ProfileView({
     <div className="max-w-5xl mx-auto pb-16">
       {/* Cover */}
       <div
-        className="h-44 sm:h-56 w-full rounded-b-2xl bg-gradient-brand relative"
+        className={`h-44 sm:h-56 w-full rounded-b-2xl relative ${
+          profile.cover_url ? "" : "bg-mesh-brand"
+        }`}
         style={
           profile.cover_url
             ? { backgroundImage: `url(${profile.cover_url})`, backgroundSize: "cover", backgroundPosition: "center" }
@@ -77,12 +79,14 @@ export function ProfileView({
       <div className="px-4 sm:px-6 -mt-12 sm:-mt-14">
         <div className="flex items-end justify-between gap-4 flex-wrap">
           <div className="flex items-end gap-4">
-            <Avatar className="h-24 w-24 sm:h-28 sm:w-28 border-4 border-background shadow-md">
-              <AvatarImage src={profile.avatar_url ?? undefined} />
-              <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
+            <span className="inline-block rounded-full p-[3px] bg-gradient-brand shadow-lg">
+              <Avatar className="h-24 w-24 sm:h-28 sm:w-28 border-4 border-background">
+                <AvatarImage src={profile.avatar_url ?? undefined} />
+                <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+            </span>
           </div>
           {editButton}
         </div>
