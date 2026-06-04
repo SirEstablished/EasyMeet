@@ -8,6 +8,7 @@ import {
   Search,
   Users,
   Store,
+  Package,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -26,6 +27,8 @@ function Dashboard() {
   const role = profile?.role || "customer";
   const greeting = greetings[role];
 
+  const sellsProducts = !!profile?.sells_products;
+  const offersServices = profile?.offers_services !== false && role !== "customer";
   const quickLinks: { Icon: typeof Search; label: string; to: string }[] =
     role === "customer"
       ? [
@@ -34,16 +37,11 @@ function Dashboard() {
           { Icon: CalendarCheck, label: "My Orders", to: "/my-orders" },
           { Icon: MessageCircle, label: "Messages", to: "/messages" },
         ]
-      : role === "professional"
-      ? [
-          { Icon: Sparkles, label: "My Services", to: "/my-services" },
+      : [
+          ...(offersServices ? [{ Icon: Sparkles, label: "My Services", to: "/my-services" }] : []),
+          ...(sellsProducts ? [{ Icon: Package, label: "My Products", to: "/my-products" }] : []),
           { Icon: CalendarCheck, label: "My Bookings", to: "/my-bookings" },
           { Icon: Store, label: "Shop", to: "/shop" },
-          { Icon: MessageCircle, label: "Messages", to: "/messages" },
-        ]
-      : [
-          { Icon: Sparkles, label: "My Services", to: "/my-services" },
-          { Icon: CalendarCheck, label: "My Bookings", to: "/my-bookings" },
           { Icon: Users, label: "Explore", to: "/explore" },
           { Icon: MessageCircle, label: "Messages", to: "/messages" },
         ];

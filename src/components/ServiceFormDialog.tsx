@@ -22,6 +22,7 @@ import { supabase, SERVICE_CATEGORIES, type Service } from "@/integrations/supab
 import { useAuth } from "@/lib/providers";
 import { Loader2, ImagePlus, X } from "lucide-react";
 import { toast } from "sonner";
+import { optimizeImage } from "@/lib/imageOptimize";
 
 export function ServiceFormDialog({
   open,
@@ -44,6 +45,7 @@ export function ServiceFormDialog({
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [optimizing, setOptimizing] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -58,12 +60,19 @@ export function ServiceFormDialog({
     setPreview(null);
   }, [open, service]);
 
-  const onFile = (e: ChangeEvent<HTMLInputElement>) => {
+  const onFile = async (e: ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
-    if (f.size > 5 * 1024 * 1024) return toast.error("Image too large (max 5MB)");
-    setFile(f);
-    setPreview(URL.createObjectURL(f));
+    setOptimizing(true);
+    try {
+      const optimized = await optimizeImage(f);
+      setFile(optimized);
+      setPreview(URL.createObjectURL(optimized));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't process image");
+    } finally {
+      setOptimizing(false);
+    }
   };
 
   const save = async () => {
@@ -75,11 +84,11 @@ export function ServiceFormDialog({
     try {
       let finalImage = imageUrl;
       if (file) {
-        const ext = file.name.split(".").pop();
+        const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
         const path = `${user.id}/${Date.now()}.${ext}`;
         const { error: upErr } = await supabase.storage
           .from("service-images")
-          .upload(path, file, { upsert: false, contentType: file.type });
+          .upload(path, file, { upsert: false, contentType: file.type, cacheControl: "3600" });
         if (upErr) throw upErr;
         finalImage = supabase.storage.from("service-images").getPublicUrl(path).data.publicUrl;
       }
@@ -100,7 +109,7 @@ export function ServiceFormDialog({
           .single();
         if (error) throw error;
         onSaved(data as Service);
-        toast.success("Service updated");
+        toast.success("Service updated successfully");
       } else {
         const { data, error } = await supabase
           .from("services")
@@ -109,7 +118,7 @@ export function ServiceFormDialog({
           .single();
         if (error) throw error;
         onSaved(data as Service);
-        toast.success("Service created");
+        toast.success("Service added successfully");
       }
       onOpenChange(false);
     } catch (e) {
@@ -168,8 +177,12 @@ export function ServiceFormDialog({
               </div>
             ) : (
               <label className="mt-1 flex items-center justify-center gap-2 h-24 rounded-lg border border-dashed border-border cursor-pointer text-sm text-muted-foreground hover:bg-secondary">
-                <ImagePlus className="h-4 w-4" /> Upload image
-                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
+                {optimizing ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> Optimising image…</>
+                ) : (
+                  <><ImagePlus className="h-4 w-4" /> Upload image</>
+                )}
+                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} disabled={optimizing} />
               </label>
             )}
           </div>

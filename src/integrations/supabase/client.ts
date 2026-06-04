@@ -31,6 +31,10 @@ export interface Profile {
   gold_tick: boolean;
   avg_rating: number;
   review_count: number;
+  profession?: string | null;
+  business_type?: string | null;
+  sells_products?: boolean;
+  offers_services?: boolean;
 }
 
 export interface Service {
@@ -110,6 +114,8 @@ export interface Order {
   customer_id: string;
   provider_id: string;
   service_id: string | null;
+  product_id?: string | null;
+  kind?: "service" | "product";
   service_title: string;
   amount: number;
   notes: string | null;
@@ -134,6 +140,79 @@ export const SERVICE_CATEGORIES = [
   "Other",
 ] as const;
 export type ServiceCategory = (typeof SERVICE_CATEGORIES)[number];
+
+export const PRODUCT_CATEGORIES = [
+  "Fashion & Clothing",
+  "Electronics & Gadgets",
+  "Beauty & Cosmetics",
+  "Food & Groceries",
+  "Home & Living",
+  "Health & Wellness",
+  "Books & Stationery",
+  "Digital Downloads",
+  "Art & Crafts",
+  "Other",
+] as const;
+export type ProductCategory = (typeof PRODUCT_CATEGORIES)[number];
+
+export const PROFESSIONS = [
+  "Plumber",
+  "Electrician",
+  "Carpenter",
+  "Painter",
+  "Tailor/Fashion Designer",
+  "Graphic Designer",
+  "Web/App Developer",
+  "Photographer",
+  "Videographer",
+  "Chef/Cook",
+  "Teacher/Tutor",
+  "Lawyer",
+  "Accountant",
+  "Doctor/Healthcare",
+  "Fitness Trainer",
+  "Hair Stylist",
+  "Makeup Artist",
+  "Event Planner",
+  "Security Guard",
+  "Cleaner",
+  "Driver/Logistics",
+  "Other",
+] as const;
+
+export const BUSINESS_TYPES = [
+  "Food & Catering",
+  "Fashion & Clothing",
+  "Electronics & Gadgets",
+  "Beauty & Cosmetics",
+  "Health & Pharmacy",
+  "Education & Training",
+  "Events & Entertainment",
+  "Construction & Real Estate",
+  "Logistics & Delivery",
+  "Agriculture",
+  "Financial Services",
+  "Other",
+] as const;
+
+export type ProductType = "physical" | "digital";
+
+export interface Product {
+  id: string;
+  seller_id: string;
+  title: string;
+  description: string | null;
+  price: number;
+  currency: string;
+  category: string | null;
+  product_type: ProductType;
+  image_urls: string[] | null;
+  digital_file_url: string | null;
+  stock_count: number;
+  is_active: boolean;
+  created_at: string;
+  seller?: Pick<Profile, "id" | "full_name" | "username" | "avatar_url" | "role" | "blue_tick" | "white_tick" | "gold_tick"> | null;
+}
 
 export function formatNgn(n: number | null | undefined): string {
   const v = typeof n === "number" ? n : 0;

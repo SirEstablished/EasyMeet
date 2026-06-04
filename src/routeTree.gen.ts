@@ -15,6 +15,7 @@ import { Route as AuthenticatedShopRouteImport } from './routes/_authenticated/s
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedMyServicesRouteImport } from './routes/_authenticated/my-services'
+import { Route as AuthenticatedMyProductsRouteImport } from './routes/_authenticated/my-products'
 import { Route as AuthenticatedMyOrdersRouteImport } from './routes/_authenticated/my-orders'
 import { Route as AuthenticatedMyBookingsRouteImport } from './routes/_authenticated/my-bookings'
 import { Route as AuthenticatedMessagesRouteImport } from './routes/_authenticated/messages'
@@ -51,6 +52,11 @@ const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
 const AuthenticatedMyServicesRoute = AuthenticatedMyServicesRouteImport.update({
   id: '/my-services',
   path: '/my-services',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedMyProductsRoute = AuthenticatedMyProductsRouteImport.update({
+  id: '/my-products',
+  path: '/my-products',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedMyOrdersRoute = AuthenticatedMyOrdersRouteImport.update({
@@ -103,6 +109,7 @@ export interface FileRoutesByFullPath {
   '/messages': typeof AuthenticatedMessagesRoute
   '/my-bookings': typeof AuthenticatedMyBookingsRoute
   '/my-orders': typeof AuthenticatedMyOrdersRoute
+  '/my-products': typeof AuthenticatedMyProductsRoute
   '/my-services': typeof AuthenticatedMyServicesRoute
   '/profile': typeof AuthenticatedProfileRouteWithChildren
   '/settings': typeof AuthenticatedSettingsRoute
@@ -118,6 +125,7 @@ export interface FileRoutesByTo {
   '/messages': typeof AuthenticatedMessagesRoute
   '/my-bookings': typeof AuthenticatedMyBookingsRoute
   '/my-orders': typeof AuthenticatedMyOrdersRoute
+  '/my-products': typeof AuthenticatedMyProductsRoute
   '/my-services': typeof AuthenticatedMyServicesRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/shop': typeof AuthenticatedShopRoute
@@ -134,6 +142,7 @@ export interface FileRoutesById {
   '/_authenticated/messages': typeof AuthenticatedMessagesRoute
   '/_authenticated/my-bookings': typeof AuthenticatedMyBookingsRoute
   '/_authenticated/my-orders': typeof AuthenticatedMyOrdersRoute
+  '/_authenticated/my-products': typeof AuthenticatedMyProductsRoute
   '/_authenticated/my-services': typeof AuthenticatedMyServicesRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRouteWithChildren
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
@@ -151,6 +160,7 @@ export interface FileRouteTypes {
     | '/messages'
     | '/my-bookings'
     | '/my-orders'
+    | '/my-products'
     | '/my-services'
     | '/profile'
     | '/settings'
@@ -166,6 +176,7 @@ export interface FileRouteTypes {
     | '/messages'
     | '/my-bookings'
     | '/my-orders'
+    | '/my-products'
     | '/my-services'
     | '/settings'
     | '/shop'
@@ -181,6 +192,7 @@ export interface FileRouteTypes {
     | '/_authenticated/messages'
     | '/_authenticated/my-bookings'
     | '/_authenticated/my-orders'
+    | '/_authenticated/my-products'
     | '/_authenticated/my-services'
     | '/_authenticated/profile'
     | '/_authenticated/settings'
@@ -236,6 +248,13 @@ declare module '@tanstack/react-router' {
       path: '/my-services'
       fullPath: '/my-services'
       preLoaderRoute: typeof AuthenticatedMyServicesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/my-products': {
+      id: '/_authenticated/my-products'
+      path: '/my-products'
+      fullPath: '/my-products'
+      preLoaderRoute: typeof AuthenticatedMyProductsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/my-orders': {
@@ -317,6 +336,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMessagesRoute: typeof AuthenticatedMessagesRoute
   AuthenticatedMyBookingsRoute: typeof AuthenticatedMyBookingsRoute
   AuthenticatedMyOrdersRoute: typeof AuthenticatedMyOrdersRoute
+  AuthenticatedMyProductsRoute: typeof AuthenticatedMyProductsRoute
   AuthenticatedMyServicesRoute: typeof AuthenticatedMyServicesRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRouteWithChildren
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
@@ -330,6 +350,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMessagesRoute: AuthenticatedMessagesRoute,
   AuthenticatedMyBookingsRoute: AuthenticatedMyBookingsRoute,
   AuthenticatedMyOrdersRoute: AuthenticatedMyOrdersRoute,
+  AuthenticatedMyProductsRoute: AuthenticatedMyProductsRoute,
   AuthenticatedMyServicesRoute: AuthenticatedMyServicesRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRouteWithChildren,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,

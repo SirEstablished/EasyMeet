@@ -8,6 +8,7 @@ import { ImagePlus, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { containsPhoneNumber } from "@/lib/timeAgo";
 import { BoostPostModal } from "./BoostPostModal";
+import { optimizeImage } from "@/lib/imageOptimize";
 
 const MAX = 500;
 
@@ -17,21 +18,35 @@ export function CreatePostCard({ onPosted }: { onPosted: (p: Post) => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [posting, setPosting] = useState(false);
+  const [optimizing, setOptimizing] = useState(false);
   const [boostOpen, setBoostOpen] = useState(false);
   const [lastPostId, setLastPostId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   if (!profile || (profile.role !== "professional" && profile.role !== "business")) return null;
 
-  const onFile = (e: ChangeEvent<HTMLInputElement>) => {
+  const onFile = async (e: ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
     if (f.size > 50 * 1024 * 1024) {
       toast.error("File too large (max 50MB)");
       return;
     }
-    setFile(f);
-    setPreview(URL.createObjectURL(f));
+    if (f.type.startsWith("image/")) {
+      setOptimizing(true);
+      try {
+        const opt = await optimizeImage(f);
+        setFile(opt);
+        setPreview(URL.createObjectURL(opt));
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Couldn't process image");
+      } finally {
+        setOptimizing(false);
+      }
+    } else {
+      setFile(f);
+      setPreview(URL.createObjectURL(f));
+    }
   };
 
   const clearFile = () => {
@@ -146,13 +161,14 @@ export function CreatePostCard({ onPosted }: { onPosted: (p: Post) => void }) {
               <div className="flex items-center gap-2">
                 <label className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary cursor-pointer">
                   <ImagePlus className="h-4 w-4" />
-                  <span>Photo / Video</span>
+                  <span>{optimizing ? "Optimising image…" : "Photo / Video"}</span>
                   <input
                     ref={fileRef}
                     type="file"
                     accept="image/jpeg,image/png,video/mp4"
                     className="hidden"
                     onChange={onFile}
+                    disabled={optimizing}
                   />
                 </label>
               </div>

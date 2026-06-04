@@ -14,6 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Upload } from "lucide-react";
 import { supabase, type Profile } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/providers";
+import { optimizeImage } from "@/lib/imageOptimize";
 
 export function EditProfileDialog({
   open,
@@ -52,13 +53,21 @@ export function EditProfileDialog({
     e: ChangeEvent<HTMLInputElement>,
     kind: "avatar" | "cover",
   ) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
+    const raw = e.target.files?.[0];
+    if (!raw || !user) return;
     setUploading(kind);
     setErr(null);
-    const ext = file.name.split(".").pop();
+    let file: File;
+    try {
+      file = await optimizeImage(raw, { maxDim: kind === "cover" ? 1600 : 800 });
+    } catch (er) {
+      setErr(er instanceof Error ? er.message : "Couldn't process image");
+      setUploading(null);
+      return;
+    }
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
     const path = `${user.id}/${kind}-${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+    const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true, contentType: file.type });
     if (error) {
       setErr(error.message);
       setUploading(null);
@@ -123,7 +132,7 @@ export function EditProfileDialog({
             />
             <label className="mt-2 inline-flex items-center gap-2 cursor-pointer rounded-md border border-border px-3 py-1.5 text-xs hover:bg-secondary">
               <Upload className="h-3.5 w-3.5" />
-              {uploading === "cover" ? "Uploading…" : "Change cover"}
+              {uploading === "cover" ? "Optimising…" : "Change cover"}
               <input type="file" accept="image/*" className="hidden" onChange={(e) => upload(e, "cover")} />
             </label>
           </div>
@@ -135,7 +144,7 @@ export function EditProfileDialog({
             </Avatar>
             <label className="inline-flex items-center gap-2 cursor-pointer rounded-md border border-border px-3 py-2 text-sm hover:bg-secondary">
               <Upload className="h-4 w-4" />
-              {uploading === "avatar" ? "Uploading…" : "Change avatar"}
+              {uploading === "avatar" ? "Optimising…" : "Change avatar"}
               <input type="file" accept="image/*" className="hidden" onChange={(e) => upload(e, "avatar")} />
             </label>
           </div>
