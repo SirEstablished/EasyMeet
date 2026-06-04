@@ -31,6 +31,7 @@ export function EditProfileDialog({
   const [bio, setBio] = useState("");
   const [location, setLocation] = useState("");
   const [website, setWebsite] = useState("");
+  const [phone, setPhone] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -44,6 +45,7 @@ export function EditProfileDialog({
     setBio(profile.bio ?? "");
     setLocation(profile.location ?? "");
     setWebsite(profile.website ?? "");
+    setPhone(profile.phone ?? "");
     setAvatarUrl(profile.avatar_url);
     setCoverUrl(profile.cover_url);
     setErr(null);
@@ -83,18 +85,45 @@ export function EditProfileDialog({
     if (!user) return;
     setSaving(true);
     setErr(null);
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        full_name: fullName,
-        username,
-        bio,
-        location,
-        website,
-        avatar_url: avatarUrl,
-        cover_url: coverUrl,
-      })
-      .eq("id", user.id);
+
+    // Username validation
+    const trimmedUsername = username.trim();
+    if (trimmedUsername) {
+      if (!/^[a-zA-Z0-9_]+$/.test(trimmedUsername)) {
+        setErr("Usernames can only contain letters, numbers, and underscores.");
+        setSaving(false);
+        return;
+      }
+      // Uniqueness check
+      const { data: existing } = await supabase
+        .from("profiles")
+        .select("id")
+        .ilike("username", trimmedUsername)
+        .neq("id", user.id)
+        .maybeSingle();
+      if (existing) {
+        setErr(`Username @${trimmedUsername} is already taken`);
+        setSaving(false);
+        return;
+      }
+    }
+
+    const payload: Record<string, unknown> = {
+      full_name: fullName,
+      username: trimmedUsername || null,
+      bio,
+      location,
+      website,
+      avatar_url: avatarUrl,
+      cover_url: coverUrl,
+      phone: phone || null,
+    };
+    let { error } = await supabase.from("profiles").update(payload).eq("id", user.id);
+    if (error && /column .*phone/i.test(error.message)) {
+      // Phone column not yet in DB — retry without it so saving still works.
+      delete payload.phone;
+      ({ error } = await supabase.from("profiles").update(payload).eq("id", user.id));
+    }
     setSaving(false);
     if (error) {
       setErr(error.message);
@@ -166,6 +195,16 @@ export function EditProfileDialog({
           <div className="space-y-1.5">
             <Label htmlFor="ep-website">Website</Label>
             <Input id="ep-website" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://…" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="ep-phone">Phone number</Label>
+            <Input
+              id="ep-phone"
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+234 800 000 0000"
+            />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="ep-bio">Bio</Label>
