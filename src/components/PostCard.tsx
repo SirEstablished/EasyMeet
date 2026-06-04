@@ -119,15 +119,6 @@ export function PostCard({
     setBusy(false);
   };
 
-  const refreshDebugLikes = async () => {
-    const result = await supabase
-      .from("post_likes")
-      .select("*")
-      .eq("post_id", post.id);
-    setDebugDbCount(result.data?.length ?? null);
-    setDebugError(result.error?.message ?? null);
-  };
-
   const share = async () => {
     const url = `${window.location.origin}/feed#post-${post.id}`;
     try {
