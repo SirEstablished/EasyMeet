@@ -4,7 +4,7 @@ import { supabase, type Profile } from "@/integrations/supabase/client";
 import { ProfileView } from "@/components/ProfileView";
 import { useAuth } from "@/lib/providers";
 import { Button } from "@/components/ui/button";
-import { Pencil, MessageCircle } from "lucide-react";
+import { Pencil, MessageCircle, Loader2 } from "lucide-react";
 import { getOrCreateConversation } from "@/lib/conversations";
 import { toast } from "sonner";
 
@@ -15,13 +15,17 @@ export const Route = createFileRoute("/_authenticated/profile/$id")({
 function PublicProfilePage() {
   const { id } = Route.useParams();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  const [starting, setStarting] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setErr(null);
+    setProfile(null);
     supabase
       .from("profiles")
       .select("*")
@@ -38,28 +42,9 @@ function PublicProfilePage() {
     };
   }, [id]);
 
-  if (loading) {
-    return <div className="max-w-3xl mx-auto px-4 py-10 text-muted-foreground">Loading…</div>;
-  }
-  if (err || !profile) {
-    return (
-      <div className="max-w-3xl mx-auto px-4 py-10 text-center">
-        <h1 className="text-xl font-semibold">Profile not found</h1>
-        <p className="text-sm text-muted-foreground mt-1">{err || "This user does not exist."}</p>
-        <Button asChild variant="outline" className="mt-4">
-          <Link to="/explore">Back to Explore</Link>
-        </Button>
-      </div>
-    );
-  }
-
-  const isMe = user?.id === profile.id;
-  const navigate = useNavigate();
-  const [starting, setStarting] = useState(false);
-
   const onMessage = async () => {
+    if (!profile) return;
     if (!user) return;
-    // Target is the profile owner from the URL — never the logged-in user.
     const targetId = profile.id;
     if (!targetId || targetId === user.id) {
       toast.error("You cannot message yourself");
@@ -75,6 +60,27 @@ function PublicProfilePage() {
       setStarting(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-20 flex items-center justify-center text-muted-foreground">
+        <Loader2 className="h-6 w-6 animate-spin mr-2" /> Loading profile…
+      </div>
+    );
+  }
+  if (err || !profile) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-10 text-center">
+        <h1 className="text-xl font-semibold">Profile not found</h1>
+        <p className="text-sm text-muted-foreground mt-1">{err || "This user does not exist."}</p>
+        <Button asChild variant="outline" className="mt-4">
+          <Link to="/explore">Back to Explore</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  const isMe = user?.id === profile.id;
 
   return (
     <ProfileView
