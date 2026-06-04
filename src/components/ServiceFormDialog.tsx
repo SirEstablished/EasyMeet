@@ -46,7 +46,18 @@ export function ServiceFormDialog({
   const [preview, setPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [optimizing, setOptimizing] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const getErrorMessage = (error: unknown) => {
+    if (!error) return "Unknown Supabase error";
+    if (error instanceof Error) return error.message;
+    try {
+      return JSON.stringify(error, null, 2);
+    } catch {
+      return String(error);
+    }
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -58,6 +69,7 @@ export function ServiceFormDialog({
     setImageUrl(service?.image_url ?? null);
     setFile(null);
     setPreview(null);
+    setSubmitError(null);
   }, [open, service]);
 
   const onFile = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -81,8 +93,9 @@ export function ServiceFormDialog({
     const priceNum = Number(price);
     if (!priceNum || priceNum <= 0) return toast.error("Enter a valid price");
     setSaving(true);
+    setSubmitError(null);
     try {
-      let finalImage = imageUrl;
+      let finalImage: string | null = service ? imageUrl : null;
       if (file) {
         const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
         const path = `${user.id}/${Date.now()}.${ext}`;
@@ -91,6 +104,8 @@ export function ServiceFormDialog({
           .upload(path, file, { upsert: false, contentType: file.type, cacheControl: "3600" });
         if (upErr) throw upErr;
         finalImage = supabase.storage.from("service-images").getPublicUrl(path).data.publicUrl;
+      } else if (!service) {
+        console.log("[services] no image selected; inserting image_url as null");
       }
       const payload = {
         title: title.trim(),
@@ -118,13 +133,17 @@ export function ServiceFormDialog({
           .insert({ ...payload, provider_id: user.id })
           .select("*")
           .single();
+        console.log("[services] insert error object", error);
         if (error) { console.error("[services] insert error", error); throw error; }
         onSaved(data as Service);
         toast.success("Service created successfully");
       }
       onOpenChange(false);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to save");
+      const message = getErrorMessage(e);
+      console.log("[services] save caught error object", e);
+      setSubmitError(message);
+      toast.error(message);
     } finally {
       setSaving(false);
     }
@@ -139,6 +158,11 @@ export function ServiceFormDialog({
           <DialogTitle>{service ? "Edit service" : "Add new service"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
+          {submitError && (
+            <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive whitespace-pre-wrap">
+              {submitError}
+            </div>
+          )}
           <div>
             <Label>Title *</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Wedding Photography" />
