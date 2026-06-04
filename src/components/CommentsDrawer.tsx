@@ -1,4 +1,4 @@
-import { useEffect, useState, type KeyboardEvent } from "react";
+import { useEffect, useState } from "react";
 import {
   Sheet,
   SheetContent,
@@ -6,12 +6,14 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Send, Trash2 } from "lucide-react";
 import { supabase, type Comment } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/providers";
-import { timeAgo, containsPhoneNumber } from "@/lib/timeAgo";
+import { timeAgo } from "@/lib/timeAgo";
+import { containsPhone, PHONE_BLOCK_MESSAGE } from "@/lib/phoneCheck";
+import { MentionTextarea } from "./MentionTextarea";
+import { RichText } from "./RichText";
 import { toast } from "sonner";
 
 export function CommentsDrawer({
@@ -54,8 +56,8 @@ export function CommentsDrawer({
     if (!user || !postId) return;
     const body = text.trim();
     if (!body) return;
-    if (containsPhoneNumber(body)) {
-      toast.error("Phone numbers are not allowed in comments");
+    if (containsPhone(body)) {
+      toast.error(PHONE_BLOCK_MESSAGE.replace("messages", "comments"));
       return;
     }
     setSending(true);
@@ -83,13 +85,6 @@ export function CommentsDrawer({
     }
     setComments((c) => c.filter((x) => x.id !== id));
     onCountChange?.(postId, -1);
-  };
-
-  const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      submit();
-    }
   };
 
   return (
