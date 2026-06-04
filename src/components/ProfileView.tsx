@@ -209,29 +209,7 @@ export function ProfileView({
         </div>
 
         {/* Tabs */}
-        {isCustomer ? (
-          <Tabs defaultValue="posts" className="mt-8">
-            <TabsList>
-              <TabsTrigger value="posts">Posts</TabsTrigger>
-            </TabsList>
-            <TabsContent value="posts" className="mt-4">
-              {posts.length === 0 ? (
-                <EmptyState>No posts yet</EmptyState>
-              ) : (
-                <div className="space-y-4">
-                  {posts.map((p) => (
-                    <PostCard
-                      key={p.id}
-                      post={p}
-                      onOpenComments={setCommentsFor}
-                      onDeleted={(id) => setPosts((cur) => cur.filter((x) => x.id !== id))}
-                    />
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
-        ) : (
+        {!isCustomer && (
         <Tabs defaultValue="services" className="mt-8">
           <TabsList>
             <TabsTrigger value="services">Services</TabsTrigger>
