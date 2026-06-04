@@ -5,15 +5,19 @@ import { ProfileView } from "@/components/ProfileView";
 import { EditProfileDialog } from "@/components/EditProfileDialog";
 import { Button } from "@/components/ui/button";
 import { VerificationTicks } from "@/components/VerificationTicks";
-import { Pencil, Star } from "lucide-react";
+import { Pencil, Star, Loader2 } from "lucide-react";
+import { payWithPaystack } from "@/lib/paystack";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/profile/")({
   component: MyProfilePage,
 });
 
 function MyProfilePage() {
-  const { profile } = useAuth();
+  const { profile, user, refreshProfile } = useAuth();
   const [edit, setEdit] = useState(false);
+  const [buyingTick, setBuyingTick] = useState<"blue" | "white" | null>(null);
 
   if (!profile) {
     return (
@@ -25,6 +29,42 @@ function MyProfilePage() {
 
   const isBusiness = profile.role === "business";
   const isProfessional = profile.role === "professional";
+
+  const buyTick = async (type: "blue" | "white") => {
+    if (!user) return;
+    const amount = type === "blue" ? 5000 : 10000;
+    setBuyingTick(type);
+    try {
+      const res = await payWithPaystack({
+        email: user.email || `${user.id}@easymeet.app`,
+        amountNgn: amount,
+        metadata: { kind: "tick", tick_type: type },
+      });
+      const expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+      const [{ error: tErr }, { error: pErr }] = await Promise.all([
+        supabase.from("tick_purchases").insert({
+          user_id: user.id,
+          tick_type: type,
+          amount_paid: amount,
+          payment_ref: res.reference,
+          expires_at: expiresAt,
+        }),
+        supabase.from("profiles").update(type === "blue" ? { blue_tick: true } : { white_tick: true }).eq("id", user.id),
+      ]);
+      if (tErr || pErr) throw tErr || pErr;
+      await refreshProfile();
+      if (type === "blue") toast.success("Blue tick activated! Your profile is now verified.");
+      else toast.success("White tick activated! Your organisation is now verified.");
+    } catch (e) {
+      if (e instanceof Error && e.message === "Payment cancelled") {
+        toast.message("Payment cancelled");
+      } else {
+        toast.error(e instanceof Error ? e.message : "Payment failed");
+      }
+    } finally {
+      setBuyingTick(null);
+    }
+  };
 
   return (
     <>
@@ -67,6 +107,8 @@ function MyProfilePage() {
                   cta="Get Blue Tick"
                   disabled={profile.blue_tick}
                   disabledLabel="Active"
+                  loading={buyingTick === "blue"}
+                  onClick={() => buyTick("blue")}
                 />
               )}
               {isBusiness && (
@@ -78,6 +120,8 @@ function MyProfilePage() {
                   cta="Get White Tick"
                   disabled={profile.white_tick}
                   disabledLabel="Active"
+                  loading={buyingTick === "white"}
+                  onClick={() => buyTick("white")}
                 />
               )}
               <div className="rounded-xl border border-border p-4">
@@ -114,6 +158,8 @@ function VerificationCard({
   cta,
   disabled,
   disabledLabel,
+  loading,
+  onClick,
 }: {
   title: string;
   badge: React.ReactNode;
@@ -122,6 +168,8 @@ function VerificationCard({
   cta: string;
   disabled?: boolean;
   disabledLabel?: string;
+  loading?: boolean;
+  onClick?: () => void;
 }) {
   return (
     <div className="rounded-xl border border-border p-4 flex flex-col">
@@ -131,7 +179,8 @@ function VerificationCard({
       </div>
       <p className="text-xs text-muted-foreground mt-2 flex-1">{description}</p>
       <div className="mt-3 font-bold text-primary">{price}</div>
-      <Button className="mt-3 bg-gradient-brand" disabled={disabled}>
+      <Button className="mt-3 bg-gradient-brand" disabled={disabled || loading} onClick={onClick}>
+        {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
         {disabled ? disabledLabel || "Active" : cta}
       </Button>
     </div>
