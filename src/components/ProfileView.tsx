@@ -73,6 +73,25 @@ export function ProfileView({
     };
   }, [profile.id, profile.role]);
 
+  // Realtime: any like/unlike on this profile's posts updates the count for all viewers.
+  useEffect(() => {
+    const channel = supabase
+      .channel(`profile_post_likes:${profile.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "post_likes" },
+        (payload) => {
+          const row = (payload.new ?? payload.old) as { post_id?: string } | null;
+          if (row?.post_id) refreshLike(row.post_id);
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile.id]);
+
   const isBusiness = profile.role === "business";
   const isCustomer = profile.role === "customer";
   const initials = initialsOf(profile.full_name || profile.username || "U");
