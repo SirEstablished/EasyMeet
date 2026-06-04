@@ -21,21 +21,22 @@ function PublicProfilePage() {
   const [err, setErr] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
 
-  // Reset synchronously when the route id changes so we never render
-  // the previously loaded profile under the new URL.
-  const [loadedId, setLoadedId] = useState<string | null>(null);
-  if (loadedId !== id && (profile !== null || loading === false)) {
-    setProfile(null);
-    setErr(null);
-    setLoading(true);
-    setLoadedId(id);
-  }
-
   useEffect(() => {
     let cancelled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
     setLoading(true);
     setErr(null);
     setProfile(null);
+
+    console.log("[profile] fetching id:", id);
+
+    timeoutId = setTimeout(() => {
+      if (cancelled) return;
+      console.warn("[profile] timeout after 5s for id:", id);
+      setErr("Loading timed out. Please try again.");
+      setLoading(false);
+    }, 5000);
+
     supabase
       .from("profiles")
       .select("*")
@@ -43,12 +44,26 @@ function PublicProfilePage() {
       .maybeSingle()
       .then(({ data, error }) => {
         if (cancelled) return;
-        if (error) setErr(error.message);
+        if (timeoutId) clearTimeout(timeoutId);
+        console.log("[profile] response:", { data, error });
+        if (error) {
+          setErr(error.message);
+        } else if (!data) {
+          setErr("Profile not found");
+        }
         setProfile((data as Profile) ?? null);
+        setLoading(false);
+      })
+      .catch((e: any) => {
+        if (cancelled) return;
+        if (timeoutId) clearTimeout(timeoutId);
+        console.error("[profile] fetch failed:", e);
+        setErr(e?.message || "Failed to load profile");
         setLoading(false);
       });
     return () => {
       cancelled = true;
+      if (timeoutId) clearTimeout(timeoutId);
     };
   }, [id]);
 
