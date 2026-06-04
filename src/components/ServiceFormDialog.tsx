@@ -124,7 +124,10 @@ export function ServiceFormDialog({
           .eq("id", service.id)
           .select("*")
           .single();
-        if (error) { console.error("[services] update error", error); throw error; }
+        if (error) {
+          console.error("[services] update error", error);
+          throw error;
+        }
         onSaved(data as Service);
         toast.success("Service updated successfully");
       } else {
@@ -134,7 +137,10 @@ export function ServiceFormDialog({
           .select("*")
           .single();
         console.log("[services] insert error object", error);
-        if (error) { console.error("[services] insert error", error); throw error; }
+        if (error) {
+          console.error("[services] insert error", error);
+          throw error;
+        }
         onSaved(data as Service);
         toast.success("Service created successfully");
       }
@@ -165,24 +171,42 @@ export function ServiceFormDialog({
           )}
           <div>
             <Label>Title *</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Wedding Photography" />
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Wedding Photography"
+            />
           </div>
           <div>
             <Label>Description</Label>
-            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Price (NGN) *</Label>
-              <Input type="number" min={0} value={price} onChange={(e) => setPrice(e.target.value)} placeholder="50000" />
+              <Input
+                type="number"
+                min={0}
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                placeholder="50000"
+              />
             </div>
             <div>
               <Label>Category</Label>
               <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   {SERVICE_CATEGORIES.map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -195,7 +219,12 @@ export function ServiceFormDialog({
                 <img src={previewSrc} alt="" className="w-full max-h-48 object-cover" />
                 <button
                   type="button"
-                  onClick={() => { setFile(null); setPreview(null); setImageUrl(null); if (fileRef.current) fileRef.current.value = ""; }}
+                  onClick={() => {
+                    setFile(null);
+                    setPreview(null);
+                    setImageUrl(null);
+                    if (fileRef.current) fileRef.current.value = "";
+                  }}
                   className="absolute top-2 right-2 h-7 w-7 grid place-items-center rounded-full bg-black/60 text-white"
                 >
                   <X className="h-4 w-4" />
@@ -204,11 +233,22 @@ export function ServiceFormDialog({
             ) : (
               <label className="mt-1 flex items-center justify-center gap-2 h-24 rounded-lg border border-dashed border-border cursor-pointer text-sm text-muted-foreground hover:bg-secondary">
                 {optimizing ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" /> Optimising image…</>
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> Optimising image…
+                  </>
                 ) : (
-                  <><ImagePlus className="h-4 w-4" /> Upload image</>
+                  <>
+                    <ImagePlus className="h-4 w-4" /> Upload image
+                  </>
                 )}
-                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} disabled={optimizing} />
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={onFile}
+                  disabled={optimizing}
+                />
               </label>
             )}
           </div>
@@ -221,7 +261,9 @@ export function ServiceFormDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
           <Button onClick={save} disabled={saving} className="bg-gradient-brand">
             {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             {service ? "Save changes" : "Create service"}
