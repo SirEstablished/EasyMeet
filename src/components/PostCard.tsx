@@ -35,8 +35,6 @@ export function PostCard({
   const [boostOpen, setBoostOpen] = useState(false);
   const [boostUntil, setBoostUntil] = useState<string | null>(post.boost_until);
   const [boostedFlag, setBoostedFlag] = useState(!!post.is_boosted);
-  const [debugDbCount, setDebugDbCount] = useState<number | null>(null);
-  const [debugError, setDebugError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const isMine = user?.id === post.author_id;
   const a = post.author;
@@ -119,15 +117,6 @@ export function PostCard({
     }
     await fetchLikes();
     setBusy(false);
-  };
-
-  const refreshDebugLikes = async () => {
-    const result = await supabase
-      .from("post_likes")
-      .select("*")
-      .eq("post_id", post.id);
-    setDebugDbCount(result.data?.length ?? null);
-    setDebugError(result.error?.message ?? null);
   };
 
   const share = async () => {
@@ -245,23 +234,6 @@ export function PostCard({
         </Button>
       </div>
 
-      {/* TEMP DEBUG */}
-      <div className="px-4 sm:px-5 py-2 border-t border-dashed border-border bg-muted/30 text-xs space-y-1">
-        <div className="font-mono text-muted-foreground">post.id: {post.id}</div>
-        <button
-          type="button"
-          onClick={refreshDebugLikes}
-          className="px-2 py-1 rounded bg-primary text-primary-foreground text-xs"
-        >
-          Refresh Likes
-        </button>
-        {debugDbCount !== null && (
-          <div className="font-mono text-green-600">DB Count: {debugDbCount}</div>
-        )}
-        {debugError && (
-          <div className="font-mono text-red-600">Error: {debugError}</div>
-        )}
-      </div>
       <BoostPostModal
         open={boostOpen}
         onOpenChange={setBoostOpen}
