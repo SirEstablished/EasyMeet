@@ -34,7 +34,7 @@ export function ProfileView({
     let cancelled = false;
     (async () => {
       const [{ data: s }, { data: r }, { data: p }] = await Promise.all([
-        supabase.from("services").select("*").eq("owner_id", profile.id).order("created_at", { ascending: false }),
+        supabase.from("services").select("*").eq("provider_id", profile.id).order("created_at", { ascending: false }),
         supabase
           .from("reviews")
           .select("*, reviewer:reviewer_id(id, full_name, username, avatar_url)")
@@ -174,7 +174,7 @@ export function ProfileView({
                       </p>
                       <div className="mt-3 flex items-center justify-between">
                         <span className="font-bold text-primary">
-                          ₦{Number(s.price_ngn).toLocaleString()}
+                          ₦{Number(s.price).toLocaleString()}
                         </span>
                         <Button size="sm">Book Now</Button>
                       </div>
