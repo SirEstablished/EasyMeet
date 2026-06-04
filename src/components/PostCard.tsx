@@ -234,23 +234,6 @@ export function PostCard({
         </Button>
       </div>
 
-      {/* TEMP DEBUG */}
-      <div className="px-4 sm:px-5 py-2 border-t border-dashed border-border bg-muted/30 text-xs space-y-1">
-        <div className="font-mono text-muted-foreground">post.id: {post.id}</div>
-        <button
-          type="button"
-          onClick={refreshDebugLikes}
-          className="px-2 py-1 rounded bg-primary text-primary-foreground text-xs"
-        >
-          Refresh Likes
-        </button>
-        {debugDbCount !== null && (
-          <div className="font-mono text-green-600">DB Count: {debugDbCount}</div>
-        )}
-        {debugError && (
-          <div className="font-mono text-red-600">Error: {debugError}</div>
-        )}
-      </div>
       <BoostPostModal
         open={boostOpen}
         onOpenChange={setBoostOpen}
