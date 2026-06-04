@@ -1,70 +1,41 @@
-## Plan
+## Goal
+Make every interactive element fully visible and tappable at 375–430px wide. No desktop layout, functionality, or Supabase code changes.
 
-Four connected fixes spanning DB schema, storage, signup UX, and a new marketplace.
+## Scope (visual/CSS only)
 
-### 1. Database migrations (one migration file)
+### 1. Landing header (`src/routes/index.tsx`)
+- On mobile the header packs theme toggle + "Sign in" + "Get Started" into a 16px-padded row — buttons get clipped.
+- Fix: tighten container padding on mobile (`px-3`), shrink buttons on `<sm` (`size="sm"`, `px-3 text-sm`), hide the standalone "Sign in" text button below `sm` (Sign-in remains accessible via Get Started → AuthModal toggle), keep theme toggle + Get Started visible. No desktop change (`sm:` breakpoints preserve current layout).
+- Hero CTAs: ensure buttons stack full-width on mobile (`w-full sm:w-auto`).
 
-**profiles** — add columns:
-- `profession TEXT`
-- `business_type TEXT`
-- `sells_products BOOLEAN DEFAULT FALSE`
-- `offers_services BOOLEAN DEFAULT TRUE`
+### 2. App navbar (`src/components/AppNavbar.tsx`)
+- The nav links row is `hidden md:flex` (good), but the right cluster (theme, bell, avatar) + logo can crowd 375px.
+- Fix: reduce horizontal padding on mobile (`px-3 sm:px-6`), shrink icon buttons gap, ensure Logo truncates.
+- Add a mobile bottom tab bar OR a hamburger menu? → Out of scope unless asked; instead expose the existing nav links via a `Sheet` triggered by a menu icon visible only on `<md`. This restores access to Home/Explore/Feed/Shop/Messages/Profile on mobile (currently they're inaccessible without desktop mode). Uses existing `Sheet` shadcn component — no new deps, no logic changes.
 
-**products** — new table:
-- id, seller_id (FK profiles, cascade), title, description, price NUMERIC, currency TEXT default 'NGN', category, product_type CHECK ('physical'|'digital') default 'physical', image_urls TEXT[], digital_file_url TEXT, stock_count INT default 0, is_active BOOL default true, created_at
-- GRANTs: SELECT/INSERT/UPDATE/DELETE to authenticated; ALL to service_role; SELECT to anon
-- RLS: select where is_active=true (authenticated); insert/update/delete by seller_id = auth.uid()
+### 3. Dashboard (`src/routes/_authenticated/dashboard.tsx`)
+- Audit stat cards/grids for `grid-cols-*` without a mobile fallback; ensure `grid-cols-1 sm:grid-cols-2 lg:grid-cols-4` pattern.
+- Action buttons: `flex-wrap` + `w-full sm:w-auto` where they currently overflow.
 
-**orders** — extend if needed: ensure it accepts product orders (add `product_id UUID` nullable, `kind TEXT` default 'service'). Existing `service_id` stays nullable.
+### 4. My Services / My Products / My Orders / My Bookings
+- Header rows with title + "Create" button: switch to `flex-col sm:flex-row` with `w-full sm:w-auto` button.
+- Card grids: ensure `grid-cols-1 sm:grid-cols-2` minimum.
 
-### 2. Storage buckets
+### 5. Profile pages (`ProfileView.tsx`, `profile.$id.tsx`)
+- Action buttons (Edit/Message/Follow) wrap to a column on mobile (`flex-wrap gap-2`, buttons `flex-1 min-w-0` or full-width).
+- Cover/avatar overlap area: ensure no negative-margin clipping below 375px.
 
-- Ensure `service-images` public bucket exists (already used)
-- Create `product-images` public bucket
-- Create `digital-products` **private** bucket with RLS so only seller can upload/read; signed URLs delivered after purchase
+### 6. Service / Product cards & dialogs
+- `ServiceFormDialog` / `ProductFormDialog`: ensure `DialogContent` uses `max-w-[95vw] sm:max-w-lg` and inner buttons stack on mobile.
 
-### 3. Image optimisation utility
+### 7. Global safety net (`src/styles.css`)
+- Add `html, body { overflow-x: hidden; }` (or `max-width: 100vw`) as a backstop against horizontal scroll from blur orbs/decoratives.
+- Constrain landing-page decorative blurs with `overflow-hidden` on their parent sections (already in hero — verify on others).
 
-`src/lib/imageOptimize.ts`:
-- `optimizeImage(file, { maxDim=1200, maxSizeKB=500 })` → File
-- Uses Canvas. PNG with alpha → PNG; else JPEG with iterative quality reduction until <500KB
-- Plug into: avatar upload, cover upload, post media, service image, product images
+## Out of scope
+- Desktop layout (≥`sm`/`md` breakpoints untouched).
+- Any data fetching, Supabase, auth, routing, or business-logic code.
+- New features beyond a mobile menu Sheet to surface existing nav links.
 
-### 4. FIX 1 — Services CRUD
-
-Audit `ServiceFormDialog.tsx`: ensure insert/update path actually fires, image goes through `optimizeImage` then upload to `service-images/{uid}/{filename}`, then INSERT/UPDATE `services` with `owner_id=auth.uid()`, title, description, price_ngn, category, image_url, is_active. Toast success/error. Parent `my-services.tsx` already refreshes via `onSaved`.
-
-### 5. FIX 3 — Signup flow
-
-Update `AuthModal.tsx` to add a Step 2 after role selection:
-- Professional: profession dropdown (predefined list + Other free text), sells_products toggle
-- Business: business_type dropdown, mode toggle (sell products / offer services / both)
-- Customer: skip
-- On signup, save extra fields into profiles after user creation (or via trigger update)
-
-### 6. FIX 4 — Products marketplace
-
-**New files:**
-- `src/components/ProductFormDialog.tsx` — add/edit product with up to 4 images (all optimised), physical (stock) vs digital (file upload to `digital-products`)
-- `src/routes/_authenticated/my-products.tsx` — list/manage; gated by `sells_products=true`
-- Rewrite `src/routes/_authenticated/shop.tsx` — query `products` table only, not `services`
-
-**Update orders insert for products:** store `product_id`, `service_title` = product title.
-
-**Digital delivery:** after successful payment, generate signed URL for `digital_file_url` (path stored as bucket path) and show in success modal.
-
-**Navbar/dashboard:** add "My Products" link when `sells_products=true`; keep "My Services" when `offers_services=true`.
-
-### Technical notes
-
-- All image inputs run through `optimizeImage` with a brief "Optimising image..." indicator
-- Add `Product` interface + `PRODUCT_CATEGORIES`, `PROFESSIONS`, `BUSINESS_TYPES` to `client.ts`
-- Update `Profile` interface with new fields
-- Remove services from `/shop` query; service discovery stays on profile pages
-- Keep ₦ formatting, purple/green branding intact
-
-### Out of scope (won't touch)
-
-- Existing messaging/feed/explore code
-- Paystack core flow (reused)
-- Auth-protected route layout
+## Validation
+After edits: use `preview_ui--set_preview_device_viewport` (mobile) and visually verify each route — landing, dashboard, my-services, my-products, profile, shop, feed — at 375px. Confirm no horizontal scroll and all CTAs tappable.

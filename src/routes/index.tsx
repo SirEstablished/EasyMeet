@@ -42,17 +42,18 @@ function Landing() {
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       <header className="sticky top-0 z-30 glass-panel">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2">
           <Logo />
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme" className="h-9 w-9">
               {theme === "light" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
             </Button>
-            <Button variant="ghost" onClick={() => openModal("login")}>
+            <Button variant="ghost" onClick={() => openModal("login")} className="hidden sm:inline-flex">
               Sign in
             </Button>
-            <Button onClick={() => openModal("signup")} className="bg-gradient-brand glow-primary">
-              Get Started
+            <Button onClick={() => openModal("signup")} className="bg-gradient-brand glow-primary h-9 px-3 text-sm sm:px-4">
+              <span className="sm:hidden">Start</span>
+              <span className="hidden sm:inline">Get Started</span>
             </Button>
           </div>
         </div>
@@ -85,11 +86,11 @@ function Landing() {
             EasyMeet is Nigeria's top service marketplace — connecting customers with trusted local
             professionals and businesses, in minutes.
           </p>
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Button size="lg" className="bg-gradient-brand text-primary-foreground h-12 px-7 glow-primary hover:scale-[1.03] transition-transform" onClick={goApp}>
+          <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 max-w-sm sm:max-w-none mx-auto">
+            <Button size="lg" className="bg-gradient-brand text-primary-foreground h-12 px-7 glow-primary hover:scale-[1.03] transition-transform w-full sm:w-auto" onClick={goApp}>
               Get Started
             </Button>
-            <Button size="lg" variant="outline" className="h-12 px-7 glass-card hover:bg-primary/5" onClick={() => openModal("signup")}>
+            <Button size="lg" variant="outline" className="h-12 px-7 glass-card hover:bg-primary/5 w-full sm:w-auto" onClick={() => openModal("signup")}>
               Browse Professionals
             </Button>
           </div>

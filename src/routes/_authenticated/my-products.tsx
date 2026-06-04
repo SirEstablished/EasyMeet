@@ -66,12 +66,12 @@ function MyProductsPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl sm:text-3xl font-bold">My Products</h1>
           <p className="text-sm text-muted-foreground">Manage what you sell on EasyMeet.</p>
         </div>
-        <Button onClick={() => { setEditing(null); setOpen(true); }} className="bg-gradient-brand">
+        <Button onClick={() => { setEditing(null); setOpen(true); }} className="bg-gradient-brand w-full sm:w-auto">
           <Plus className="h-4 w-4 mr-2" /> Add New Product
         </Button>
       </div>
@@ -86,7 +86,7 @@ function MyProductsPage() {
             You haven't added any products yet.
           </div>
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {products.map((p) => {
               const cover = p.image_urls?.[0];
               return (
