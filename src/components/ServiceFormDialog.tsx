@@ -19,7 +19,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { supabase, SERVICE_CATEGORIES, type Service } from "@/integrations/supabase/client";
-import { useAuth } from "@/lib/providers";
 import { Loader2, ImagePlus, X } from "lucide-react";
 import { toast } from "sonner";
 import { optimizeImage } from "@/lib/imageOptimize";
@@ -35,7 +34,6 @@ export function ServiceFormDialog({
   service?: Service | null;
   onSaved: (s: Service) => void;
 }) {
-  const { user } = useAuth();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState<string>("");
@@ -88,10 +86,16 @@ export function ServiceFormDialog({
   };
 
   const save = async () => {
-    if (!user) return;
     if (!title.trim()) return toast.error("Title is required");
     const priceNum = Number(price);
     if (!priceNum || priceNum <= 0) return toast.error("Enter a valid price");
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) return;
+
     setSaving(true);
     setSubmitError(null);
     try {
@@ -131,18 +135,31 @@ export function ServiceFormDialog({
         onSaved(data as Service);
         toast.success("Service updated successfully");
       } else {
+        const insertPayload = {
+          provider_id: user.id,
+          title: title,
+          description: description,
+          price: parseFloat(price),
+          category: category,
+          image_url: finalImage || null,
+          is_active: true,
+        };
+
+        console.log("[services] insert payload", insertPayload);
+
         const { data, error } = await supabase
           .from("services")
-          .insert({ ...payload, provider_id: user.id })
+          .insert(insertPayload)
           .select("*")
           .single();
         console.log("[services] insert error object", error);
         if (error) {
-          console.error("[services] insert error", error);
+          console.error("Insert error:", error);
+          toast.error(error.message);
           throw error;
         }
         onSaved(data as Service);
-        toast.success("Service created successfully");
+        toast.success("Service added successfully");
       }
       onOpenChange(false);
     } catch (e) {
