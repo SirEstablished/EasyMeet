@@ -69,7 +69,8 @@
 :root {
   --radius: 0.625rem;
   /* EasyMeet brand: primary #6C47FF, accent #00C896 */
-  --background: oklch(0.99 0.005 280);
+  /* #F8F7FF light purple-tinted background */
+  --background: oklch(0.975 0.012 285);
   --foreground: oklch(0.18 0.03 280);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.18 0.03 280);
@@ -105,9 +106,10 @@
 }
 
 .dark {
-  --background: oklch(0.15 0.025 280);
+  /* #0D0D1A deep navy background */
+  --background: oklch(0.14 0.035 280);
   --foreground: oklch(0.97 0.005 280);
-  --card: oklch(0.2 0.03 280);
+  --card: oklch(0.19 0.035 280);
   --card-foreground: oklch(0.97 0.005 280);
   --popover: oklch(0.2 0.03 280);
   --popover-foreground: oklch(0.97 0.005 280);
@@ -150,6 +152,47 @@
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    position: relative;
+    min-height: 100vh;
+  }
+
+  /* Subtle dot-grid in light mode, animated orbs in dark mode */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    pointer-events: none;
+    background-image:
+      radial-gradient(color-mix(in oklab, var(--primary) 10%, transparent) 1px, transparent 1px);
+    background-size: 22px 22px;
+    opacity: 0.35;
+  }
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(420px circle at 10% 10%, color-mix(in oklab, var(--primary) 14%, transparent), transparent 60%),
+      radial-gradient(520px circle at 90% 80%, color-mix(in oklab, var(--accent) 12%, transparent), transparent 60%);
+    animation: orbDrift 22s ease-in-out infinite alternate;
+  }
+  .dark body::before {
+    opacity: 0.18;
+    background-image:
+      radial-gradient(color-mix(in oklab, var(--primary) 22%, transparent) 1px, transparent 1px);
+  }
+  .dark body::after {
+    background:
+      radial-gradient(500px circle at 15% 20%, color-mix(in oklab, var(--primary) 22%, transparent), transparent 60%),
+      radial-gradient(600px circle at 85% 75%, color-mix(in oklab, var(--accent) 18%, transparent), transparent 60%),
+      radial-gradient(360px circle at 70% 15%, color-mix(in oklab, #ff7ad9 14%, transparent), transparent 60%);
+  }
+
+  h1, h2, h3 {
+    letter-spacing: -0.02em;
   }
 }
 
@@ -162,4 +205,111 @@
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+}
+
+/* ===== Premium visual utilities ===== */
+
+@utility glass-card {
+  background-color: color-mix(in oklab, var(--card) 70%, transparent);
+  backdrop-filter: blur(18px) saturate(140%);
+  border: 1px solid color-mix(in oklab, var(--primary) 18%, var(--border));
+  box-shadow:
+    0 1px 0 0 color-mix(in oklab, white 6%, transparent) inset,
+    0 10px 30px -16px color-mix(in oklab, var(--primary) 25%, transparent);
+}
+
+@utility glass-panel {
+  background-color: color-mix(in oklab, var(--background) 65%, transparent);
+  backdrop-filter: blur(20px) saturate(140%);
+  border-bottom: 1px solid color-mix(in oklab, var(--primary) 14%, var(--border));
+}
+
+@utility lift-hover {
+  transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
+}
+
+@utility gradient-ring {
+  padding: 2px;
+  background-image: linear-gradient(135deg, var(--primary), var(--accent));
+  border-radius: 9999px;
+}
+
+@utility glow-primary {
+  box-shadow:
+    0 10px 30px -10px color-mix(in oklab, var(--primary) 55%, transparent),
+    0 0 0 1px color-mix(in oklab, var(--primary) 30%, transparent);
+}
+
+@utility bg-mesh-brand {
+  background-image:
+    radial-gradient(at 20% 20%, color-mix(in oklab, var(--primary) 60%, transparent) 0, transparent 50%),
+    radial-gradient(at 80% 30%, color-mix(in oklab, var(--accent) 50%, transparent) 0, transparent 50%),
+    radial-gradient(at 50% 90%, color-mix(in oklab, var(--primary-glow) 50%, transparent) 0, transparent 55%),
+    linear-gradient(135deg, var(--primary), var(--accent));
+  background-size: 200% 200%;
+  animation: meshShift 18s ease-in-out infinite alternate;
+}
+
+@keyframes meshShift {
+  0%   { background-position: 0% 0%, 100% 0%, 50% 100%, 0% 0%; }
+  100% { background-position: 100% 50%, 0% 100%, 50% 0%, 100% 100%; }
+}
+
+@keyframes orbDrift {
+  0%   { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(20px, -20px, 0); }
+}
+
+@keyframes floatY {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-10px); }
+}
+@utility float-soft { animation: floatY 6s ease-in-out infinite; }
+@utility float-soft-delayed { animation: floatY 7s ease-in-out -2s infinite; }
+@utility float-soft-slow { animation: floatY 9s ease-in-out -4s infinite; }
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@utility gold-shimmer {
+  background-image: linear-gradient(110deg, #f5c14a 20%, #fff3b0 45%, #f5c14a 70%);
+  background-size: 200% 100%;
+  animation: shimmer 3.5s linear infinite;
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--primary) 60%, transparent); }
+  50%      { box-shadow: 0 0 0 10px color-mix(in oklab, var(--primary) 0%, transparent); }
+}
+@utility pulse-glow { animation: pulseGlow 2.2s ease-out infinite; }
+
+@utility gradient-border {
+  position: relative;
+  background-clip: padding-box;
+  border: 1px solid transparent;
+}
+.gradient-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Buttons: subtle scale interaction app-wide */
+button:not(:disabled):active { transform: scale(0.98); }
+
+/* Route fade-in */
+@keyframes routeFade {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+main, [data-route-shell] {
+  animation: routeFade 280ms ease-out;
 }
