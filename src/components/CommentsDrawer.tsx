@@ -134,14 +134,16 @@ export function CommentsDrawer({
             })
           )}
         </div>
-        <div className="border-t border-border p-3 flex items-center gap-2">
-          <Input
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={onKey}
-            placeholder="Write a comment…"
-            maxLength={500}
-          />
+        <div className="border-t border-border p-3 flex items-end gap-2">
+          <div className="flex-1">
+            <MentionTextarea
+              asInput
+              value={text}
+              onChange={setText}
+              placeholder="Write a comment… use @ to tag"
+              maxLength={500}
+            />
+          </div>
           <Button size="icon" onClick={submit} disabled={sending || !text.trim()} className="bg-gradient-brand">
             <Send className="h-4 w-4" />
           </Button>
