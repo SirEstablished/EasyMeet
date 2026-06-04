@@ -4,7 +4,7 @@ import { supabase, type Profile } from "@/integrations/supabase/client";
 import { ProfileView } from "@/components/ProfileView";
 import { useAuth } from "@/lib/providers";
 import { Button } from "@/components/ui/button";
-import { Pencil, MessageCircle } from "lucide-react";
+import { Pencil, MessageCircle, Loader2 } from "lucide-react";
 import { getOrCreateConversation } from "@/lib/conversations";
 import { toast } from "sonner";
 
