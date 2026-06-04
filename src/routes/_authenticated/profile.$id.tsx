@@ -21,6 +21,16 @@ function PublicProfilePage() {
   const [err, setErr] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
 
+  // Reset synchronously when the route id changes so we never render
+  // the previously loaded profile under the new URL.
+  const [loadedId, setLoadedId] = useState<string | null>(null);
+  if (loadedId !== id && (profile !== null || loading === false)) {
+    setProfile(null);
+    setErr(null);
+    setLoading(true);
+    setLoadedId(id);
+  }
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -84,6 +94,7 @@ function PublicProfilePage() {
 
   return (
     <ProfileView
+      key={profile.id}
       profile={profile}
       editButton={
         isMe ? (
