@@ -41,7 +41,7 @@ export function ProfileView({
           .select("*, reviewer:reviewer_id(id, full_name, username, avatar_url)")
           .eq("professional_id", profile.id)
           .order("created_at", { ascending: false }),
-        profile.role === "business"
+        profile.role === "customer"
           ? Promise.resolve({ data: [] as Post[] })
           : supabase
               .from("posts")
@@ -65,7 +65,7 @@ export function ProfileView({
   const isCustomer = profile.role === "customer";
   const initials = initialsOf(profile.full_name || profile.username || "U");
 
-  const completion = calcCompletion(profile, services.length);
+  const completion = calcCompletion(profile);
 
   return (
     <div className="max-w-5xl mx-auto pb-16">
@@ -214,7 +214,7 @@ export function ProfileView({
           <TabsList>
             <TabsTrigger value="services">Services</TabsTrigger>
             <TabsTrigger value="reviews">Reviews</TabsTrigger>
-            {!isBusiness && <TabsTrigger value="posts">Posts</TabsTrigger>}
+            <TabsTrigger value="posts">Posts</TabsTrigger>
           </TabsList>
 
           <TabsContent value="services" className="mt-4">
@@ -284,8 +284,7 @@ export function ProfileView({
             )}
           </TabsContent>
 
-          {!isBusiness && (
-            <TabsContent value="posts" className="mt-4">
+          <TabsContent value="posts" className="mt-4">
               {posts.length === 0 ? (
                 <EmptyState>No posts yet</EmptyState>
               ) : (
@@ -300,8 +299,7 @@ export function ProfileView({
                   ))}
                 </div>
               )}
-            </TabsContent>
-          )}
+          </TabsContent>
         </Tabs>
         )}
         <CommentsDrawer
