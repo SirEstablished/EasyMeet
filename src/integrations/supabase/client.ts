@@ -78,3 +78,23 @@ export interface Comment {
   created_at: string;
   author?: Pick<Profile, "id" | "full_name" | "username" | "avatar_url"> | null;
 }
+
+export interface Conversation {
+  id: string;
+  user_a: string;
+  user_b: string;
+  last_message_at: string | null;
+  created_at: string;
+  other?: Profile | null;
+  last_message?: Message | null;
+  unread_count?: number;
+}
+
+export interface Message {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  body: string;
+  is_read: boolean;
+  created_at: string;
+}
