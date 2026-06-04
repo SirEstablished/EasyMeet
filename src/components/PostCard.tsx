@@ -117,7 +117,10 @@ export function PostCard({
   return (
     <article
       id={`post-${post.id}`}
-      className="rounded-2xl border border-border bg-card overflow-hidden"
+      className={cn(
+        "rounded-2xl glass-card overflow-hidden lift-hover hover:-translate-y-0.5 hover:shadow-xl",
+        isBoosted && "gradient-border",
+      )}
     >
       {isBoosted && (
         <div className="px-4 sm:px-5 pt-3 -mb-1 flex items-center gap-1.5 text-xs text-primary font-medium">
