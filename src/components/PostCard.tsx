@@ -21,16 +21,19 @@ import { RichText } from "./RichText";
 
 export function PostCard({
   post,
+  likeCount,
+  onLikeChanged,
   onOpenComments,
   onDeleted,
 }: {
   post: Post;
+  likeCount: number;
+  onLikeChanged: (postId: string) => void | Promise<void>;
   onOpenComments: (postId: string) => void;
   onDeleted?: (postId: string) => void;
 }) {
   const { user } = useAuth();
   const [liked, setLiked] = useState(!!post.liked_by_me);
-  const [likes, setLikes] = useState(post.like_count ?? 0);
   const [busy, setBusy] = useState(false);
   const [boostOpen, setBoostOpen] = useState(false);
   const [boostUntil, setBoostUntil] = useState<string | null>(post.boost_until);
@@ -44,48 +47,26 @@ export function PostCard({
   const mediaType = post.media_type ?? (mediaUrl ? "image" : null);
   const isBoosted = boostedFlag && boostUntil && new Date(boostUntil) > new Date();
 
-  // Sync count + my-like state with Supabase (visible to all users).
-  const refresh = async () => {
-    const [{ count }, myLikeRes] = await Promise.all([
-      supabase
+  // Sync "liked by me" only; the count comes from the parent's authoritative state.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!user) {
+        setLiked(false);
+        return;
+      }
+      const { data } = await supabase
         .from("post_likes")
-        .select("post_id", { count: "exact", head: true })
-        .eq("post_id", post.id),
-      user
-        ? supabase
-            .from("post_likes")
-            .select("post_id")
-            .eq("post_id", post.id)
-            .eq("user_id", user.id)
-            .maybeSingle()
-        : Promise.resolve({ data: null }),
-    ]);
-    setLikes(count ?? 0);
-    setLiked(!!(myLikeRes as { data: unknown }).data);
-  };
-
-  useEffect(() => {
-    refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [post.id, user?.id]);
-
-  // Realtime: keep like_count in sync for ALL users.
-  useEffect(() => {
-    const channel = supabase
-      .channel(`post_likes:${post.id}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "post_likes", filter: `post_id=eq.${post.id}` },
-        () => {
-          refresh();
-        },
-      )
-      .subscribe();
+        .select("post_id")
+        .eq("post_id", post.id)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (!cancelled) setLiked(!!data);
+    })();
     return () => {
-      supabase.removeChannel(channel);
+      cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [post.id, user?.id]);
+  }, [post.id, user]);
 
   // Auto-pause videos when scrolled out of view; resume when back in view if user had played them.
   useEffect(() => {
@@ -119,9 +100,8 @@ export function PostCard({
     if (!user || busy) return;
     setBusy(true);
     const next = !liked;
-    // Optimistic
+    // Optimistic toggle of the heart only; the count is owned by the parent.
     setLiked(next);
-    setLikes((n) => Math.max(0, n + (next ? 1 : -1)));
     if (next) {
       const { error } = await supabase
         .from("post_likes")
@@ -137,8 +117,8 @@ export function PostCard({
         .eq("user_id", user.id);
       if (error) toast.error("Couldn't unlike post");
     }
-    // Always sync with the real DB count so other users' likes are reflected.
-    await refresh();
+    // Ask the parent to re-fetch the authoritative count from Supabase.
+    await onLikeChanged(post.id);
     setBusy(false);
   };
 
@@ -245,7 +225,7 @@ export function PostCard({
       <div className="px-2 sm:px-3 py-1 flex items-center gap-1 border-t border-border">
         <Button variant="ghost" size="sm" onClick={toggleLike} className="gap-2">
           <Heart className={cn("h-4 w-4", liked && "fill-red-500 text-red-500")} />
-          <span className="tabular-nums">{likes}</span>
+          <span className="tabular-nums">{likeCount}</span>
         </Button>
         <Button variant="ghost" size="sm" onClick={() => onOpenComments(post.id)} className="gap-2">
           <MessageCircle className="h-4 w-4" />
