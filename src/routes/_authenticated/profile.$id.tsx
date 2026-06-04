@@ -37,30 +37,28 @@ function PublicProfilePage() {
       setLoading(false);
     }, 5000);
 
-    supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle()
-      .then(({ data, error }) => {
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", id)
+          .maybeSingle();
         if (cancelled) return;
         if (timeoutId) clearTimeout(timeoutId);
         console.log("[profile] response:", { data, error });
-        if (error) {
-          setErr(error.message);
-        } else if (!data) {
-          setErr("Profile not found");
-        }
+        if (error) setErr(error.message);
+        else if (!data) setErr("Profile not found");
         setProfile((data as Profile) ?? null);
         setLoading(false);
-      })
-      .catch((e: any) => {
+      } catch (e: any) {
         if (cancelled) return;
         if (timeoutId) clearTimeout(timeoutId);
         console.error("[profile] fetch failed:", e);
         setErr(e?.message || "Failed to load profile");
         setLoading(false);
-      });
+      }
+    })();
     return () => {
       cancelled = true;
       if (timeoutId) clearTimeout(timeoutId);
