@@ -59,9 +59,15 @@ function PublicProfilePage() {
 
   const onMessage = async () => {
     if (!user) return;
+    // Target is the profile owner from the URL — never the logged-in user.
+    const targetId = profile.id;
+    if (!targetId || targetId === user.id) {
+      toast.error("You cannot message yourself");
+      return;
+    }
     try {
       setStarting(true);
-      const cid = await getOrCreateConversation(user.id, profile.id);
+      const cid = await getOrCreateConversation(user.id, targetId);
       navigate({ to: "/messages", search: { c: cid } as any });
     } catch (e: any) {
       toast.error(e.message || "Could not start conversation");
