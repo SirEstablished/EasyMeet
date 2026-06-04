@@ -121,7 +121,7 @@ export function PostCard({
     >
       {isBoosted && (
         <div className="px-4 sm:px-5 pt-3 -mb-1 flex items-center gap-1.5 text-xs text-primary font-medium">
-          <Rocket className="h-3.5 w-3.5" /> Boosted
+          <Rocket className="h-3.5 w-3.5" /> Sponsored
         </div>
       )}
       <div className="p-4 sm:p-5 pb-3 flex items-start gap-3">
@@ -162,6 +162,11 @@ export function PostCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              {!isBoosted && (
+                <DropdownMenuItem onClick={() => setBoostOpen(true)}>
+                  <Rocket className="h-4 w-4 mr-2" /> Boost post
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={remove} className="text-destructive">
                 <Trash2 className="h-4 w-4 mr-2" /> Delete post
               </DropdownMenuItem>
@@ -198,6 +203,12 @@ export function PostCard({
           <span className="hidden sm:inline">Share</span>
         </Button>
       </div>
+      <BoostPostModal
+        open={boostOpen}
+        onOpenChange={setBoostOpen}
+        postId={post.id}
+        onBoosted={(_id, end) => { setBoostedFlag(true); setBoostUntil(end); }}
+      />
     </article>
   );
 }
