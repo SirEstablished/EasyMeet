@@ -1,5 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAuth } from "@/lib/providers";
+import { useEffect, useState } from "react";
+import { fetchCompletion } from "@/lib/profileCompletion";
 import {
   ShieldCheck,
   CalendarCheck,
@@ -26,6 +28,18 @@ function Dashboard() {
   const name = profile?.full_name || user?.email?.split("@")[0] || "there";
   const role = profile?.role || "customer";
   const greeting = greetings[role];
+
+  const [completion, setCompletion] = useState<number | null>(null);
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    fetchCompletion(user.id).then((c) => {
+      if (!cancelled) setCompletion(c);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user, profile]);
 
   const sellsProducts = !!profile?.sells_products;
   const offersServices = profile?.offers_services !== false && role !== "customer";
@@ -85,7 +99,7 @@ function Dashboard() {
           {[
             { label: "Active conversations", value: "0", accent: "border-l-primary" },
             { label: "Bookings this month", value: "0", accent: "border-l-accent" },
-            { label: "Profile completion", value: profile?.full_name ? "60%" : "20%", accent: "border-l-[#ff7ad9]" },
+            { label: "Profile completion", value: completion === null ? "—" : `${completion}%`, accent: "border-l-[#ff7ad9]" },
           ].map((s) => (
             <div
               key={s.label}

@@ -8,6 +8,7 @@ import { StarRating } from "./StarRating";
 import { Globe, MapPin } from "lucide-react";
 import { PostCard } from "./PostCard";
 import { CommentsDrawer } from "./CommentsDrawer";
+import { calcCompletion } from "@/lib/profileCompletion";
 
 function initialsOf(s: string) {
   return s
@@ -64,12 +65,7 @@ export function ProfileView({
   const isCustomer = profile.role === "customer";
   const initials = initialsOf(profile.full_name || profile.username || "U");
 
-  // Customer profile completion: avatar(25) + name+bio(25) + location(25) + phone(25)
-  const completion =
-    (profile.avatar_url ? 25 : 0) +
-    (profile.full_name && profile.bio ? 25 : 0) +
-    (profile.location ? 25 : 0) +
-    (profile.phone ? 25 : 0);
+  const completion = calcCompletion(profile, services.length);
 
   return (
     <div className="max-w-5xl mx-auto pb-16">
