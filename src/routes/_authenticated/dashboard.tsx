@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAuth } from "@/lib/providers";
 import {
   ShieldCheck,
@@ -7,6 +7,7 @@ import {
   Sparkles,
   Search,
   Users,
+  Store,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -25,23 +26,26 @@ function Dashboard() {
   const role = profile?.role || "customer";
   const greeting = greetings[role];
 
-  const quickLinks =
+  const quickLinks: { Icon: typeof Search; label: string; to: string }[] =
     role === "customer"
       ? [
-          { Icon: Search, label: "Browse Professionals" },
-          { Icon: CalendarCheck, label: "My Bookings" },
-          { Icon: MessageCircle, label: "Messages" },
+          { Icon: Store, label: "Shop", to: "/shop" },
+          { Icon: Search, label: "Browse Professionals", to: "/explore" },
+          { Icon: CalendarCheck, label: "My Orders", to: "/my-orders" },
+          { Icon: MessageCircle, label: "Messages", to: "/messages" },
         ]
       : role === "professional"
       ? [
-          { Icon: Sparkles, label: "My Services" },
-          { Icon: CalendarCheck, label: "Requests" },
-          { Icon: MessageCircle, label: "Messages" },
+          { Icon: Sparkles, label: "My Services", to: "/my-services" },
+          { Icon: CalendarCheck, label: "My Bookings", to: "/my-bookings" },
+          { Icon: Store, label: "Shop", to: "/shop" },
+          { Icon: MessageCircle, label: "Messages", to: "/messages" },
         ]
       : [
-          { Icon: Users, label: "Team" },
-          { Icon: Sparkles, label: "Listings" },
-          { Icon: MessageCircle, label: "Messages" },
+          { Icon: Sparkles, label: "My Services", to: "/my-services" },
+          { Icon: CalendarCheck, label: "My Bookings", to: "/my-bookings" },
+          { Icon: Users, label: "Explore", to: "/explore" },
+          { Icon: MessageCircle, label: "Messages", to: "/messages" },
         ];
 
   return (
@@ -52,12 +56,12 @@ function Dashboard() {
             Quick links
           </div>
           <ul className="space-y-1">
-            {quickLinks.map(({ Icon, label }) => (
+            {quickLinks.map(({ Icon, label, to }) => (
               <li key={label}>
-                <button className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm hover:bg-secondary text-left">
+                <Link to={to} className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm hover:bg-secondary text-left">
                   <Icon className="h-4 w-4 text-primary" />
                   {label}
-                </button>
+                </Link>
               </li>
             ))}
           </ul>

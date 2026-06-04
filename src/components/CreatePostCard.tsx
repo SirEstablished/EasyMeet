@@ -18,6 +18,7 @@ export function CreatePostCard({ onPosted }: { onPosted: (p: Post) => void }) {
   const [preview, setPreview] = useState<string | null>(null);
   const [posting, setPosting] = useState(false);
   const [boostOpen, setBoostOpen] = useState(false);
+  const [lastPostId, setLastPostId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   if (!profile || (profile.role !== "professional" && profile.role !== "business")) return null;
@@ -94,6 +95,7 @@ export function CreatePostCard({ onPosted }: { onPosted: (p: Post) => void }) {
       });
       setBody("");
       clearFile();
+      setLastPostId((data as Post).id);
       setBoostOpen(true);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to post";
@@ -167,7 +169,7 @@ export function CreatePostCard({ onPosted }: { onPosted: (p: Post) => void }) {
           </div>
         </div>
       </div>
-      <BoostPostModal open={boostOpen} onOpenChange={setBoostOpen} />
+      <BoostPostModal open={boostOpen} onOpenChange={setBoostOpen} postId={lastPostId} />
     </>
   );
 }

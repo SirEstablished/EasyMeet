@@ -41,6 +41,9 @@ export interface Service {
   price_ngn: number;
   image_url: string | null;
   created_at: string;
+  category?: string | null;
+  is_active?: boolean;
+  owner?: Pick<Profile, "id" | "full_name" | "username" | "avatar_url" | "role" | "blue_tick" | "white_tick" | "gold_tick"> | null;
 }
 
 export interface Review {
@@ -97,4 +100,42 @@ export interface Message {
   body: string;
   is_read: boolean;
   created_at: string;
+}
+
+export type OrderStatus = "pending" | "confirmed" | "completed" | "cancelled";
+export type PaymentStatus = "pending" | "paid" | "failed";
+
+export interface Order {
+  id: string;
+  customer_id: string;
+  provider_id: string;
+  service_id: string | null;
+  service_title: string;
+  amount: number;
+  notes: string | null;
+  payment_ref: string | null;
+  payment_status: PaymentStatus;
+  status: OrderStatus;
+  created_at: string;
+  customer?: Pick<Profile, "id" | "full_name" | "username" | "avatar_url"> | null;
+  provider?: Pick<Profile, "id" | "full_name" | "username" | "avatar_url"> | null;
+}
+
+export const SERVICE_CATEGORIES = [
+  "Technology",
+  "Design",
+  "Food & Catering",
+  "Beauty & Wellness",
+  "Education",
+  "Legal",
+  "Finance",
+  "Construction",
+  "Events",
+  "Other",
+] as const;
+export type ServiceCategory = (typeof SERVICE_CATEGORIES)[number];
+
+export function formatNgn(n: number | null | undefined): string {
+  const v = typeof n === "number" ? n : 0;
+  return "₦" + v.toLocaleString("en-NG");
 }

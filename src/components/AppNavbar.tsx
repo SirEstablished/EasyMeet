@@ -18,6 +18,7 @@ const navLinks = [
   { to: "/dashboard", label: "Home" },
   { to: "/explore", label: "Explore" },
   { to: "/feed", label: "Feed" },
+  { to: "/shop", label: "Shop" },
   { to: "/messages", label: "Messages" },
   { to: "/profile", label: "My Profile" },
 ] as const;
