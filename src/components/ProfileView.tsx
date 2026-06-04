@@ -9,6 +9,7 @@ import { Globe, MapPin } from "lucide-react";
 import { PostCard } from "./PostCard";
 import { CommentsDrawer } from "./CommentsDrawer";
 import { calcCompletion } from "@/lib/profileCompletion";
+import { fetchLikeCount } from "@/lib/likeCounts";
 
 function initialsOf(s: string) {
   return s
@@ -30,6 +31,12 @@ export function ProfileView({
   const [reviews, setReviews] = useState<Review[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
   const [commentsFor, setCommentsFor] = useState<string | null>(null);
+  const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
+
+  const refreshLike = async (postId: string) => {
+    const count = await fetchLikeCount(postId);
+    setLikeCounts((m) => ({ ...m, [postId]: count }));
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -55,6 +62,11 @@ export function ProfileView({
       setServices((s as Service[]) ?? []);
       setReviews((r as Review[]) ?? []);
       setPosts((p as Post[]) ?? []);
+      const arr = (p as Post[]) ?? [];
+      const entries = await Promise.all(
+        arr.map(async (post) => [post.id, await fetchLikeCount(post.id)] as const),
+      );
+      if (!cancelled) setLikeCounts(Object.fromEntries(entries));
     })();
     return () => {
       cancelled = true;
@@ -293,6 +305,8 @@ export function ProfileView({
                     <PostCard
                       key={p.id}
                       post={p}
+                      likeCount={likeCounts[p.id] ?? 0}
+                      onLikeChanged={refreshLike}
                       onOpenComments={setCommentsFor}
                       onDeleted={(id) => setPosts((cur) => cur.filter((x) => x.id !== id))}
                     />
