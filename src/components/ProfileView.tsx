@@ -77,7 +77,7 @@ export function ProfileView({
         }
       />
       <div className="px-4 sm:px-6 -mt-12 sm:-mt-14">
-        <div className="flex items-end justify-between gap-4 flex-wrap">
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div className="flex items-end gap-4">
             <span className="inline-block rounded-full p-[3px] bg-gradient-brand shadow-lg">
               <Avatar className="h-24 w-24 sm:h-28 sm:w-28 border-4 border-background">
@@ -88,7 +88,11 @@ export function ProfileView({
               </Avatar>
             </span>
           </div>
-          {editButton}
+          {editButton && (
+            <div className="w-full sm:w-auto [&_a]:w-full [&_button]:w-full sm:[&_a]:w-auto sm:[&_button]:w-auto">
+              {editButton}
+            </div>
+          )}
         </div>
 
         <div className="mt-4">
@@ -132,7 +136,7 @@ export function ProfileView({
           {profile.bio && <p className="mt-4 text-sm leading-relaxed">{profile.bio}</p>}
 
           {/* Stats */}
-          <div className="mt-5 grid grid-cols-3 gap-3 max-w-md">
+          <div className="mt-5 grid grid-cols-3 gap-2 sm:gap-3 max-w-md">
             <Stat
               label="Rating"
               value={
