@@ -37,7 +37,7 @@ export function AppNavbar() {
       .toUpperCase();
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur">
+    <header className="sticky top-0 z-40 glass-panel">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
         <Logo />
         <nav className="hidden md:flex items-center gap-1">
@@ -45,8 +45,11 @@ export function AppNavbar() {
             <Link
               key={l.to}
               to={l.to}
-              className="px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-              activeProps={{ className: "text-foreground bg-secondary" }}
+              className="relative px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group"
+              activeProps={{
+                className:
+                  "text-foreground after:content-[''] after:absolute after:left-3 after:right-3 after:-bottom-0.5 after:h-0.5 after:rounded-full after:bg-gradient-brand",
+              }}
             >
               {l.label}
             </Link>
@@ -60,12 +63,14 @@ export function AppNavbar() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="ml-1 outline-none">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={profile?.avatar_url ?? undefined} />
-                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
+                <span className="inline-block rounded-full p-[2px] bg-gradient-brand">
+                  <Avatar className="h-8 w-8 border-2 border-background">
+                    <AvatarImage src={profile?.avatar_url ?? undefined} />
+                    <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                </span>
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">

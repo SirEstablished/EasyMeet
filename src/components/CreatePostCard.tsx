@@ -125,7 +125,7 @@ export function CreatePostCard({ onPosted }: { onPosted: (p: Post) => void }) {
 
   return (
     <>
-      <div className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+      <div className="rounded-2xl glass-card p-4 sm:p-5 lift-hover focus-within:shadow-lg focus-within:-translate-y-0.5">
         <div className="flex gap-3">
           <Avatar className="h-10 w-10">
             <AvatarImage src={profile.avatar_url ?? undefined} />

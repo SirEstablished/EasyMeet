@@ -36,7 +36,7 @@ export function VerificationTicks({
         <span
           title="Verified Professional"
           className={cn(
-            "inline-flex items-center justify-center rounded-full bg-[#1d9bf0] text-white shadow-sm",
+            "inline-flex items-center justify-center rounded-full bg-[#1d9bf0] text-white shadow-[0_0_10px_rgba(29,155,240,0.55)]",
             wrapMap[size],
           )}
         >
@@ -48,7 +48,7 @@ export function VerificationTicks({
         <span
           title="Verified Organisation"
           className={cn(
-            "inline-flex items-center justify-center rounded-full bg-white text-slate-700 border border-slate-300 shadow-sm",
+            "inline-flex items-center justify-center rounded-full bg-white text-slate-700 border border-slate-300 shadow-[0_0_10px_rgba(203,213,225,0.7)]",
             wrapMap[size],
           )}
         >
@@ -59,7 +59,7 @@ export function VerificationTicks({
         <span
           title="Top Rated"
           className={cn(
-            "inline-flex items-center justify-center rounded-full bg-gradient-to-br from-amber-300 to-amber-500 text-white shadow-sm",
+            "inline-flex items-center justify-center rounded-full text-white gold-shimmer shadow-[0_0_12px_rgba(245,193,74,0.7)]",
             wrapMap[size],
           )}
         >

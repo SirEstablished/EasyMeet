@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useAuth, useAuthModal } from "@/lib/providers";
 import { AppNavbar } from "@/components/AppNavbar";
+import { BackToTop } from "@/components/BackToTop";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -36,6 +37,7 @@ function AuthLayout() {
       <main className="flex-1">
         <Outlet />
       </main>
+      <BackToTop />
     </div>
   );
 }

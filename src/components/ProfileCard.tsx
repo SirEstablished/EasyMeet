@@ -16,13 +16,15 @@ export function ProfileCard({ p }: { p: Profile }) {
     <Link
       to="/profile/$id"
       params={{ id: p.id }}
-      className="group rounded-2xl border border-border bg-card p-5 hover:shadow-md hover:border-primary/40 transition-all"
+      className="group rounded-2xl glass-card p-5 lift-hover hover:-translate-y-1 hover:shadow-xl hover:border-primary/50"
     >
       <div className="flex items-start gap-3">
-        <Avatar className="h-14 w-14">
-          <AvatarImage src={p.avatar_url ?? undefined} />
-          <AvatarFallback className="bg-primary text-primary-foreground">{initials}</AvatarFallback>
-        </Avatar>
+        <span className="inline-block rounded-full p-[2px] bg-gradient-brand shrink-0">
+          <Avatar className="h-14 w-14 border-2 border-background">
+            <AvatarImage src={p.avatar_url ?? undefined} />
+            <AvatarFallback className="bg-primary text-primary-foreground">{initials}</AvatarFallback>
+          </Avatar>
+        </span>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="font-semibold truncate group-hover:text-primary transition-colors">
