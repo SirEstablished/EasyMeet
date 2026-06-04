@@ -87,10 +87,10 @@ export function EditProfileDialog({
     setErr(null);
 
     // Username validation
-    const trimmedUsername = username.trim();
-    if (trimmedUsername) {
-      if (!/^[a-zA-Z0-9_]+$/.test(trimmedUsername)) {
-        setErr("Usernames can only contain letters, numbers, and underscores.");
+    const normalizedUsername = username.trim().toLowerCase();
+    if (normalizedUsername) {
+      if (!/^[a-zA-Z0-9_]+$/.test(normalizedUsername)) {
+        setErr("Username can only contain letters, numbers and underscores");
         setSaving(false);
         return;
       }
@@ -98,11 +98,11 @@ export function EditProfileDialog({
       const { data: existing } = await supabase
         .from("profiles")
         .select("id")
-        .ilike("username", trimmedUsername)
+        .eq("username", normalizedUsername)
         .neq("id", user.id)
         .maybeSingle();
       if (existing) {
-        setErr(`Username @${trimmedUsername} is already taken`);
+        setErr(`Username @${normalizedUsername} is already taken`);
         setSaving(false);
         return;
       }
@@ -110,7 +110,7 @@ export function EditProfileDialog({
 
     const payload: Record<string, unknown> = {
       full_name: fullName,
-      username: trimmedUsername || null,
+      username: normalizedUsername || null,
       bio,
       location,
       website,
