@@ -16,6 +16,7 @@ import {
 import { timeAgo } from "@/lib/timeAgo";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { BoostPostModal } from "./BoostPostModal";
 
 export function PostCard({
   post,
@@ -30,13 +31,16 @@ export function PostCard({
   const [liked, setLiked] = useState(!!post.liked_by_me);
   const [likes, setLikes] = useState(post.like_count ?? 0);
   const [busy, setBusy] = useState(false);
+  const [boostOpen, setBoostOpen] = useState(false);
+  const [boostUntil, setBoostUntil] = useState<string | null>(post.boost_until);
+  const [boostedFlag, setBoostedFlag] = useState(!!post.is_boosted);
   const isMine = user?.id === post.author_id;
   const a = post.author;
   const initials = (a?.full_name || "U").split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase();
   const body = post.body ?? post.content ?? "";
   const mediaUrl = post.media_urls?.[0] ?? post.image_url ?? null;
   const mediaType = post.media_type ?? (mediaUrl ? "image" : null);
-  const isBoosted = post.is_boosted && post.boost_until && new Date(post.boost_until) > new Date();
+  const isBoosted = boostedFlag && boostUntil && new Date(boostUntil) > new Date();
 
   // Sync count + my-like state with Supabase (visible to all users).
   const refresh = async () => {
