@@ -11,8 +11,10 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedShopRouteImport } from './routes/_authenticated/shop'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
+import { Route as AuthenticatedMyServicesRouteImport } from './routes/_authenticated/my-services'
 import { Route as AuthenticatedMessagesRouteImport } from './routes/_authenticated/messages'
 import { Route as AuthenticatedFeedRouteImport } from './routes/_authenticated/feed'
 import { Route as AuthenticatedExploreRouteImport } from './routes/_authenticated/explore'
@@ -29,6 +31,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedShopRoute = AuthenticatedShopRouteImport.update({
+  id: '/shop',
+  path: '/shop',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -37,6 +44,11 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
 const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedMyServicesRoute = AuthenticatedMyServicesRouteImport.update({
+  id: '/my-services',
+  path: '/my-services',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedMessagesRoute = AuthenticatedMessagesRouteImport.update({
@@ -77,8 +89,10 @@ export interface FileRoutesByFullPath {
   '/explore': typeof AuthenticatedExploreRoute
   '/feed': typeof AuthenticatedFeedRoute
   '/messages': typeof AuthenticatedMessagesRoute
+  '/my-services': typeof AuthenticatedMyServicesRoute
   '/profile': typeof AuthenticatedProfileRouteWithChildren
   '/settings': typeof AuthenticatedSettingsRoute
+  '/shop': typeof AuthenticatedShopRoute
   '/profile/$id': typeof AuthenticatedProfileIdRoute
   '/profile/': typeof AuthenticatedProfileIndexRoute
 }
@@ -88,7 +102,9 @@ export interface FileRoutesByTo {
   '/explore': typeof AuthenticatedExploreRoute
   '/feed': typeof AuthenticatedFeedRoute
   '/messages': typeof AuthenticatedMessagesRoute
+  '/my-services': typeof AuthenticatedMyServicesRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/shop': typeof AuthenticatedShopRoute
   '/profile/$id': typeof AuthenticatedProfileIdRoute
   '/profile': typeof AuthenticatedProfileIndexRoute
 }
@@ -100,8 +116,10 @@ export interface FileRoutesById {
   '/_authenticated/explore': typeof AuthenticatedExploreRoute
   '/_authenticated/feed': typeof AuthenticatedFeedRoute
   '/_authenticated/messages': typeof AuthenticatedMessagesRoute
+  '/_authenticated/my-services': typeof AuthenticatedMyServicesRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRouteWithChildren
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/shop': typeof AuthenticatedShopRoute
   '/_authenticated/profile/$id': typeof AuthenticatedProfileIdRoute
   '/_authenticated/profile/': typeof AuthenticatedProfileIndexRoute
 }
@@ -113,8 +131,10 @@ export interface FileRouteTypes {
     | '/explore'
     | '/feed'
     | '/messages'
+    | '/my-services'
     | '/profile'
     | '/settings'
+    | '/shop'
     | '/profile/$id'
     | '/profile/'
   fileRoutesByTo: FileRoutesByTo
@@ -124,7 +144,9 @@ export interface FileRouteTypes {
     | '/explore'
     | '/feed'
     | '/messages'
+    | '/my-services'
     | '/settings'
+    | '/shop'
     | '/profile/$id'
     | '/profile'
   id:
@@ -135,8 +157,10 @@ export interface FileRouteTypes {
     | '/_authenticated/explore'
     | '/_authenticated/feed'
     | '/_authenticated/messages'
+    | '/_authenticated/my-services'
     | '/_authenticated/profile'
     | '/_authenticated/settings'
+    | '/_authenticated/shop'
     | '/_authenticated/profile/$id'
     | '/_authenticated/profile/'
   fileRoutesById: FileRoutesById
@@ -162,6 +186,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/shop': {
+      id: '/_authenticated/shop'
+      path: '/shop'
+      fullPath: '/shop'
+      preLoaderRoute: typeof AuthenticatedShopRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/settings': {
       id: '/_authenticated/settings'
       path: '/settings'
@@ -174,6 +205,13 @@ declare module '@tanstack/react-router' {
       path: '/profile'
       fullPath: '/profile'
       preLoaderRoute: typeof AuthenticatedProfileRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/my-services': {
+      id: '/_authenticated/my-services'
+      path: '/my-services'
+      fullPath: '/my-services'
+      preLoaderRoute: typeof AuthenticatedMyServicesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/messages': {
@@ -239,8 +277,10 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedExploreRoute: typeof AuthenticatedExploreRoute
   AuthenticatedFeedRoute: typeof AuthenticatedFeedRoute
   AuthenticatedMessagesRoute: typeof AuthenticatedMessagesRoute
+  AuthenticatedMyServicesRoute: typeof AuthenticatedMyServicesRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRouteWithChildren
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedShopRoute: typeof AuthenticatedShopRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -248,8 +288,10 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedExploreRoute: AuthenticatedExploreRoute,
   AuthenticatedFeedRoute: AuthenticatedFeedRoute,
   AuthenticatedMessagesRoute: AuthenticatedMessagesRoute,
+  AuthenticatedMyServicesRoute: AuthenticatedMyServicesRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRouteWithChildren,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedShopRoute: AuthenticatedShopRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -262,3 +304,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
