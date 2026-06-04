@@ -35,7 +35,7 @@ function MyServicesPage() {
     supabase
       .from("services")
       .select("*")
-      .eq("owner_id", user.id)
+      .eq("provider_id", user.id)
       .order("created_at", { ascending: false })
       .then(({ data, error }) => {
         if (cancelled) return;
@@ -100,7 +100,7 @@ function MyServicesPage() {
                   <div className="flex items-start gap-2">
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold truncate">{s.title}</h3>
-                      <div className="text-primary font-bold mt-0.5">{formatNgn(s.price_ngn)}</div>
+                      <div className="text-primary font-bold mt-0.5">{formatNgn(s.price)}</div>
                     </div>
                     {!s.is_active && (
                       <Badge variant="secondary" className="gap-1"><EyeOff className="h-3 w-3" />Hidden</Badge>
