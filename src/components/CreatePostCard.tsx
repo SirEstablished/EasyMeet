@@ -2,13 +2,13 @@ import { useRef, useState, type ChangeEvent } from "react";
 import { supabase, type Post } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/providers";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { ImagePlus, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
-import { containsPhoneNumber } from "@/lib/timeAgo";
+import { containsPhone, PHONE_BLOCK_MESSAGE } from "@/lib/phoneCheck";
 import { BoostPostModal } from "./BoostPostModal";
 import { optimizeImage } from "@/lib/imageOptimize";
+import { MentionTextarea } from "./MentionTextarea";
 
 const MAX = 500;
 
@@ -62,8 +62,8 @@ export function CreatePostCard({ onPosted }: { onPosted: (p: Post) => void }) {
       toast.error("Add some text or media");
       return;
     }
-    if (containsPhoneNumber(text)) {
-      toast.error("Phone numbers are not allowed in posts");
+    if (containsPhone(text)) {
+      toast.error(PHONE_BLOCK_MESSAGE.replace("messages", "posts"));
       return;
     }
     setPosting(true);
@@ -132,12 +132,12 @@ export function CreatePostCard({ onPosted }: { onPosted: (p: Post) => void }) {
             <AvatarFallback className="bg-primary text-primary-foreground">{initials}</AvatarFallback>
           </Avatar>
           <div className="flex-1">
-            <Textarea
-              placeholder="What's on your mind?"
+            <MentionTextarea
+              placeholder="What's on your mind? Use @ to tag people"
               maxLength={MAX}
               rows={3}
               value={body}
-              onChange={(e) => setBody(e.target.value)}
+              onChange={setBody}
               className="resize-none border-0 focus-visible:ring-0 shadow-none px-0"
             />
             {preview && (
