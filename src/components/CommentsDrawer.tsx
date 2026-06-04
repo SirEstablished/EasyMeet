@@ -1,4 +1,4 @@
-import { useEffect, useState, type KeyboardEvent } from "react";
+import { useEffect, useState } from "react";
 import {
   Sheet,
   SheetContent,
@@ -6,12 +6,14 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Send, Trash2 } from "lucide-react";
 import { supabase, type Comment } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/providers";
-import { timeAgo, containsPhoneNumber } from "@/lib/timeAgo";
+import { timeAgo } from "@/lib/timeAgo";
+import { containsPhone, PHONE_BLOCK_MESSAGE } from "@/lib/phoneCheck";
+import { MentionTextarea } from "./MentionTextarea";
+import { RichText } from "./RichText";
 import { toast } from "sonner";
 
 export function CommentsDrawer({
@@ -54,8 +56,8 @@ export function CommentsDrawer({
     if (!user || !postId) return;
     const body = text.trim();
     if (!body) return;
-    if (containsPhoneNumber(body)) {
-      toast.error("Phone numbers are not allowed in comments");
+    if (containsPhone(body)) {
+      toast.error(PHONE_BLOCK_MESSAGE.replace("messages", "comments"));
       return;
     }
     setSending(true);
@@ -83,13 +85,6 @@ export function CommentsDrawer({
     }
     setComments((c) => c.filter((x) => x.id !== id));
     onCountChange?.(postId, -1);
-  };
-
-  const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      submit();
-    }
   };
 
   return (
@@ -120,7 +115,9 @@ export function CommentsDrawer({
                       <div className="text-xs font-semibold">
                         {c.author?.full_name || c.author?.username || "User"}
                       </div>
-                      <div className="text-sm whitespace-pre-wrap break-words">{c.body}</div>
+                      <div className="text-sm whitespace-pre-wrap break-words">
+                        <RichText text={c.body} />
+                      </div>
                     </div>
                     <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground px-1">
                       <span>{timeAgo(c.created_at)}</span>
@@ -139,14 +136,16 @@ export function CommentsDrawer({
             })
           )}
         </div>
-        <div className="border-t border-border p-3 flex items-center gap-2">
-          <Input
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={onKey}
-            placeholder="Write a comment…"
-            maxLength={500}
-          />
+        <div className="border-t border-border p-3 flex items-end gap-2">
+          <div className="flex-1">
+            <MentionTextarea
+              asInput
+              value={text}
+              onChange={setText}
+              placeholder="Write a comment… use @ to tag"
+              maxLength={500}
+            />
+          </div>
           <Button size="icon" onClick={submit} disabled={sending || !text.trim()} className="bg-gradient-brand">
             <Send className="h-4 w-4" />
           </Button>

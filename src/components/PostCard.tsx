@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Post } from "@/integrations/supabase/client";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/providers";
@@ -17,6 +17,7 @@ import { timeAgo } from "@/lib/timeAgo";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { BoostPostModal } from "./BoostPostModal";
+import { RichText } from "./RichText";
 
 export function PostCard({
   post,
@@ -34,6 +35,7 @@ export function PostCard({
   const [boostOpen, setBoostOpen] = useState(false);
   const [boostUntil, setBoostUntil] = useState<string | null>(post.boost_until);
   const [boostedFlag, setBoostedFlag] = useState(!!post.is_boosted);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const isMine = user?.id === post.author_id;
   const a = post.author;
   const initials = (a?.full_name || "U").split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase();
@@ -66,6 +68,52 @@ export function PostCard({
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [post.id, user?.id]);
+
+  // Realtime: keep like_count in sync for ALL users.
+  useEffect(() => {
+    const channel = supabase
+      .channel(`post_likes:${post.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "post_likes", filter: `post_id=eq.${post.id}` },
+        () => {
+          refresh();
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [post.id, user?.id]);
+
+  // Auto-pause videos when scrolled out of view; resume when back in view if user had played them.
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el) return;
+    let userInitiated = false;
+    const onPlay = () => {
+      userInitiated = true;
+    };
+    el.addEventListener("play", onPlay);
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.intersectionRatio < 0.5) {
+            if (!el.paused) el.pause();
+          } else if (userInitiated && el.paused) {
+            el.play().catch(() => {});
+          }
+        }
+      },
+      { threshold: [0, 0.5, 1] },
+    );
+    io.observe(el);
+    return () => {
+      io.disconnect();
+      el.removeEventListener("play", onPlay);
+    };
+  }, [mediaUrl, mediaType]);
 
   const toggleLike = async () => {
     if (!user || busy) return;
@@ -179,13 +227,15 @@ export function PostCard({
       </div>
 
       {body && (
-        <div className="px-4 sm:px-5 pb-3 text-sm whitespace-pre-wrap break-words">{body}</div>
+        <div className="px-4 sm:px-5 pb-3 text-sm whitespace-pre-wrap break-words">
+          <RichText text={body} />
+        </div>
       )}
 
       {mediaUrl && (
         <div className="bg-secondary">
           {mediaType === "video" ? (
-            <video src={mediaUrl} controls className="w-full max-h-[520px]" />
+            <video ref={videoRef} src={mediaUrl} controls playsInline className="w-full max-h-[520px]" />
           ) : (
             <img src={mediaUrl} alt="" className="w-full max-h-[520px] object-cover" />
           )}
