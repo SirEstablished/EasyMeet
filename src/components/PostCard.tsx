@@ -35,8 +35,6 @@ export function PostCard({
   const [boostOpen, setBoostOpen] = useState(false);
   const [boostUntil, setBoostUntil] = useState<string | null>(post.boost_until);
   const [boostedFlag, setBoostedFlag] = useState(!!post.is_boosted);
-  const [debugDbCount, setDebugDbCount] = useState<number | null>(null);
-  const [debugError, setDebugError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const isMine = user?.id === post.author_id;
   const a = post.author;
