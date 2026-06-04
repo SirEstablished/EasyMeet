@@ -3,6 +3,7 @@ import { supabase, type Conversation } from "@/integrations/supabase/client";
 /**
  * Find existing conversation between two users (either ordering), or create one.
  * Returns the conversation id.
+ * When creating, user_a is always the caller (auth.uid()) and user_b is the target.
  */
 export async function getOrCreateConversation(
   meId: string,
@@ -10,22 +11,22 @@ export async function getOrCreateConversation(
 ): Promise<string> {
   if (meId === otherId) throw new Error("Cannot message yourself");
 
+  // Look up an existing conversation between the two users in either ordering.
   const { data: existing, error: findErr } = await supabase
     .from("conversations")
-    .select("id")
+    .select("id, user_a, user_b")
     .or(
       `and(user_a.eq.${meId},user_b.eq.${otherId}),and(user_a.eq.${otherId},user_b.eq.${meId})`,
     )
-    .maybeSingle();
+    .limit(1);
 
-  if (findErr && findErr.code !== "PGRST116") throw findErr;
-  if (existing) return (existing as Conversation).id;
+  if (findErr) throw findErr;
+  if (existing && existing.length > 0) return (existing[0] as Conversation).id;
 
-  // Deterministic ordering: smaller id as user_a
-  const [a, b] = meId < otherId ? [meId, otherId] : [otherId, meId];
+  // Create with caller as user_a, target as user_b
   const { data: created, error: insErr } = await supabase
     .from("conversations")
-    .insert({ user_a: a, user_b: b })
+    .insert({ user_a: meId, user_b: otherId })
     .select("id")
     .single();
   if (insErr) throw insErr;
