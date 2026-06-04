@@ -118,7 +118,11 @@ export function ProductFormDialog({
   };
 
   const save = async () => {
-    if (!user) return;
+    if (!user) {
+      console.error("[product-save] no user in session");
+      toast.error("You must be signed in");
+      return;
+    }
     if (!title.trim()) return toast.error("Title is required");
     const priceNum = Number(price);
     if (!priceNum || priceNum <= 0) return toast.error("Enter a valid price");
@@ -130,15 +134,20 @@ export function ProductFormDialog({
     }
     setSaving(true);
     try {
+      console.log("[product-save] start", { userId: user.id, productType, newFiles: newFiles.length });
       // upload new images
       const uploadedUrls: string[] = [];
       for (const f of newFiles) {
         const ext = (f.name.split(".").pop() || "jpg").toLowerCase();
         const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
-        const { error } = await supabase.storage
+        console.log("[product-save] uploading image to product-images", path);
+        const { error: upErr } = await supabase.storage
           .from("product-images")
           .upload(path, f, { upsert: false, contentType: f.type, cacheControl: "3600" });
-        if (error) throw error;
+        if (upErr) {
+          console.error("[product-save] image upload failed", upErr);
+          throw new Error(`Image upload failed: ${upErr.message}`);
+        }
         uploadedUrls.push(supabase.storage.from("product-images").getPublicUrl(path).data.publicUrl);
       }
       const image_urls = [...existingUrls, ...uploadedUrls];
@@ -148,10 +157,14 @@ export function ProductFormDialog({
       if (productType === "digital" && digitalFile) {
         const ext = (digitalFile.name.split(".").pop() || "bin").toLowerCase();
         const path = `${user.id}/${Date.now()}.${ext}`;
-        const { error } = await supabase.storage
+        console.log("[product-save] uploading digital file", path);
+        const { error: dErr } = await supabase.storage
           .from("digital-products")
           .upload(path, digitalFile, { upsert: false, contentType: digitalFile.type });
-        if (error) throw error;
+        if (dErr) {
+          console.error("[product-save] digital upload failed", dErr);
+          throw new Error(`Digital file upload failed: ${dErr.message}`);
+        }
         digital_file_url = path;
       }
 
@@ -159,6 +172,7 @@ export function ProductFormDialog({
         title: title.trim(),
         description: description.trim() || null,
         price: priceNum,
+        currency: "NGN",
         category,
         product_type: productType,
         image_urls,
@@ -166,6 +180,7 @@ export function ProductFormDialog({
         stock_count: productType === "physical" ? Number(stock) : 0,
         is_active: isActive,
       };
+      console.log("[product-save] payload", payload);
 
       if (product) {
         const { data, error } = await supabase
@@ -174,7 +189,10 @@ export function ProductFormDialog({
           .eq("id", product.id)
           .select("*")
           .single();
-        if (error) throw error;
+        if (error) {
+          console.error("[product-save] update failed", error);
+          throw error;
+        }
         onSaved(data as Product);
         toast.success("Product updated successfully");
       } else {
@@ -183,12 +201,17 @@ export function ProductFormDialog({
           .insert({ ...payload, seller_id: user.id })
           .select("*")
           .single();
-        if (error) throw error;
+        if (error) {
+          console.error("[product-save] insert failed", error);
+          throw error;
+        }
+        console.log("[product-save] inserted", data);
         onSaved(data as Product);
-        toast.success("Product added successfully");
+        toast.success("Product created successfully");
       }
       onOpenChange(false);
     } catch (e) {
+      console.error("[product-save] caught error", e);
       toast.error(e instanceof Error ? e.message : "Failed to save");
     } finally {
       setSaving(false);
