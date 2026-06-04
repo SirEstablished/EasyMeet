@@ -84,6 +84,7 @@ function PublicProfilePage() {
 
   return (
     <ProfileView
+      key={profile.id}
       profile={profile}
       editButton={
         isMe ? (
