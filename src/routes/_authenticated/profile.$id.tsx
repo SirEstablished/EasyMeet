@@ -5,6 +5,8 @@ import { ProfileView } from "@/components/ProfileView";
 import { useAuth } from "@/lib/providers";
 import { Button } from "@/components/ui/button";
 import { Pencil, MessageCircle } from "lucide-react";
+import { getOrCreateConversation } from "@/lib/conversations";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/profile/$id")({
   component: PublicProfilePage,
@@ -53,6 +55,20 @@ function PublicProfilePage() {
 
   const isMe = user?.id === profile.id;
   const navigate = useNavigate();
+  const [starting, setStarting] = useState(false);
+
+  const onMessage = async () => {
+    if (!user) return;
+    try {
+      setStarting(true);
+      const cid = await getOrCreateConversation(user.id, profile.id);
+      navigate({ to: "/messages", search: { c: cid } as any });
+    } catch (e: any) {
+      toast.error(e.message || "Could not start conversation");
+    } finally {
+      setStarting(false);
+    }
+  };
 
   return (
     <ProfileView
@@ -65,11 +81,9 @@ function PublicProfilePage() {
             </Link>
           </Button>
         ) : (
-          <Button
-            onClick={() => navigate({ to: "/messages" })}
-            className="bg-gradient-brand"
-          >
-            <MessageCircle className="h-4 w-4 mr-2" /> Message
+          <Button onClick={onMessage} disabled={starting} className="bg-gradient-brand">
+            <MessageCircle className="h-4 w-4 mr-2" />
+            {starting ? "Opening…" : "Message"}
           </Button>
         )
       }
