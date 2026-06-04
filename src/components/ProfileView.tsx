@@ -61,7 +61,15 @@ export function ProfileView({
   }, [profile.id, profile.role]);
 
   const isBusiness = profile.role === "business";
+  const isCustomer = profile.role === "customer";
   const initials = initialsOf(profile.full_name || profile.username || "U");
+
+  // Customer profile completion: avatar(25) + name+bio(25) + location(25) + phone(25)
+  const completion =
+    (profile.avatar_url ? 25 : 0) +
+    (profile.full_name && profile.bio ? 25 : 0) +
+    (profile.location ? 25 : 0) +
+    (profile.phone ? 25 : 0);
 
   return (
     <div className="max-w-5xl mx-auto pb-16">
@@ -100,12 +108,14 @@ export function ProfileView({
             <h1 className="text-2xl sm:text-3xl font-bold">
               {profile.full_name || profile.username || "Unnamed"}
             </h1>
-            <VerificationTicks
-              blue={profile.blue_tick}
-              white={profile.white_tick}
-              gold={profile.gold_tick}
-              size="lg"
-            />
+            {!isCustomer && (
+              <VerificationTicks
+                blue={profile.blue_tick}
+                white={profile.white_tick}
+                gold={profile.gold_tick}
+                size="lg"
+              />
+            )}
           </div>
           <div className="mt-1 flex items-center gap-2 flex-wrap text-sm">
             <span className="inline-block px-2 py-0.5 rounded-full bg-primary/10 text-primary capitalize text-xs font-medium">
@@ -135,24 +145,75 @@ export function ProfileView({
 
           {profile.bio && <p className="mt-4 text-sm leading-relaxed">{profile.bio}</p>}
 
-          {/* Stats */}
-          <div className="mt-5 grid grid-cols-3 gap-2 sm:gap-3 max-w-md">
-            <Stat
-              label="Rating"
-              value={
-                <StarRating
-                  value={profile.avg_rating}
-                  count={profile.review_count}
-                  showNumber={false}
+          {isCustomer ? (
+            <div className="mt-5 max-w-md rounded-xl border border-border bg-card p-4">
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-semibold">Profile completion</span>
+                <span className="text-primary font-bold">{completion}%</span>
+              </div>
+              <div className="mt-2 h-2 w-full bg-secondary rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-brand transition-all"
+                  style={{ width: `${completion}%` }}
                 />
-              }
-            />
-            <Stat label="Reviews" value={profile.review_count} />
-            <Stat label="Services" value={services.length} />
-          </div>
+              </div>
+              <ul className="mt-3 text-xs text-muted-foreground space-y-1">
+                <li className={profile.avatar_url ? "text-accent" : ""}>
+                  {profile.avatar_url ? "✓" : "•"} Profile photo
+                </li>
+                <li className={profile.full_name && profile.bio ? "text-accent" : ""}>
+                  {profile.full_name && profile.bio ? "✓" : "•"} Full name & bio
+                </li>
+                <li className={profile.location ? "text-accent" : ""}>
+                  {profile.location ? "✓" : "•"} Location
+                </li>
+                <li className={profile.phone ? "text-accent" : ""}>
+                  {profile.phone ? "✓" : "•"} Phone number
+                </li>
+              </ul>
+            </div>
+          ) : (
+            <div className="mt-5 grid grid-cols-3 gap-2 sm:gap-3 max-w-md">
+              <Stat
+                label="Rating"
+                value={
+                  <StarRating
+                    value={profile.avg_rating}
+                    count={profile.review_count}
+                    showNumber={false}
+                  />
+                }
+              />
+              <Stat label="Reviews" value={profile.review_count} />
+              <Stat label="Services" value={services.length} />
+            </div>
+          )}
         </div>
 
         {/* Tabs */}
+        {isCustomer ? (
+          <Tabs defaultValue="posts" className="mt-8">
+            <TabsList>
+              <TabsTrigger value="posts">Posts</TabsTrigger>
+            </TabsList>
+            <TabsContent value="posts" className="mt-4">
+              {posts.length === 0 ? (
+                <EmptyState>No posts yet</EmptyState>
+              ) : (
+                <div className="space-y-4">
+                  {posts.map((p) => (
+                    <PostCard
+                      key={p.id}
+                      post={p}
+                      onOpenComments={setCommentsFor}
+                      onDeleted={(id) => setPosts((cur) => cur.filter((x) => x.id !== id))}
+                    />
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+        ) : (
         <Tabs defaultValue="services" className="mt-8">
           <TabsList>
             <TabsTrigger value="services">Services</TabsTrigger>
@@ -246,6 +307,7 @@ export function ProfileView({
             </TabsContent>
           )}
         </Tabs>
+        )}
         <CommentsDrawer
           postId={commentsFor}
           open={!!commentsFor}
