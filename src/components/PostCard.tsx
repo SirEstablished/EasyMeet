@@ -21,19 +21,16 @@ import { RichText } from "./RichText";
 
 export function PostCard({
   post,
-  likeCount,
-  onLikeChanged,
   onOpenComments,
   onDeleted,
 }: {
   post: Post;
-  likeCount: number;
-  onLikeChanged: (postId: string) => void | Promise<void>;
   onOpenComments: (postId: string) => void;
   onDeleted?: (postId: string) => void;
 }) {
   const { user } = useAuth();
-  const [liked, setLiked] = useState(!!post.liked_by_me);
+  const [likeCount, setLikeCount] = useState(0);
+  const [isLiked, setIsLiked] = useState(false);
   const [busy, setBusy] = useState(false);
   const [boostOpen, setBoostOpen] = useState(false);
   const [boostUntil, setBoostUntil] = useState<string | null>(post.boost_until);
@@ -47,26 +44,30 @@ export function PostCard({
   const mediaType = post.media_type ?? (mediaUrl ? "image" : null);
   const isBoosted = boostedFlag && boostUntil && new Date(boostUntil) > new Date();
 
-  // Sync "liked by me" only; the count comes from the parent's authoritative state.
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      if (!user) {
-        setLiked(false);
-        return;
-      }
-      const { data } = await supabase
+  const fetchLikes = async () => {
+    const { count } = await supabase
+      .from("post_likes")
+      .select("*", { count: "exact", head: true })
+      .eq("post_id", post.id);
+    setLikeCount(count || 0);
+
+    if (user) {
+      const { data: userLike } = await supabase
         .from("post_likes")
-        .select("post_id")
+        .select("user_id")
         .eq("post_id", post.id)
         .eq("user_id", user.id)
         .maybeSingle();
-      if (!cancelled) setLiked(!!data);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [post.id, user]);
+      setIsLiked(!!userLike);
+    } else {
+      setIsLiked(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLikes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [post.id, user?.id]);
 
   // Auto-pause videos when scrolled out of view; resume when back in view if user had played them.
   useEffect(() => {
@@ -96,29 +97,25 @@ export function PostCard({
     };
   }, [mediaUrl, mediaType]);
 
-  const toggleLike = async () => {
+  const handleLike = async () => {
     if (!user || busy) return;
     setBusy(true);
-    const next = !liked;
-    // Optimistic toggle of the heart only; the count is owned by the parent.
-    setLiked(next);
-    if (next) {
-      const { error } = await supabase
-        .from("post_likes")
-        .insert({ post_id: post.id, user_id: user.id });
-      if (error && !error.message.toLowerCase().includes("duplicate")) {
-        toast.error("Couldn't like post");
-      }
-    } else {
+    if (isLiked) {
       const { error } = await supabase
         .from("post_likes")
         .delete()
         .eq("post_id", post.id)
         .eq("user_id", user.id);
       if (error) toast.error("Couldn't unlike post");
+    } else {
+      const { error } = await supabase
+        .from("post_likes")
+        .insert({ post_id: post.id, user_id: user.id });
+      if (error && !error.message.toLowerCase().includes("duplicate")) {
+        toast.error("Couldn't like post");
+      }
     }
-    // Ask the parent to re-fetch the authoritative count from Supabase.
-    await onLikeChanged(post.id);
+    await fetchLikes();
     setBusy(false);
   };
 
@@ -223,8 +220,8 @@ export function PostCard({
       )}
 
       <div className="px-2 sm:px-3 py-1 flex items-center gap-1 border-t border-border">
-        <Button variant="ghost" size="sm" onClick={toggleLike} className="gap-2">
-          <Heart className={cn("h-4 w-4", liked && "fill-red-500 text-red-500")} />
+        <Button variant="ghost" size="sm" onClick={handleLike} className="gap-2">
+          <Heart className={cn("h-4 w-4", isLiked && "fill-red-500 text-red-500")} />
           <span className="tabular-nums">{likeCount}</span>
         </Button>
         <Button variant="ghost" size="sm" onClick={() => onOpenComments(post.id)} className="gap-2">

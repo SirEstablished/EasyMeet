@@ -1,28 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { supabase, type Post } from "@/integrations/supabase/client";
-import { useAuth } from "@/lib/providers";
 import { CreatePostCard } from "@/components/CreatePostCard";
 import { PostCard } from "@/components/PostCard";
 import { CommentsDrawer } from "@/components/CommentsDrawer";
 import { Loader2 } from "lucide-react";
-import { fetchLikeCount } from "@/lib/likeCounts";
 
 export const Route = createFileRoute("/_authenticated/feed")({
   component: FeedPage,
 });
 
 function FeedPage() {
-  const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [commentsFor, setCommentsFor] = useState<string | null>(null);
-  const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
-
-  const refreshLike = useCallback(async (postId: string) => {
-    const count = await fetchLikeCount(postId);
-    setLikeCounts((m) => ({ ...m, [postId]: count }));
-  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -36,23 +27,18 @@ function FeedPage() {
     const arr = (rawPosts as Post[]) ?? [];
     const ids = arr.map((p) => p.id);
     let commentMap = new Map<string, number>();
-    let likedSet = new Set<string>();
     if (ids.length) {
-      const [{ data: comments }, { data: myLikes }] = await Promise.all([
-        supabase.from("comments").select("post_id").in("post_id", ids),
-        user
-          ? supabase.from("post_likes").select("post_id").in("post_id", ids).eq("user_id", user.id)
-          : Promise.resolve({ data: [] as { post_id: string }[] }),
-      ]);
+      const { data: comments } = await supabase
+        .from("comments")
+        .select("post_id")
+        .in("post_id", ids);
       (comments ?? []).forEach((c: { post_id: string }) => {
         commentMap.set(c.post_id, (commentMap.get(c.post_id) ?? 0) + 1);
       });
-      (myLikes ?? []).forEach((l: { post_id: string }) => likedSet.add(l.post_id));
     }
     const enriched = arr.map((p) => ({
       ...p,
       comment_count: commentMap.get(p.id) ?? 0,
-      liked_by_me: likedSet.has(p.id),
     }));
     enriched.sort((a, b) => {
       const aB = !!(a.is_boosted && a.boost_until && new Date(a.boost_until) > new Date());
@@ -62,35 +48,11 @@ function FeedPage() {
     });
     setPosts(enriched);
     setLoading(false);
-
-    // Fetch authoritative like counts for every post from Supabase.
-    const entries = await Promise.all(
-      enriched.map(async (p) => [p.id, await fetchLikeCount(p.id)] as const),
-    );
-    setLikeCounts(Object.fromEntries(entries));
-  }, [user]);
+  }, []);
 
   useEffect(() => {
     load();
   }, [load]);
-
-  // Global realtime: refetch the affected post's count for ALL users.
-  useEffect(() => {
-    const channel = supabase
-      .channel("post_likes_changes")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "post_likes" },
-        (payload) => {
-          const row = (payload.new ?? payload.old) as { post_id?: string } | null;
-          if (row?.post_id) refreshLike(row.post_id);
-        },
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [refreshLike]);
 
   const onPosted = (p: Post) => setPosts((cur) => [p, ...cur]);
   const onDeleted = (id: string) => setPosts((cur) => cur.filter((p) => p.id !== id));
@@ -123,8 +85,6 @@ function FeedPage() {
           <PostCard
             key={p.id}
             post={p}
-            likeCount={likeCounts[p.id] ?? 0}
-            onLikeChanged={refreshLike}
             onOpenComments={setCommentsFor}
             onDeleted={onDeleted}
           />
