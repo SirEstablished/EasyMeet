@@ -7,16 +7,67 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Rocket } from "lucide-react";
+import { Loader2, Rocket } from "lucide-react";
 import { toast } from "sonner";
+import { useState } from "react";
+import { payWithPaystack } from "@/lib/paystack";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/providers";
 
 export function BoostPostModal({
   open,
   onOpenChange,
+  postId,
+  onBoosted,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  postId?: string | null;
+  onBoosted?: (postId: string, boostUntil: string) => void;
 }) {
+  const { user } = useAuth();
+  const [paying, setPaying] = useState(false);
+
+  const boost = async () => {
+    if (!user) return;
+    if (!postId) {
+      toast.info("Boost a post from the post menu in the feed");
+      onOpenChange(false);
+      return;
+    }
+    setPaying(true);
+    try {
+      const res = await payWithPaystack({
+        email: user.email || `${user.id}@easymeet.app`,
+        amountNgn: 2000,
+        metadata: { post_id: postId, kind: "boost" },
+      });
+      const endAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      const [{ error: bErr }, { error: pErr }] = await Promise.all([
+        supabase.from("boosts").insert({
+          post_id: postId,
+          user_id: user.id,
+          amount_paid: 2000,
+          end_at: endAt,
+          payment_ref: res.reference,
+        }),
+        supabase.from("posts").update({ is_boosted: true, boost_until: endAt }).eq("id", postId),
+      ]);
+      if (bErr || pErr) throw bErr || pErr;
+      toast.success("Your post is now boosted for 7 days!");
+      onBoosted?.(postId, endAt);
+      onOpenChange(false);
+    } catch (e) {
+      if (e instanceof Error && e.message === "Payment cancelled") {
+        toast.message("Payment cancelled");
+      } else {
+        toast.error(e instanceof Error ? e.message : "Boost failed");
+      }
+    } finally {
+      setPaying(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -37,15 +88,8 @@ export function BoostPostModal({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Maybe later
           </Button>
-          <Button
-            className="bg-gradient-brand"
-            onClick={() => {
-              toast.info("Payments coming soon", {
-                description: "Pay to Push will be wired up in Phase 6.",
-              });
-              onOpenChange(false);
-            }}
-          >
+          <Button className="bg-gradient-brand" onClick={boost} disabled={paying || !postId}>
+            {paying && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Boost Now
           </Button>
         </DialogFooter>
