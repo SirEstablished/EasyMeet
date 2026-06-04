@@ -52,7 +52,7 @@ export function ServiceFormDialog({
     if (!open) return;
     setTitle(service?.title ?? "");
     setDescription(service?.description ?? "");
-    setPrice(service?.price_ngn ? String(service.price_ngn) : "");
+    setPrice(service?.price ? String(service.price) : "");
     setCategory(service?.category ?? "Other");
     setIsActive(service?.is_active ?? true);
     setImageUrl(service?.image_url ?? null);
@@ -95,11 +95,13 @@ export function ServiceFormDialog({
       const payload = {
         title: title.trim(),
         description: description.trim() || null,
-        price_ngn: priceNum,
+        price: priceNum,
+        currency: "NGN",
         category,
         is_active: isActive,
         image_url: finalImage,
       };
+      console.log("[services] payload", payload);
       if (service) {
         const { data, error } = await supabase
           .from("services")
@@ -107,18 +109,18 @@ export function ServiceFormDialog({
           .eq("id", service.id)
           .select("*")
           .single();
-        if (error) throw error;
+        if (error) { console.error("[services] update error", error); throw error; }
         onSaved(data as Service);
         toast.success("Service updated successfully");
       } else {
         const { data, error } = await supabase
           .from("services")
-          .insert({ ...payload, owner_id: user.id })
+          .insert({ ...payload, provider_id: user.id })
           .select("*")
           .single();
-        if (error) throw error;
+        if (error) { console.error("[services] insert error", error); throw error; }
         onSaved(data as Service);
-        toast.success("Service added successfully");
+        toast.success("Service created successfully");
       }
       onOpenChange(false);
     } catch (e) {
