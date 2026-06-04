@@ -117,38 +117,39 @@ function ShopPage() {
 function ProductCard({ product, onBuy }: { product: Product; onBuy: () => void }) {
   const seller = product.seller;
   const cover = product.image_urls?.[0];
-  const initials = (seller?.full_name || "U").split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase();
   return (
-    <div className="rounded-2xl border border-border bg-card overflow-hidden flex flex-col">
-      <div className="aspect-video bg-secondary">
+    <Link
+      to="/shop/product/$id"
+      params={{ id: product.id }}
+      className="group rounded-xl border border-border bg-card overflow-hidden flex flex-col hover:shadow-lg hover:border-primary/40 transition"
+    >
+      <div className="aspect-square bg-secondary relative">
         {cover ? (
-          <img src={cover} alt={product.title} className="w-full h-full object-cover" />
+          <img src={cover} alt={product.title} className="w-full h-full object-cover group-hover:scale-[1.02] transition" />
         ) : (
           <div className="w-full h-full grid place-items-center text-xs text-muted-foreground">No image</div>
         )}
+        <Badge variant="outline" className="absolute top-2 left-2 capitalize bg-background/80 backdrop-blur text-[10px] px-1.5 py-0">
+          {product.product_type}
+        </Badge>
       </div>
-      <div className="p-4 flex-1 flex flex-col">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="font-semibold truncate">{product.title}</h3>
-          <Badge variant="outline" className="capitalize">{product.product_type}</Badge>
-        </div>
-        <div className="text-primary font-bold mt-1">{formatNgn(product.price)}</div>
-        {product.category && (
-          <div className="text-xs text-muted-foreground mt-1">{product.category}</div>
-        )}
+      <div className="p-2.5 flex-1 flex flex-col gap-1">
+        <h3 className="text-sm font-medium leading-tight line-clamp-2 min-h-[2.5rem]">{product.title}</h3>
+        <div className="text-primary font-bold text-base">{formatNgn(product.price)}</div>
         {seller && (
-          <Link to="/profile/$id" params={{ id: seller.id }} className="mt-3 flex items-center gap-2 group">
-            <Avatar className="h-7 w-7">
-              <AvatarImage src={seller.avatar_url ?? undefined} />
-              <AvatarFallback className="text-xs bg-primary text-primary-foreground">{initials}</AvatarFallback>
-            </Avatar>
-            <span className="text-sm font-medium truncate group-hover:text-primary">{seller.full_name || seller.username}</span>
-            <VerificationTicks blue={seller.blue_tick} white={seller.white_tick} gold={seller.gold_tick} size="sm" />
-          </Link>
+          <div className="text-[11px] text-muted-foreground truncate">
+            by {seller.full_name || seller.username}
+          </div>
         )}
-        <Button onClick={onBuy} className="mt-4 bg-gradient-brand">Buy Now</Button>
+        <Button
+          size="sm"
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onBuy(); }}
+          className="mt-1 h-8 text-xs bg-gradient-brand"
+        >
+          Buy Now
+        </Button>
       </div>
-    </div>
+    </Link>
   );
 }
 
