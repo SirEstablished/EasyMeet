@@ -126,7 +126,14 @@ export function AuthModal() {
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/dashboard`,
-        data: { full_name: fullName, role },
+        data: {
+          full_name: fullName,
+          role,
+          profession: professionValue,
+          business_type: businessTypeValue,
+          sells_products: sellsProductsValue,
+          offers_services: offersServicesValue,
+        },
       },
     });
     if (err) {
@@ -139,21 +146,38 @@ export function AuthModal() {
       return;
     }
 
-    if (data.user) {
-      await supabase.from("profiles").upsert(
-        {
-          id: data.user.id,
-          full_name: fullName,
-          role,
-          email_notifications: true,
-          in_app_notifications: true,
-          profession: professionValue,
-          business_type: businessTypeValue,
-          sells_products: sellsProductsValue,
-          offers_services: offersServicesValue,
-        },
-        { onConflict: "id" },
-      );
+    // Only writable when a session exists (RLS). For email-confirm flows
+    // the values live in user_metadata and are backfilled on first login
+    // by AuthProvider.loadProfile.
+    if (data.user && data.session) {
+      const payload = {
+        id: data.user.id,
+        full_name: fullName,
+        role,
+        email_notifications: true,
+        in_app_notifications: true,
+        profession: professionValue,
+        business_type: businessTypeValue,
+        sells_products: sellsProductsValue,
+        offers_services: offersServicesValue,
+      };
+      const { error: upsertErr } = await supabase
+        .from("profiles")
+        .upsert(payload, { onConflict: "id" });
+      if (upsertErr) {
+        // Fall back to a targeted update in case a trigger pre-created the row
+        await supabase
+          .from("profiles")
+          .update({
+            full_name: fullName,
+            role,
+            profession: professionValue,
+            business_type: businessTypeValue,
+            sells_products: sellsProductsValue,
+            offers_services: offersServicesValue,
+          })
+          .eq("id", data.user.id);
+      }
     }
 
     setLoading(false);
