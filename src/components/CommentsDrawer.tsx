@@ -115,7 +115,9 @@ export function CommentsDrawer({
                       <div className="text-xs font-semibold">
                         {c.author?.full_name || c.author?.username || "User"}
                       </div>
-                      <div className="text-sm whitespace-pre-wrap break-words">{c.body}</div>
+                      <div className="text-sm whitespace-pre-wrap break-words">
+                        <RichText text={c.body} />
+                      </div>
                     </div>
                     <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground px-1">
                       <span>{timeAgo(c.created_at)}</span>
