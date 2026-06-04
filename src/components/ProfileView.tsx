@@ -162,7 +162,7 @@ export function ProfileView({
             ) : (
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {services.map((s) => (
-                  <div key={s.id} className="rounded-xl border border-border bg-card overflow-hidden flex flex-col">
+                  <div key={s.id} className="rounded-xl glass-card overflow-hidden flex flex-col lift-hover hover:-translate-y-0.5 hover:shadow-xl">
                     <div
                       className="h-32 bg-secondary"
                       style={
@@ -254,7 +254,7 @@ export function ProfileView({
 
 function Stat({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-border bg-card px-3 py-2">
+    <div className="rounded-xl glass-card px-3 py-2 border-l-2 border-l-primary/60">
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="font-semibold text-sm mt-0.5">{value}</div>
     </div>
