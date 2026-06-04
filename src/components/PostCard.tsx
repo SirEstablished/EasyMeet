@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Post } from "@/integrations/supabase/client";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/providers";
@@ -29,6 +29,7 @@ export function PostCard({
   const { user } = useAuth();
   const [liked, setLiked] = useState(!!post.liked_by_me);
   const [likes, setLikes] = useState(post.like_count ?? 0);
+  const [busy, setBusy] = useState(false);
   const isMine = user?.id === post.author_id;
   const a = post.author;
   const initials = (a?.full_name || "U").split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase();
@@ -37,18 +38,43 @@ export function PostCard({
   const mediaType = post.media_type ?? (mediaUrl ? "image" : null);
   const isBoosted = post.is_boosted && post.boost_until && new Date(post.boost_until) > new Date();
 
+  // Sync count + my-like state with Supabase (visible to all users).
+  const refresh = async () => {
+    const [{ count }, myLikeRes] = await Promise.all([
+      supabase
+        .from("post_likes")
+        .select("post_id", { count: "exact", head: true })
+        .eq("post_id", post.id),
+      user
+        ? supabase
+            .from("post_likes")
+            .select("post_id")
+            .eq("post_id", post.id)
+            .eq("user_id", user.id)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
+    setLikes(count ?? 0);
+    setLiked(!!(myLikeRes as { data: unknown }).data);
+  };
+
+  useEffect(() => {
+    refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [post.id, user?.id]);
+
   const toggleLike = async () => {
-    if (!user) return;
+    if (!user || busy) return;
+    setBusy(true);
     const next = !liked;
+    // Optimistic
     setLiked(next);
-    setLikes((n) => n + (next ? 1 : -1));
+    setLikes((n) => Math.max(0, n + (next ? 1 : -1)));
     if (next) {
       const { error } = await supabase
         .from("post_likes")
         .insert({ post_id: post.id, user_id: user.id });
-      if (error && !error.message.includes("duplicate")) {
-        setLiked(false);
-        setLikes((n) => n - 1);
+      if (error && !error.message.toLowerCase().includes("duplicate")) {
         toast.error("Couldn't like post");
       }
     } else {
@@ -57,11 +83,11 @@ export function PostCard({
         .delete()
         .eq("post_id", post.id)
         .eq("user_id", user.id);
-      if (error) {
-        setLiked(true);
-        setLikes((n) => n + 1);
-      }
+      if (error) toast.error("Couldn't unlike post");
     }
+    // Always sync with the real DB count so other users' likes are reflected.
+    await refresh();
+    setBusy(false);
   };
 
   const share = async () => {
