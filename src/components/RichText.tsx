@@ -1,40 +1,23 @@
-import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 
 const MENTION_RE = /(@[a-zA-Z0-9_]+)/g;
 
-// Cache username (lowercase) -> profile id or null
-const mentionCache = new Map<string, string | null>();
+const handleTagClick = async (username: string) => {
+  const cleanUsername = username.replace("@", "").toLowerCase();
+  console.log("[mention] click", cleanUsername);
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("username", cleanUsername)
+    .maybeSingle();
+  console.log("[mention] result", { data, error });
+  if (data && data.id) {
+    window.location.href = "/profile/" + data.id;
+  }
+};
 
 export function RichText({ text, className }: { text: string; className?: string }) {
-  const navigate = useNavigate();
-
   if (!text) return null;
-
-  const handleMentionClick = async (
-    e: React.MouseEvent,
-    username: string,
-  ) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const key = username.toLowerCase();
-    let id: string | null;
-    if (mentionCache.has(key)) {
-      id = mentionCache.get(key)!;
-    } else {
-      const { data } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("username", key)
-        .maybeSingle();
-      id = data?.id ?? null;
-      mentionCache.set(key, id);
-    }
-    if (id) {
-      navigate({ to: "/profile/$id", params: { id } });
-    }
-  };
-
   const parts = text.split(MENTION_RE);
   return (
     <span className={className}>
@@ -42,14 +25,22 @@ export function RichText({ text, className }: { text: string; className?: string
         if (p.startsWith("@") && /^@[a-zA-Z0-9_]+$/.test(p)) {
           const username = p.slice(1);
           return (
-            <a
+            <span
               key={i}
-              href="#"
-              onClick={(e) => handleMentionClick(e, username)}
-              className="text-primary font-semibold hover:underline cursor-pointer"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleTagClick(username);
+              }}
+              style={{
+                color: "#6C47FF",
+                cursor: "pointer",
+                fontWeight: 500,
+                pointerEvents: "auto",
+              }}
             >
               {p}
-            </a>
+            </span>
           );
         }
         return <span key={i}>{p}</span>;
