@@ -15,6 +15,7 @@ import {
 import { payWithPaystack } from "@/lib/paystack";
 import { toast } from "sonner";
 import { getOrCreateConversation } from "@/lib/conversations";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/shop")({
   component: ShopPage,
