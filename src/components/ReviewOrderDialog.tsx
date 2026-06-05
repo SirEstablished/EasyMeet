@@ -12,12 +12,14 @@ export function ReviewOrderDialog({
   onOpenChange,
   providerId,
   providerName,
+  orderId,
   onSubmitted,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   providerId: string;
   providerName: string;
+  orderId: string;
   onSubmitted?: () => void;
 }) {
   const { user } = useAuth();
@@ -35,10 +37,11 @@ export function ReviewOrderDialog({
     setSaving(true);
     const { error } = await supabase.from("reviews").insert({
       reviewer_id: user.id,
-      professional_id: providerId,
+      reviewed_id: providerId,
+      order_id: orderId,
       rating,
       comment: comment.trim() || null,
-    });
+    } as any);
     setSaving(false);
     if (error) {
       toast.error(error.message);
