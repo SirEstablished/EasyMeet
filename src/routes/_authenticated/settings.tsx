@@ -97,24 +97,24 @@ function Settings() {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Settings</h1>
+        <h1 className="text-4xl font-extrabold text-gradient-tri">Settings</h1>
         <p className="text-muted-foreground">Manage your account and preferences.</p>
       </div>
 
-      <section className="rounded-2xl border border-border bg-card p-6">
-        <h2 className="font-semibold text-lg">Appearance</h2>
+      <section className="rounded-2xl glass-card p-6">
+        <h2 className="font-extrabold text-lg text-gradient-tri">Appearance</h2>
         <div className="mt-4 flex gap-3">
-          <Button variant={theme === "light" ? "default" : "outline"} onClick={() => setTheme("light")}>
+          <Button variant={theme === "light" ? "default" : "outline"} onClick={() => setTheme("light")} className={theme === "light" ? "rounded-full bg-gradient-brand glow-primary" : "rounded-full"}>
             <Sun className="h-4 w-4 mr-2" /> Light
           </Button>
-          <Button variant={theme === "dark" ? "default" : "outline"} onClick={() => setTheme("dark")}>
+          <Button variant={theme === "dark" ? "default" : "outline"} onClick={() => setTheme("dark")} className={theme === "dark" ? "rounded-full bg-gradient-brand glow-primary" : "rounded-full"}>
             <Moon className="h-4 w-4 mr-2" /> Dark
           </Button>
         </div>
       </section>
 
-      <section className="rounded-2xl border border-border bg-card p-6 space-y-4">
-        <h2 className="font-semibold text-lg">Notifications</h2>
+      <section className="rounded-2xl glass-card p-6 space-y-4">
+        <h2 className="font-extrabold text-lg text-gradient-tri">Notifications</h2>
         <div className="flex items-center justify-between">
           <div>
             <div className="font-medium text-sm">Email notifications</div>
@@ -131,14 +131,16 @@ function Settings() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-border bg-card p-6 space-y-5">
-        <h2 className="font-semibold text-lg">Profile</h2>
+      <section className="rounded-2xl glass-card p-6 space-y-5">
+        <h2 className="font-extrabold text-lg text-gradient-tri">Profile</h2>
         <div className="flex items-center gap-4">
-          <Avatar className="h-16 w-16">
-            <AvatarImage src={avatarUrl ?? undefined} />
-            <AvatarFallback className="bg-primary text-primary-foreground">{initials}</AvatarFallback>
-          </Avatar>
-          <label className="inline-flex items-center gap-2 cursor-pointer rounded-md border border-border px-3 py-2 text-sm hover:bg-secondary">
+          <span className="avatar-ring">
+            <Avatar className="h-16 w-16 border-2 border-background">
+              <AvatarImage src={avatarUrl ?? undefined} />
+              <AvatarFallback className="bg-primary text-primary-foreground">{initials}</AvatarFallback>
+            </Avatar>
+          </span>
+          <label className="inline-flex items-center gap-2 cursor-pointer rounded-full px-4 py-2 text-sm pill-glass">
             <Upload className="h-4 w-4" />
             {uploading ? "Uploading…" : "Upload avatar"}
             <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
@@ -148,26 +150,26 @@ function Settings() {
         <div className="grid sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <Label htmlFor="fullName">Full name</Label>
-            <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+            <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} className="input-glow" />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="username">Username</Label>
-            <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="ada_o" />
+            <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="ada_o" className="input-glow" />
           </div>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="location">Location</Label>
-          <Input id="location" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Lagos, Nigeria" />
+          <Input id="location" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Lagos, Nigeria" className="input-glow" />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="bio">Bio</Label>
-          <Textarea id="bio" rows={4} value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Tell people about yourself…" />
+          <Textarea id="bio" rows={4} value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Tell people about yourself…" className="input-glow" />
         </div>
 
         {err && <div className="text-sm text-destructive">{err}</div>}
         {msg && <div className="text-sm text-accent">{msg}</div>}
 
-        <Button onClick={handleSave} disabled={saving} className="bg-gradient-brand">
+        <Button onClick={handleSave} disabled={saving} className="rounded-full bg-gradient-brand glow-primary">
           {saving ? "Saving…" : "Save changes"}
         </Button>
       </section>
