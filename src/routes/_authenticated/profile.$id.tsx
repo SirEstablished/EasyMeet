@@ -118,7 +118,7 @@ function PublicProfilePage() {
             </Link>
           </Button>
         ) : (
-          <Button onClick={onMessage} disabled={starting} className="bg-gradient-brand">
+          <Button onClick={onMessage} disabled={starting} className="rounded-full bg-gradient-brand glow-primary">
             <MessageCircle className="h-4 w-4 mr-2" />
             {starting ? "Opening…" : "Message"}
           </Button>
