@@ -21,10 +21,10 @@ export function ProfileCard({ p, distanceKm }: { p: Profile; distanceKm?: number
     <Link
       to="/profile/$id"
       params={{ id: p.id }}
-      className="group rounded-2xl glass-card p-5 lift-hover hover:-translate-y-1 hover:shadow-xl hover:border-primary/50"
+      className="group rounded-2xl glass-card p-5 lift-hover hover:-translate-y-1.5 hover:border-primary/60 hover:shadow-[0_20px_50px_-20px_color-mix(in_oklab,var(--primary)_55%,transparent)]"
     >
       <div className="flex items-start gap-3">
-        <span className="inline-block rounded-full p-[2px] bg-gradient-brand shrink-0">
+        <span className="avatar-ring shrink-0">
           <Avatar className="h-16 w-16 border-2 border-background">
             <AvatarImage src={p.avatar_url ?? undefined} />
             <AvatarFallback className="bg-primary text-primary-foreground">{initials}</AvatarFallback>
@@ -52,9 +52,9 @@ export function ProfileCard({ p, distanceKm }: { p: Profile; distanceKm?: number
             </div>
           )}
           {typeof distanceKm === "number" && (
-            <div className="text-[11px] text-primary mt-0.5 font-medium">
-              {formatDistance(distanceKm)}
-            </div>
+            <span className="inline-flex items-center mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-accent/15 text-accent border border-accent/30">
+              {formatDistance(distanceKm)} away
+            </span>
           )}
           {bioPreview && (
             <p className="text-xs text-foreground/80 mt-1.5 leading-snug">{bioPreview}</p>

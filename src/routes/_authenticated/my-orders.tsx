@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { supabase, formatNgn, type Order } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/providers";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Loader2, Star } from "lucide-react";
 import { ReviewOrderDialog } from "@/components/ReviewOrderDialog";
@@ -11,13 +10,6 @@ import { ReviewOrderDialog } from "@/components/ReviewOrderDialog";
 export const Route = createFileRoute("/_authenticated/my-orders")({
   component: MyOrdersPage,
 });
-
-const statusColor: Record<string, string> = {
-  pending: "secondary",
-  confirmed: "default",
-  completed: "default",
-  cancelled: "destructive",
-};
 
 function MyOrdersPage() {
   const { user } = useAuth();
@@ -54,7 +46,7 @@ function MyOrdersPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
-      <h1 className="text-2xl sm:text-3xl font-bold">My Orders</h1>
+      <h1 className="text-3xl sm:text-4xl font-extrabold text-gradient-tri">My Orders</h1>
       <p className="text-sm text-muted-foreground">Track services you've booked.</p>
 
       <div className="mt-6 space-y-3">
@@ -63,7 +55,10 @@ function MyOrdersPage() {
             <Loader2 className="h-5 w-5 animate-spin" />
           </div>
         ) : orders.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border p-12 text-center text-sm text-muted-foreground">
+          <div className="rounded-2xl glass-card border-dashed p-12 text-center text-sm text-muted-foreground">
+            <div className="mx-auto mb-3 h-12 w-12 rounded-full bg-gradient-brand grid place-items-center text-white">
+              <Star className="h-5 w-5" />
+            </div>
             No bookings yet. <Link to="/shop" className="text-primary font-medium">Browse the shop</Link> to find professionals.
           </div>
         ) : (
@@ -71,12 +66,14 @@ function MyOrdersPage() {
             const name = o.provider?.full_name || o.provider?.username || "Provider";
             const initials = name.split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase();
             return (
-              <div key={o.id} className="rounded-2xl border border-border bg-card p-4 flex items-center gap-4">
+              <div key={o.id} className="rounded-2xl glass-card p-4 flex items-center gap-4 lift-hover hover:-translate-y-0.5 hover:border-primary/50">
                 <Link to="/profile/$id" params={{ id: o.provider_id }}>
-                  <Avatar className="h-12 w-12">
-                    <AvatarImage src={o.provider?.avatar_url ?? undefined} />
-                    <AvatarFallback className="bg-primary text-primary-foreground">{initials}</AvatarFallback>
-                  </Avatar>
+                  <span className="avatar-ring">
+                    <Avatar className="h-12 w-12 border-2 border-background">
+                      <AvatarImage src={o.provider?.avatar_url ?? undefined} />
+                      <AvatarFallback className="bg-primary text-primary-foreground">{initials}</AvatarFallback>
+                    </Avatar>
+                  </span>
                 </Link>
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold truncate">{o.service_title}</div>
@@ -86,8 +83,8 @@ function MyOrdersPage() {
                   )}
                 </div>
                 <div className="text-right">
-                  <div className="font-bold text-primary">{formatNgn(o.amount)}</div>
-                  <Badge variant={(statusColor[o.status] as any) || "secondary"} className="capitalize mt-1">{o.status}</Badge>
+                  <div className="font-extrabold text-gradient-brand">{formatNgn(o.amount)}</div>
+                  <span className={`status-pill status-${o.status} capitalize mt-1`}>{o.status}</span>
                 </div>
                 {o.status === "completed" && (
                   reviewedProviders.has(o.provider_id) ? (
@@ -97,7 +94,7 @@ function MyOrdersPage() {
                   ) : (
                     <Button
                       size="sm"
-                      className="ml-auto sm:ml-0 sm:basis-full bg-gradient-brand mt-1"
+                      className="ml-auto sm:ml-0 sm:basis-full rounded-full bg-gradient-brand glow-primary mt-1"
                       onClick={(e) => { e.preventDefault(); setReviewing(o); }}
                     >
                       <Star className="h-3.5 w-3.5 mr-1" /> Leave a Review

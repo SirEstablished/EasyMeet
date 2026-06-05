@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { supabase, formatNgn, type Order, type OrderStatus } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/providers";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -49,7 +48,7 @@ function MyBookingsPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
-      <h1 className="text-2xl sm:text-3xl font-bold">My Bookings</h1>
+      <h1 className="text-3xl sm:text-4xl font-extrabold text-gradient-tri">My Bookings</h1>
       <p className="text-sm text-muted-foreground">Bookings customers have placed with you.</p>
 
       <div className="mt-6 space-y-3">
@@ -58,7 +57,10 @@ function MyBookingsPage() {
             <Loader2 className="h-5 w-5 animate-spin" />
           </div>
         ) : orders.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border p-12 text-center text-sm text-muted-foreground">
+          <div className="rounded-2xl glass-card border-dashed p-12 text-center text-sm text-muted-foreground">
+            <div className="mx-auto mb-3 h-12 w-12 rounded-full bg-gradient-brand grid place-items-center text-white">
+              <CheckCircle2 className="h-5 w-5" />
+            </div>
             No bookings yet.
           </div>
         ) : (
@@ -66,13 +68,15 @@ function MyBookingsPage() {
             const name = o.customer?.full_name || o.customer?.username || "Customer";
             const initials = name.split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase();
             return (
-              <div key={o.id} className="rounded-2xl border border-border bg-card p-4">
+              <div key={o.id} className="rounded-2xl glass-card p-4 lift-hover hover:-translate-y-0.5 hover:border-primary/50">
                 <div className="flex items-center gap-4">
                   <Link to="/profile/$id" params={{ id: o.customer_id }}>
-                    <Avatar className="h-12 w-12">
-                      <AvatarImage src={o.customer?.avatar_url ?? undefined} />
-                      <AvatarFallback className="bg-primary text-primary-foreground">{initials}</AvatarFallback>
-                    </Avatar>
+                    <span className="avatar-ring">
+                      <Avatar className="h-12 w-12 border-2 border-background">
+                        <AvatarImage src={o.customer?.avatar_url ?? undefined} />
+                        <AvatarFallback className="bg-primary text-primary-foreground">{initials}</AvatarFallback>
+                      </Avatar>
+                    </span>
                   </Link>
                   <div className="flex-1 min-w-0">
                     <Link to="/profile/$id" params={{ id: o.customer_id }} className="font-semibold hover:text-primary truncate block">
@@ -82,18 +86,18 @@ function MyBookingsPage() {
                     <div className="text-xs text-muted-foreground">{new Date(o.created_at).toLocaleString()}</div>
                   </div>
                   <div className="text-right">
-                    <div className="font-bold text-primary">{formatNgn(o.amount)}</div>
-                    <Badge variant="secondary" className="capitalize mt-1">{o.status}</Badge>
+                    <div className="font-extrabold text-gradient-brand">{formatNgn(o.amount)}</div>
+                    <span className={`status-pill status-${o.status} capitalize mt-1`}>{o.status}</span>
                   </div>
                 </div>
                 {o.notes && (
-                  <div className="mt-3 text-sm rounded-lg bg-secondary p-3">
+                  <div className="mt-3 text-sm rounded-xl glass-card p-3">
                     <span className="font-medium">Notes:</span> {o.notes}
                   </div>
                 )}
                 {(o.status === "confirmed" || o.status === "pending") && (
                   <div className="mt-3 flex items-center gap-2">
-                    <Button size="sm" variant="outline" onClick={() => update(o, "completed")}>
+                    <Button size="sm" variant="outline" onClick={() => update(o, "completed")} className="rounded-full">
                       <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Mark Completed
                     </Button>
                     <Button size="sm" variant="ghost" onClick={() => update(o, "cancelled")} className="text-destructive">

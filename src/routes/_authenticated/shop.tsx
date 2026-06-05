@@ -15,6 +15,7 @@ import {
 import { payWithPaystack } from "@/lib/paystack";
 import { toast } from "sonner";
 import { getOrCreateConversation } from "@/lib/conversations";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/shop")({
   component: ShopPage,
@@ -64,22 +65,33 @@ function ShopPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-      <h1 className="text-2xl sm:text-3xl font-bold">Shop</h1>
+      <h1 className="text-3xl sm:text-4xl font-extrabold text-gradient-tri">Shop</h1>
       <p className="text-sm text-muted-foreground">Discover products from verified sellers.</p>
 
       <div className="mt-6 relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search products…" className="pl-9 h-11" />
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search products…" className="search-pill" />
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        <Button size="sm" variant={cat === "all" ? "default" : "outline"} className={cat === "all" ? "bg-gradient-brand" : ""} onClick={() => setCat("all")}>All Categories</Button>
+        <button
+          onClick={() => setCat("all")}
+          className={"px-4 py-1.5 text-sm font-semibold " + (cat === "all" ? "pill-active" : "pill-glass")}
+        >
+          All Categories
+        </button>
         {PRODUCT_CATEGORIES.map((c) => (
-          <Button key={c} size="sm" variant={cat === c ? "default" : "outline"} className={cat === c ? "bg-gradient-brand" : ""} onClick={() => setCat(c)}>{c}</Button>
+          <button
+            key={c}
+            onClick={() => setCat(c)}
+            className={"px-4 py-1.5 text-sm font-semibold capitalize " + (cat === c ? "pill-active" : "pill-glass")}
+          >
+            {c}
+          </button>
         ))}
         <div className="ml-auto w-48">
           <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectTrigger className="glass-card rounded-full"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="newest">Newest</SelectItem>
               <SelectItem value="price_asc">Price: Low to High</SelectItem>
@@ -95,7 +107,10 @@ function ShopPage() {
             <Loader2 className="h-5 w-5 animate-spin" />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border p-12 text-center text-sm text-muted-foreground">
+          <div className="rounded-2xl glass-card border-dashed p-12 text-center text-sm text-muted-foreground">
+            <div className="mx-auto mb-3 h-12 w-12 rounded-full bg-gradient-brand grid place-items-center text-white">
+              <Search className="h-5 w-5" />
+            </div>
             No products found.
           </div>
         ) : (
@@ -119,21 +134,24 @@ function ProductCard({ product, onBuy }: { product: Product; onBuy: () => void }
     <Link
       to="/shop/product/$id"
       params={{ id: product.id }}
-      className="group rounded-xl border border-border bg-card overflow-hidden flex flex-col hover:shadow-lg hover:border-primary/40 transition"
+      className="group rounded-2xl glass-card overflow-hidden flex flex-col lift-hover hover:-translate-y-1.5 hover:border-primary/60 hover:shadow-[0_20px_50px_-20px_color-mix(in_oklab,var(--primary)_55%,transparent)]"
     >
-      <div className="aspect-square bg-secondary relative">
+      <div className="aspect-square bg-secondary relative overflow-hidden">
         {cover ? (
-          <img src={cover} alt={product.title} className="w-full h-full object-cover group-hover:scale-[1.02] transition" />
+          <img src={cover} alt={product.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
         ) : (
           <div className="w-full h-full grid place-items-center text-xs text-muted-foreground">No image</div>
         )}
-        <Badge variant="outline" className="absolute top-2 left-2 capitalize bg-background/80 backdrop-blur text-[10px] px-1.5 py-0">
+        <Badge variant="outline" className={cn(
+          "absolute top-2 left-2 capitalize backdrop-blur text-[10px] px-2 py-0.5 border-0 font-bold text-white",
+          product.product_type === "physical" ? "bg-accent/90" : "bg-primary/90",
+        )}>
           {product.product_type}
         </Badge>
       </div>
       <div className="p-2.5 flex-1 flex flex-col gap-1">
         <h3 className="text-sm font-medium leading-tight line-clamp-2 min-h-[2.5rem]">{product.title}</h3>
-        <div className="text-primary font-bold text-base">{formatNgn(product.price)}</div>
+        <div className="text-base font-extrabold text-gradient-brand">{formatNgn(product.price)}</div>
         {seller && (
           <div className="text-[11px] text-muted-foreground truncate">
             by {seller.full_name || seller.username}
@@ -142,7 +160,7 @@ function ProductCard({ product, onBuy }: { product: Product; onBuy: () => void }
         <Button
           size="sm"
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); onBuy(); }}
-          className="mt-1 h-8 text-xs bg-gradient-brand"
+          className="mt-1 h-8 text-xs rounded-full bg-gradient-coral glow-coral"
         >
           Buy Now
         </Button>

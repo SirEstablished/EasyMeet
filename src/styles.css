@@ -330,6 +330,119 @@ html, body {
 }
 @utility pulse-glow { animation: pulseGlow 2.2s ease-out infinite; }
 
+/* Rounded pill search input with gradient focus glow. Apply on the <input>. */
+@utility search-pill {
+  border-radius: 9999px;
+  height: 2.75rem;
+  padding-left: 2.5rem;
+  background-color: color-mix(in oklab, var(--card) 70%, transparent);
+  backdrop-filter: blur(14px);
+  border: 1px solid color-mix(in oklab, var(--primary) 18%, var(--border));
+  transition: box-shadow 220ms ease, border-color 220ms ease;
+}
+.search-pill:focus,
+.search-pill:focus-visible {
+  outline: none;
+  border-color: color-mix(in oklab, var(--primary) 60%, transparent);
+  box-shadow:
+    0 0 0 4px color-mix(in oklab, var(--primary) 18%, transparent),
+    0 10px 30px -12px color-mix(in oklab, var(--primary) 45%, transparent);
+}
+
+/* Glassy filter / category pill */
+@utility pill-glass {
+  border-radius: 9999px;
+  background-color: color-mix(in oklab, var(--card) 60%, transparent);
+  backdrop-filter: blur(14px);
+  border: 1px solid color-mix(in oklab, var(--primary) 18%, var(--border));
+  color: var(--foreground);
+  transition: transform 180ms ease, box-shadow 220ms ease, border-color 220ms ease;
+}
+.pill-glass:hover {
+  border-color: color-mix(in oklab, var(--primary) 40%, transparent);
+  transform: translateY(-1px);
+}
+
+@utility pill-active {
+  border-radius: 9999px;
+  background-image: linear-gradient(135deg, var(--primary), var(--accent));
+  color: var(--primary-foreground);
+  border: 1px solid transparent;
+  box-shadow: 0 8px 22px -10px color-mix(in oklab, var(--primary) 55%, transparent);
+}
+
+/* Status badges (orders / bookings). Pair with capitalize. */
+@utility status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  backdrop-filter: blur(10px);
+  border: 1px solid transparent;
+}
+.status-pending { background: color-mix(in oklab, #f5b740 18%, transparent); color: #f5b740; border-color: color-mix(in oklab, #f5b740 35%, transparent); }
+.status-confirmed { background: color-mix(in oklab, var(--primary) 18%, transparent); color: var(--primary); border-color: color-mix(in oklab, var(--primary) 35%, transparent); }
+.status-completed { background: color-mix(in oklab, var(--accent) 18%, transparent); color: var(--accent); border-color: color-mix(in oklab, var(--accent) 35%, transparent); }
+.status-cancelled { background: color-mix(in oklab, var(--destructive) 18%, transparent); color: var(--destructive); border-color: color-mix(in oklab, var(--destructive) 35%, transparent); }
+
+/* Gradient border that pulses gold (used on boosted posts) */
+@keyframes goldBorderShimmer {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(245,193,74,0.45), 0 8px 30px -10px rgba(245,193,74,0.35); }
+  50%      { box-shadow: 0 0 0 1px rgba(245,193,74,0.85), 0 12px 40px -8px rgba(245,193,74,0.55); }
+}
+@utility gold-border-shimmer { animation: goldBorderShimmer 2.6s ease-in-out infinite; }
+
+/* Heart pop on like */
+@keyframes heartPop {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.45); }
+  60%  { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+@utility heart-pop { animation: heartPop 480ms cubic-bezier(.34,1.56,.64,1); }
+
+/* Gradient ring around an avatar — wraps the <Avatar> */
+@utility avatar-ring {
+  position: relative;
+  display: inline-block;
+  padding: 2px;
+  border-radius: 9999px;
+  background-image: linear-gradient(135deg, var(--primary), var(--accent));
+}
+
+/* Gradient focus glow on form inputs (paired with .glass-card containers) */
+@utility input-glow {
+  transition: box-shadow 220ms ease, border-color 220ms ease;
+}
+.input-glow:focus,
+.input-glow:focus-visible {
+  outline: none;
+  border-color: color-mix(in oklab, var(--primary) 60%, transparent) !important;
+  box-shadow:
+    0 0 0 4px color-mix(in oklab, var(--primary) 18%, transparent) !important;
+}
+
+/* Shimmer skeleton */
+@keyframes skeletonShimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@utility skeleton-shimmer {
+  background: linear-gradient(110deg, color-mix(in oklab, var(--muted) 80%, transparent) 30%, color-mix(in oklab, var(--primary) 25%, transparent) 50%, color-mix(in oklab, var(--muted) 80%, transparent) 70%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.6s linear infinite;
+}
+
+/* Switch (shadcn) — gradient track when checked */
+button[role="switch"][data-state="checked"] {
+  background-image: linear-gradient(135deg, var(--primary), var(--accent)) !important;
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--primary) 40%, transparent),
+              0 8px 22px -10px color-mix(in oklab, var(--primary) 60%, transparent);
+}
+
 @utility gradient-border {
   position: relative;
   background-clip: padding-box;

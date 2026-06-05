@@ -125,12 +125,14 @@ export function CreatePostCard({ onPosted }: { onPosted: (p: Post) => void }) {
 
   return (
     <>
-      <div className="rounded-2xl glass-card p-4 sm:p-5 lift-hover focus-within:shadow-lg focus-within:-translate-y-0.5">
+      <div className="rounded-2xl glass-card p-4 sm:p-5 lift-hover transition-all focus-within:border-primary/60 focus-within:shadow-[0_0_0_4px_color-mix(in_oklab,var(--primary)_18%,transparent),0_15px_40px_-15px_color-mix(in_oklab,var(--primary)_45%,transparent)] focus-within:-translate-y-0.5">
         <div className="flex gap-3">
-          <Avatar className="h-10 w-10">
-            <AvatarImage src={profile.avatar_url ?? undefined} />
-            <AvatarFallback className="bg-primary text-primary-foreground">{initials}</AvatarFallback>
-          </Avatar>
+          <span className="avatar-ring shrink-0 self-start">
+            <Avatar className="h-10 w-10 border-2 border-background">
+              <AvatarImage src={profile.avatar_url ?? undefined} />
+              <AvatarFallback className="bg-primary text-primary-foreground">{initials}</AvatarFallback>
+            </Avatar>
+          </span>
           <div className="flex-1">
             <MentionTextarea
               placeholder="What's on your mind? Use @ to tag people"
@@ -176,7 +178,7 @@ export function CreatePostCard({ onPosted }: { onPosted: (p: Post) => void }) {
                 <span className="text-xs text-muted-foreground tabular-nums">
                   {body.length}/{MAX}
                 </span>
-                <Button onClick={submit} disabled={posting} className="bg-gradient-brand">
+                <Button onClick={submit} disabled={posting} className="rounded-full bg-gradient-brand glow-primary">
                   {posting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                   Post
                 </Button>
