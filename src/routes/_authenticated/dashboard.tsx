@@ -63,8 +63,8 @@ function Dashboard() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 grid gap-8 md:grid-cols-[240px_1fr]">
       <aside className="hidden md:block">
-        <div className="rounded-2xl glass-card p-4 sticky top-20">
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+        <div className="rounded-2xl p-4 sticky top-20 bg-[#0D0D1A] text-white/90 border border-primary/20 shadow-[0_10px_40px_-20px_color-mix(in_oklab,var(--primary)_60%,transparent)]">
+          <div className="text-[11px] font-semibold text-white/50 uppercase tracking-[0.18em] mb-3 px-2">
             Quick links
           </div>
           <ul className="space-y-1">
@@ -72,49 +72,95 @@ function Dashboard() {
               <li key={label}>
                 <Link
                   to={to}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm lift-hover hover:bg-gradient-brand hover:text-primary-foreground text-left"
+                  className="group w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white/70 hover:text-white border-l-2 border-transparent hover:border-primary hover:bg-white/5 transition-all"
+                  activeProps={{
+                    className:
+                      "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold text-white bg-gradient-brand glow-primary border-l-2 border-transparent",
+                  }}
                 >
-                  <Icon className="h-4 w-4" />
-                  {label}
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{label}</span>
                 </Link>
               </li>
             ))}
           </ul>
         </div>
       </aside>
-      <div className="space-y-6">
-        <div className="rounded-3xl p-8 bg-mesh-brand text-primary-foreground relative overflow-hidden glow-primary">
+
+      <div className="space-y-8">
+        {/* Welcome banner */}
+        <div className="rounded-3xl p-8 sm:p-10 bg-mesh-brand text-primary-foreground relative overflow-hidden glow-primary">
           <div className="absolute inset-0 opacity-[0.08] bg-[radial-gradient(circle_at_top_right,white,transparent_60%)]" />
-          <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(white_1px,transparent_1px)] [background-size:18px_18px]" />
+          <div className="absolute inset-0 opacity-[0.08] [background-image:radial-gradient(white_1px,transparent_1px)] [background-size:18px_18px]" />
+          <div className="absolute -top-20 -left-10 h-72 w-72 rounded-full bg-white/10 blur-3xl float-soft" />
+          <div className="absolute -bottom-24 right-0 h-80 w-80 rounded-full bg-accent/30 blur-3xl float-soft-slow" />
           <div className="relative">
-            <div className="text-sm uppercase tracking-wider opacity-80">Welcome back</div>
-            <h1 className="text-3xl sm:text-4xl font-bold mt-1">Hi, {name} 👋</h1>
-            <p className="mt-2 opacity-90 max-w-xl">{greeting}</p>
-            <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-medium capitalize">
+            <div className="text-xs uppercase tracking-[0.2em] opacity-80">Welcome back</div>
+            <h1 className="text-3xl sm:text-5xl font-extrabold mt-2 tracking-tight">Hi, {name} <span className="inline-block animate-pulse">👋</span></h1>
+            <p className="mt-3 opacity-90 max-w-xl text-base sm:text-lg">{greeting}</p>
+            <div className="mt-5 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold capitalize gradient-border bg-white/10 backdrop-blur-md">
               <ShieldCheck className="h-3.5 w-3.5" /> {role} account
             </div>
           </div>
         </div>
+
+        {/* Stat cards */}
         <div className="grid gap-4 sm:grid-cols-3">
           {[
-            { label: "Active conversations", value: "0", accent: "border-l-primary" },
-            { label: "Bookings this month", value: "0", accent: "border-l-accent" },
-            { label: "Profile completion", value: completion === null ? "—" : `${completion}%`, accent: "border-l-[#ff7ad9]" },
+            { label: "Active conversations", value: "0", top: "from-primary to-primary-glow", gradient: "text-gradient-brand" as const },
+            { label: "Bookings this month", value: "0", top: "from-accent to-primary", gradient: "text-gradient-brand" as const },
+            {
+              label: "Profile completion",
+              value: completion === null ? "—" : `${completion}%`,
+              top: "from-coral to-primary",
+              gradient: "text-gradient-tri" as const,
+              progress: completion ?? 0,
+            },
           ].map((s) => (
             <div
               key={s.label}
-              className={`rounded-2xl glass-card p-5 border-l-4 ${s.accent} lift-hover hover:-translate-y-0.5 hover:shadow-lg`}
+              className="group relative rounded-2xl glass-card p-5 overflow-hidden lift-hover hover:-translate-y-1 hover:shadow-[0_20px_50px_-20px_color-mix(in_oklab,var(--primary)_55%,transparent)] hover:border-primary/40"
             >
-              <div className="text-xs text-muted-foreground">{s.label}</div>
-              <div className="mt-1 text-2xl font-bold text-gradient-brand">{s.value}</div>
+              <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${s.top}`} />
+              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{s.label}</div>
+              <div className={`mt-2 text-4xl font-extrabold tracking-tight ${s.gradient}`}>{s.value}</div>
+              {"progress" in s && (
+                <div className="mt-3 h-2 w-full rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-primary via-accent to-coral transition-[width] duration-700"
+                    style={{ width: `${Math.max(4, s.progress)}%` }}
+                  />
+                </div>
+              )}
             </div>
           ))}
         </div>
-        <div className="rounded-2xl glass-card p-6">
-          <h2 className="font-semibold text-lg">Getting started</h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Complete your profile in Settings to unlock the full EasyMeet experience.
-          </p>
+
+        {/* Getting started / Quick links card */}
+        <div className="rounded-2xl glass-card p-6 sm:p-7">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h2 className="font-bold text-xl">Getting started</h2>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Jump right back in — your shortcuts are here.
+              </p>
+            </div>
+            <Sparkles className="h-5 w-5 text-primary hidden sm:block" />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {quickLinks.map(({ Icon, label, to }) => (
+              <Link
+                key={label}
+                to={to}
+                className="group flex items-center gap-3 rounded-xl p-3 border border-border lift-hover hover:-translate-y-0.5 hover:border-primary/40 hover:bg-gradient-to-r hover:from-primary/10 hover:to-accent/10"
+              >
+                <span className="h-10 w-10 shrink-0 rounded-full bg-gradient-brand text-primary-foreground flex items-center justify-center glow-primary group-hover:scale-110 transition-transform">
+                  <Icon className="h-5 w-5" />
+                </span>
+                <span className="font-semibold text-sm group-hover:text-gradient-brand">{label}</span>
+              </Link>
+            ))}
+          </div>
         </div>
       </div>
     </div>
