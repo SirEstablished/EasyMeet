@@ -22,9 +22,11 @@ function initialsOf(s: string) {
 export function ProfileView({
   profile,
   editButton,
+  isMe,
 }: {
   profile: Profile;
   editButton?: React.ReactNode;
+  isMe?: boolean;
 }) {
   const [services, setServices] = useState<Service[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -141,54 +143,56 @@ export function ProfileView({
 
           {profile.bio && <p className="mt-4 text-sm leading-relaxed">{profile.bio}</p>}
 
-          <div className="mt-5 max-w-md rounded-xl border border-border bg-card p-4">
-            <div className="flex items-center justify-between text-sm">
-              <span className="font-semibold">Profile completion</span>
-              <span className="text-primary font-bold">{completion}%</span>
+          {isMe && (
+            <div className="mt-5 max-w-md rounded-xl border border-border bg-card p-4">
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-semibold">Profile completion</span>
+                <span className="text-primary font-bold">{completion}%</span>
+              </div>
+              <div className="mt-2 h-2 w-full bg-secondary rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-brand transition-all"
+                  style={{ width: `${completion}%` }}
+                />
+              </div>
+              <ul className="mt-3 text-xs text-muted-foreground space-y-1">
+                {isCustomer ? (
+                  <>
+                    <li className={profile.avatar_url ? "text-accent" : ""}>
+                      {profile.avatar_url ? "✓" : "•"} Profile photo
+                    </li>
+                    <li className={profile.full_name && profile.bio ? "text-accent" : ""}>
+                      {profile.full_name && profile.bio ? "✓" : "•"} Full name &amp; bio
+                    </li>
+                    <li className={profile.location ? "text-accent" : ""}>
+                      {profile.location ? "✓" : "•"} Location
+                    </li>
+                    <li className={profile.phone ? "text-accent" : ""}>
+                      {profile.phone ? "✓" : "•"} Phone number
+                    </li>
+                  </>
+                ) : (
+                  <>
+                    <li className={profile.avatar_url ? "text-accent" : ""}>
+                      {profile.avatar_url ? "✓" : "•"} Profile photo
+                    </li>
+                    <li className={profile.full_name ? "text-accent" : ""}>
+                      {profile.full_name ? "✓" : "•"} Full name
+                    </li>
+                    <li className={profile.bio ? "text-accent" : ""}>
+                      {profile.bio ? "✓" : "•"} Bio
+                    </li>
+                    <li className={profile.location ? "text-accent" : ""}>
+                      {profile.location ? "✓" : "•"} Location
+                    </li>
+                    <li className={profile.phone ? "text-accent" : ""}>
+                      {profile.phone ? "✓" : "•"} Phone number
+                    </li>
+                  </>
+                )}
+              </ul>
             </div>
-            <div className="mt-2 h-2 w-full bg-secondary rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-brand transition-all"
-                style={{ width: `${completion}%` }}
-              />
-            </div>
-            <ul className="mt-3 text-xs text-muted-foreground space-y-1">
-              {isCustomer ? (
-                <>
-                  <li className={profile.avatar_url ? "text-accent" : ""}>
-                    {profile.avatar_url ? "✓" : "•"} Profile photo
-                  </li>
-                  <li className={profile.full_name && profile.bio ? "text-accent" : ""}>
-                    {profile.full_name && profile.bio ? "✓" : "•"} Full name &amp; bio
-                  </li>
-                  <li className={profile.location ? "text-accent" : ""}>
-                    {profile.location ? "✓" : "•"} Location
-                  </li>
-                  <li className={profile.phone ? "text-accent" : ""}>
-                    {profile.phone ? "✓" : "•"} Phone number
-                  </li>
-                </>
-              ) : (
-                <>
-                  <li className={profile.avatar_url ? "text-accent" : ""}>
-                    {profile.avatar_url ? "✓" : "•"} Profile photo
-                  </li>
-                  <li className={profile.full_name ? "text-accent" : ""}>
-                    {profile.full_name ? "✓" : "•"} Full name
-                  </li>
-                  <li className={profile.bio ? "text-accent" : ""}>
-                    {profile.bio ? "✓" : "•"} Bio
-                  </li>
-                  <li className={profile.location ? "text-accent" : ""}>
-                    {profile.location ? "✓" : "•"} Location
-                  </li>
-                  <li className={profile.phone ? "text-accent" : ""}>
-                    {profile.phone ? "✓" : "•"} Phone number
-                  </li>
-                </>
-              )}
-            </ul>
-          </div>
+          )}
 
           {!isCustomer && (
             <div className="mt-5 grid grid-cols-3 gap-2 sm:gap-3 max-w-md">

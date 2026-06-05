@@ -70,6 +70,7 @@ function MyProfilePage() {
     <>
       <ProfileView
         profile={profile}
+        isMe
         editButton={
           <Button onClick={() => setEdit(true)} variant="outline">
             <Pencil className="h-4 w-4 mr-2" /> Edit profile
