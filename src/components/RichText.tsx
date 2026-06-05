@@ -18,8 +18,10 @@ export function RichText({ text, className }: { text: string; className?: string
     e.preventDefault();
     e.stopPropagation();
     const key = username.toLowerCase();
-    let id = mentionCache.get(key);
-    if (id === undefined) {
+    let id: string | null;
+    if (mentionCache.has(key)) {
+      id = mentionCache.get(key)!;
+    } else {
       const { data } = await supabase
         .from("profiles")
         .select("id")
