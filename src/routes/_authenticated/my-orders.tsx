@@ -115,6 +115,7 @@ function MyOrdersPage() {
           onOpenChange={(v) => !v && setReviewing(null)}
           providerId={reviewing.provider_id}
           providerName={reviewing.provider?.full_name || reviewing.provider?.username || "Provider"}
+          orderId={reviewing.id}
           onSubmitted={() =>
             setReviewedProviders((cur) => new Set(cur).add(reviewing.provider_id))
           }
