@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { supabase, formatNgn, type Order } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/providers";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Loader2, Star } from "lucide-react";
 import { ReviewOrderDialog } from "@/components/ReviewOrderDialog";
@@ -11,13 +10,6 @@ import { ReviewOrderDialog } from "@/components/ReviewOrderDialog";
 export const Route = createFileRoute("/_authenticated/my-orders")({
   component: MyOrdersPage,
 });
-
-const statusColor: Record<string, string> = {
-  pending: "secondary",
-  confirmed: "default",
-  completed: "default",
-  cancelled: "destructive",
-};
 
 function MyOrdersPage() {
   const { user } = useAuth();
