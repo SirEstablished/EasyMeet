@@ -15,6 +15,7 @@ import { Upload } from "lucide-react";
 import { supabase, type Profile } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/providers";
 import { optimizeImage } from "@/lib/imageOptimize";
+import { getBrowserLocation } from "@/lib/geo";
 
 export function EditProfileDialog({
   open,
@@ -34,6 +35,9 @@ export function EditProfileDialog({
   const [phone, setPhone] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
+  const [locating, setLocating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState<"avatar" | "cover" | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -48,6 +52,8 @@ export function EditProfileDialog({
     setPhone(profile.phone ?? "");
     setAvatarUrl(profile.avatar_url);
     setCoverUrl(profile.cover_url);
+    setLatitude(profile.latitude ?? null);
+    setLongitude(profile.longitude ?? null);
     setErr(null);
   }, [open, profile]);
 
@@ -117,6 +123,8 @@ export function EditProfileDialog({
       avatar_url: avatarUrl,
       cover_url: coverUrl,
       phone: phone || null,
+      latitude,
+      longitude,
     };
     let { error } = await supabase.from("profiles").update(payload).eq("id", user.id);
     if (error && /column .*phone/i.test(error.message)) {
