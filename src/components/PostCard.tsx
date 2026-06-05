@@ -143,18 +143,20 @@ export function PostCard({
     <article
       id={`post-${post.id}`}
       className={cn(
-        "rounded-2xl glass-card overflow-hidden lift-hover hover:-translate-y-0.5 hover:shadow-xl",
-        isBoosted && "gradient-border",
+        "rounded-2xl glass-card overflow-hidden lift-hover hover:-translate-y-1 hover:border-primary/50 hover:shadow-[0_20px_50px_-20px_color-mix(in_oklab,var(--primary)_45%,transparent)]",
+        isBoosted && "gold-border-shimmer",
       )}
     >
       {isBoosted && (
-        <div className="px-4 sm:px-5 pt-3 -mb-1 flex items-center gap-1.5 text-xs text-primary font-medium">
-          <Rocket className="h-3.5 w-3.5" /> Sponsored
+        <div className="px-4 sm:px-5 pt-3 -mb-1 flex items-center gap-1.5">
+          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider gold-shimmer text-white shadow-[0_0_10px_rgba(245,193,74,0.55)]">
+            <Rocket className="h-3 w-3" /> Sponsored
+          </span>
         </div>
       )}
       <div className="p-4 sm:p-5 pb-3 flex items-start gap-3">
-        <Link to="/profile/$id" params={{ id: post.author_id }}>
-          <Avatar className="h-10 w-10">
+        <Link to="/profile/$id" params={{ id: post.author_id }} className="avatar-ring shrink-0">
+          <Avatar className="h-10 w-10 border-2 border-background">
             <AvatarImage src={a?.avatar_url ?? undefined} />
             <AvatarFallback className="bg-primary text-primary-foreground">{initials}</AvatarFallback>
           </Avatar>
@@ -220,15 +222,21 @@ export function PostCard({
       )}
 
       <div className="px-2 sm:px-3 py-1 flex items-center gap-1 border-t border-border">
-        <Button variant="ghost" size="sm" onClick={handleLike} className="gap-2">
-          <Heart className={cn("h-4 w-4", isLiked && "fill-red-500 text-red-500")} />
+        <Button variant="ghost" size="sm" onClick={handleLike} className="gap-2 rounded-full hover:bg-primary/10">
+          <Heart
+            key={`${post.id}-${isLiked}`}
+            className={cn(
+              "h-4 w-4 transition-colors",
+              isLiked ? "fill-[var(--coral)] text-[var(--coral)] heart-pop" : "",
+            )}
+          />
           <span className="tabular-nums">{likeCount}</span>
         </Button>
-        <Button variant="ghost" size="sm" onClick={() => onOpenComments(post.id)} className="gap-2">
+        <Button variant="ghost" size="sm" onClick={() => onOpenComments(post.id)} className="gap-2 rounded-full hover:bg-primary/10">
           <MessageCircle className="h-4 w-4" />
           <span className="tabular-nums">{post.comment_count ?? 0}</span>
         </Button>
-        <Button variant="ghost" size="sm" onClick={share} className="gap-2 ml-auto">
+        <Button variant="ghost" size="sm" onClick={share} className="gap-2 ml-auto rounded-full hover:bg-primary/10">
           <Share2 className="h-4 w-4" />
           <span className="hidden sm:inline">Share</span>
         </Button>
