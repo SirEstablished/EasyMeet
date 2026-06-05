@@ -101,33 +101,34 @@ function Explore() {
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
       <div className="flex items-center gap-2 mb-2">
-        <h1 className="text-2xl sm:text-3xl font-bold">Explore</h1>
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-gradient-tri">Explore</h1>
       </div>
       <p className="text-muted-foreground text-sm">
         Find verified professionals and businesses across Nigeria.
       </p>
 
       <div className="mt-6 relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
         <Input
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search by name, username or service…"
-          className="pl-9 h-11"
+          className="search-pill"
         />
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
         {filters.map((f) => (
-          <Button
+          <button
             key={f.id}
-            size="sm"
-            variant={filter === f.id ? "default" : "outline"}
             onClick={() => (f.id === "near" ? enableNearMe() : setFilter(f.id))}
-            className={filter === f.id ? "bg-gradient-brand" : ""}
+            className={
+              "px-4 py-1.5 text-sm font-semibold " +
+              (filter === f.id ? "pill-active" : "pill-glass")
+            }
           >
             {f.label}
-          </Button>
+          </button>
         ))}
       </div>
 
@@ -135,7 +136,10 @@ function Explore() {
         {loading ? (
           <div className="text-muted-foreground text-sm">Loading…</div>
         ) : filtered.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border p-12 text-center text-sm text-muted-foreground">
+          <div className="rounded-2xl glass-card border-dashed p-12 text-center text-sm text-muted-foreground">
+            <div className="mx-auto mb-3 h-12 w-12 rounded-full bg-gradient-brand grid place-items-center text-white">
+              <Search className="h-5 w-5" />
+            </div>
             No professionals found
           </div>
         ) : (
