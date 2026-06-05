@@ -143,19 +143,19 @@ function MessagesPage() {
       {/* Sidebar */}
       <aside
         className={cn(
-          "w-full sm:w-80 sm:border-r border-border flex flex-col",
+          "w-full sm:w-80 sm:border-r border-border flex flex-col bg-[#0D0D1A]/40 dark:bg-[#0D0D1A]",
           activeId && "hidden sm:flex",
         )}
       >
         <div className="p-4 border-b border-border">
-          <h1 className="text-xl font-bold mb-3">Messages</h1>
+          <h1 className="text-2xl font-extrabold text-gradient-tri mb-3">Messages</h1>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
             <Input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Search conversations…"
-              className="pl-9 h-9"
+              className="search-pill h-10"
             />
           </div>
         </div>
@@ -180,14 +180,17 @@ function MessagesPage() {
                   key={c.id}
                   onClick={() => onSelect(c.id)}
                   className={cn(
-                    "w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-secondary transition-colors border-b border-border/50",
-                    activeId === c.id && "bg-secondary",
+                    "group relative w-full text-left px-4 py-3 flex items-center gap-3 transition-all border-b border-border/30",
+                    "hover:bg-primary/5 hover:border-l-2 hover:border-l-primary",
+                    activeId === c.id && "bg-gradient-to-r from-primary/20 to-transparent border-l-2 border-l-primary",
                   )}
                 >
-                  <Avatar className="h-10 w-10 shrink-0">
-                    <AvatarImage src={c.other?.avatar_url ?? undefined} />
-                    <AvatarFallback>{initials(name)}</AvatarFallback>
-                  </Avatar>
+                  <span className="avatar-ring shrink-0">
+                    <Avatar className="h-10 w-10 border-2 border-background">
+                      <AvatarImage src={c.other?.avatar_url ?? undefined} />
+                      <AvatarFallback>{initials(name)}</AvatarFallback>
+                    </Avatar>
+                  </span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1">
                       <span className={cn("truncate text-sm", unread && "font-bold")}>{name}</span>
@@ -208,7 +211,7 @@ function MessagesPage() {
                         {formatTime(c.last_message_at)}
                       </span>
                     )}
-                    {unread && <span className="h-2 w-2 rounded-full bg-primary" />}
+                    {unread && <span className="h-2.5 w-2.5 rounded-full bg-primary shadow-[0_0_10px_var(--primary)] animate-pulse" />}
                   </div>
                 </button>
               );
@@ -230,8 +233,11 @@ function MessagesPage() {
         ) : (
           <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
             <div className="text-center">
-              <MessageCircle className="h-10 w-10 mx-auto text-muted-foreground/50" />
-              <p className="mt-3">Select a conversation to start messaging</p>
+              <div className="mx-auto mb-3 h-14 w-14 rounded-full bg-gradient-brand grid place-items-center text-white shadow-[0_10px_30px_-10px_color-mix(in_oklab,var(--primary)_55%,transparent)]">
+                <MessageCircle className="h-6 w-6" />
+              </div>
+              <p className="mt-2 font-semibold text-gradient-tri">Select a conversation</p>
+              <p className="text-xs mt-1">Pick a thread to start chatting</p>
             </div>
           </div>
         )}
@@ -354,7 +360,7 @@ function Thread({
 
   return (
     <>
-      <div className="h-14 border-b border-border px-4 flex items-center gap-3">
+      <div className="h-14 border-b border-border px-4 flex items-center gap-3 glass-panel">
         <Button variant="ghost" size="icon" className="sm:hidden" onClick={onBack}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
@@ -363,10 +369,12 @@ function Thread({
           params={{ id: other?.id ?? "" }}
           className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-90"
         >
-          <Avatar className="h-9 w-9">
-            <AvatarImage src={other?.avatar_url ?? undefined} />
-            <AvatarFallback>{initials(name)}</AvatarFallback>
-          </Avatar>
+          <span className="avatar-ring shrink-0">
+            <Avatar className="h-9 w-9 border-2 border-background">
+              <AvatarImage src={other?.avatar_url ?? undefined} />
+              <AvatarFallback>{initials(name)}</AvatarFallback>
+            </Avatar>
+          </span>
           <div className="min-w-0">
             <div className="flex items-center gap-1">
               <span className="font-semibold truncate">{name}</span>
@@ -377,16 +385,16 @@ function Thread({
                 size="sm"
               />
             </div>
-            <span className="text-xs text-muted-foreground capitalize">{other?.role}</span>
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize glass-card text-primary">{other?.role}</span>
           </div>
         </Link>
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-2 bg-secondary/30">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
         {items.map((it) =>
           it.type === "sep" ? (
-            <div key={it.key} className="flex justify-center my-3">
-              <span className="text-[11px] text-muted-foreground bg-background border border-border rounded-full px-3 py-0.5">
+            <div key={it.key} className="flex justify-center my-4">
+              <span className="text-[11px] font-bold text-gradient-tri tracking-wide uppercase">
                 {it.label}
               </span>
             </div>
@@ -401,7 +409,7 @@ function Thread({
         )}
       </div>
 
-      <div className="border-t border-border p-3">
+      <div className="border-t border-border p-3 glass-panel">
         {warn && (
           <div className="text-xs text-destructive mb-2 px-1">{warn}</div>
         )}
@@ -419,9 +427,9 @@ function Thread({
               }
             }}
             placeholder="Type a message..."
-            className="h-10"
+            className="h-11 rounded-full input-glow border-border/60"
           />
-          <Button onClick={send} disabled={!text.trim() || sending} className="bg-gradient-brand h-10 w-10 p-0">
+          <Button onClick={send} disabled={!text.trim() || sending} className="bg-gradient-brand glow-primary h-11 w-11 p-0 rounded-full">
             <Send className="h-4 w-4" />
           </Button>
         </div>
@@ -435,10 +443,10 @@ function MessageBubble({ m, mine }: { m: Message; mine: boolean }) {
     <div className={cn("flex flex-col", mine ? "items-end" : "items-start")}>
       <div
         className={cn(
-          "max-w-[75%] rounded-2xl px-4 py-2 text-sm whitespace-pre-wrap break-words shadow-sm",
+          "max-w-[75%] rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap break-words",
           mine
-            ? "bg-primary text-primary-foreground rounded-br-sm"
-            : "bg-card border border-border rounded-bl-sm",
+            ? "bg-gradient-to-br from-primary to-[color-mix(in_oklab,var(--primary)_70%,white)] text-primary-foreground rounded-br-md shadow-[0_8px_24px_-12px_color-mix(in_oklab,var(--primary)_55%,transparent)]"
+            : "glass-card rounded-bl-md text-foreground",
         )}
       >
         {m.body}
