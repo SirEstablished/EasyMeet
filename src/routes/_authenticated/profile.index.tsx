@@ -139,14 +139,14 @@ function VerificationCard({
   onClick?: () => void;
 }) {
   return (
-    <div className="rounded-xl border border-border p-4 flex flex-col">
+    <div className="rounded-2xl glass-card p-4 flex flex-col lift-hover hover:-translate-y-0.5 hover:shadow-[0_15px_40px_-15px_color-mix(in_oklab,var(--primary)_55%,transparent)]">
       <div className="flex items-center gap-2">
         {badge}
         <h3 className="font-semibold">{title}</h3>
       </div>
       <p className="text-xs text-muted-foreground mt-2 flex-1">{description}</p>
-      <div className="mt-3 font-bold text-primary">{price}</div>
-      <Button className="mt-3 bg-gradient-brand" disabled={disabled} onClick={onClick}>
+      <div className="mt-3 font-extrabold text-gradient-tri">{price}</div>
+      <Button className="mt-3 rounded-full bg-gradient-brand glow-primary" disabled={disabled} onClick={onClick}>
         {disabled ? disabledLabel || "Active" : cta}
       </Button>
     </div>
