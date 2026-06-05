@@ -8,7 +8,7 @@ const handleTagClick = async (username: string) => {
   const { data, error } = await supabase
     .from("profiles")
     .select("id")
-    .eq("username", cleanUsername)
+    .ilike("username", cleanUsername)
     .maybeSingle();
   console.log("[mention] result", { data, error });
   if (data && data.id) {
