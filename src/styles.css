@@ -51,6 +51,8 @@ html, body {
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-coral: var(--coral);
+  --color-coral-foreground: var(--coral-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
@@ -91,6 +93,8 @@ html, body {
   --muted-foreground: oklch(0.5 0.02 280);
   --accent: oklch(0.74 0.17 165);
   --accent-foreground: oklch(0.15 0.05 165);
+  --coral: oklch(0.72 0.21 22);
+  --coral-foreground: oklch(0.99 0 0);
   --destructive: oklch(0.6 0.23 27);
   --destructive-foreground: oklch(0.984 0.003 247.858);
   --border: oklch(0.92 0.01 280);
@@ -113,9 +117,9 @@ html, body {
 
 .dark {
   /* #0D0D1A deep navy background */
-  --background: oklch(0.14 0.035 280);
+  --background: oklch(0.11 0.035 280);
   --foreground: oklch(0.97 0.005 280);
-  --card: oklch(0.19 0.035 280);
+  --card: oklch(0.16 0.035 280);
   --card-foreground: oklch(0.97 0.005 280);
   --popover: oklch(0.2 0.03 280);
   --popover-foreground: oklch(0.97 0.005 280);
@@ -128,6 +132,8 @@ html, body {
   --muted-foreground: oklch(0.7 0.02 280);
   --accent: oklch(0.7 0.17 165);
   --accent-foreground: oklch(0.1 0.04 165);
+  --coral: oklch(0.72 0.21 22);
+  --coral-foreground: oklch(0.99 0 0);
   --destructive: oklch(0.7 0.19 22);
   --destructive-foreground: oklch(0.984 0.003 247.858);
   --border: oklch(1 0 0 / 12%);
@@ -250,10 +256,44 @@ html, body {
   background-image:
     radial-gradient(at 20% 20%, color-mix(in oklab, var(--primary) 60%, transparent) 0, transparent 50%),
     radial-gradient(at 80% 30%, color-mix(in oklab, var(--accent) 50%, transparent) 0, transparent 50%),
-    radial-gradient(at 50% 90%, color-mix(in oklab, var(--primary-glow) 50%, transparent) 0, transparent 55%),
+    radial-gradient(at 50% 90%, color-mix(in oklab, var(--coral) 45%, transparent) 0, transparent 55%),
+    radial-gradient(at 70% 10%, color-mix(in oklab, var(--primary-glow) 50%, transparent) 0, transparent 50%),
     linear-gradient(135deg, var(--primary), var(--accent));
   background-size: 200% 200%;
   animation: meshShift 18s ease-in-out infinite alternate;
+}
+
+@utility bg-gradient-coral {
+  background-image: linear-gradient(135deg, var(--coral) 0%, var(--primary) 100%);
+}
+
+@utility text-gradient-tri {
+  background-image: linear-gradient(120deg, var(--primary) 0%, var(--accent) 50%, var(--coral) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@utility glow-coral {
+  box-shadow:
+    0 10px 30px -10px color-mix(in oklab, var(--coral) 55%, transparent),
+    0 0 0 1px color-mix(in oklab, var(--coral) 30%, transparent);
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+@utility animate-marquee {
+  animation: marquee 28s linear infinite;
+}
+
+@keyframes spinSlow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@utility spin-slow {
+  animation: spinSlow 8s linear infinite;
 }
 
 @keyframes meshShift {
