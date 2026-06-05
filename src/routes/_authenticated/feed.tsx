@@ -64,7 +64,7 @@ function FeedPage() {
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 space-y-4">
       <div>
-        <h1 className="text-2xl font-bold">Feed</h1>
+        <h1 className="text-3xl font-extrabold text-gradient-tri">Feed</h1>
         <p className="text-sm text-muted-foreground">
           See what professionals and businesses are sharing.
         </p>
@@ -77,7 +77,7 @@ function FeedPage() {
           <Loader2 className="h-5 w-5 animate-spin" />
         </div>
       ) : posts.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
+        <div className="rounded-2xl glass-card border-dashed p-12 text-center text-sm text-muted-foreground">
           No posts yet. Be the first to share something.
         </div>
       ) : (
