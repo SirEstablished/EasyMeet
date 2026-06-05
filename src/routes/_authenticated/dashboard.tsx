@@ -124,7 +124,7 @@ function Dashboard() {
               <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${s.top}`} />
               <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{s.label}</div>
               <div className={`mt-2 text-4xl font-extrabold tracking-tight ${s.gradient}`}>{s.value}</div>
-              {"progress" in s && (
+              {"progress" in s && typeof s.progress === "number" && (
                 <div className="mt-3 h-2 w-full rounded-full bg-muted overflow-hidden">
                   <div
                     className="h-full bg-gradient-to-r from-primary via-accent to-coral transition-[width] duration-700"
