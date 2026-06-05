@@ -73,8 +73,12 @@ function ProductDetailPage() {
         amountNgn: product.price,
         metadata: { product_id: product.id, kind: "product" },
       });
-      const { error: orderError } = await supabase.from("orders").insert({
-        customer_id: user.id,
+      console.log("Payment success fired, reference:", res);
+      console.log("Product:", product);
+      const authUser = await supabase.auth.getUser();
+      console.log("Current user:", authUser);
+      const orderData = {
+        customer_id: authUser.data.user!.id,
         provider_id: product.seller_id,
         product_id: product.id,
         service_id: null,
@@ -86,12 +90,20 @@ function ProductDetailPage() {
         payment_ref: res.reference,
         payment_status: "paid",
         status: "confirmed",
-      });
+      };
+      console.log("Order data to insert:", orderData);
+      const { data: insertData, error: orderError } = await supabase
+        .from("orders")
+        .insert(orderData)
+        .select();
+      console.log("Insert result:", insertData);
+      console.log("Insert error:", orderError);
       if (orderError) {
-        console.error("Order insert failed after payment:", orderError, "ref:", res.reference);
+        alert("Order save failed: " + orderError.message);
         toast.error("Payment received but order record failed. Please contact support.");
         return;
       }
+      alert("Order saved successfully!");
       if (product.product_type === "physical") {
         await supabase.from("products").update({ stock_count: Math.max(0, product.stock_count - 1) }).eq("id", product.id);
       }
