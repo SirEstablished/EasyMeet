@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { supabase, formatNgn, type Order, type OrderStatus } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/providers";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
