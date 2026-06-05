@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { VerificationTicks } from "./VerificationTicks";
 import { StarRating } from "./StarRating";
-import { Globe, MapPin } from "lucide-react";
+import { Globe, MapPin, Star as StarIcon, MessageSquare, Briefcase } from "lucide-react";
 import { PostCard } from "./PostCard";
 import { CommentsDrawer } from "./CommentsDrawer";
 import { calcCompletion } from "@/lib/profileCompletion";
@@ -73,7 +73,7 @@ export function ProfileView({
     <div className="max-w-5xl mx-auto pb-16">
       {/* Cover */}
       <div
-        className={`h-44 sm:h-56 w-full rounded-b-2xl relative ${
+        className={`relative h-[160px] sm:h-[220px] w-full rounded-b-3xl overflow-hidden ${
           profile.cover_url ? "" : "bg-mesh-brand"
         }`}
         style={
@@ -81,12 +81,20 @@ export function ProfileView({
             ? { backgroundImage: `url(${profile.cover_url})`, backgroundSize: "cover", backgroundPosition: "center" }
             : undefined
         }
-      />
+      >
+        {profile.cover_url && (
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+        )}
+      </div>
       <div className="px-4 sm:px-6 -mt-12 sm:-mt-14">
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div className="flex items-end gap-4">
-            <span className="inline-block rounded-full p-[3px] bg-gradient-brand shadow-lg">
-              <Avatar className="h-24 w-24 sm:h-28 sm:w-28 border-4 border-background">
+            <span className="group relative inline-block rounded-full p-[3px] shadow-[0_10px_40px_-10px_color-mix(in_oklab,var(--primary)_60%,transparent)]">
+              <span
+                aria-hidden
+                className="absolute inset-0 rounded-full bg-[conic-gradient(from_0deg,var(--primary),var(--accent),var(--coral),var(--primary))] group-hover:spin-slow"
+              />
+              <Avatar className="relative h-[90px] w-[90px] sm:h-[120px] sm:w-[120px] border-4 border-background">
                 <AvatarImage src={profile.avatar_url ?? undefined} />
                 <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
                   {initials}
@@ -95,7 +103,7 @@ export function ProfileView({
             </span>
           </div>
           {editButton && (
-            <div className="w-full sm:w-auto [&_a]:w-full [&_button]:w-full sm:[&_a]:w-auto sm:[&_button]:w-auto">
+            <div className="w-full sm:w-auto [&_a]:w-full [&_button]:w-full sm:[&_a]:w-auto sm:[&_button]:w-auto [&_button]:rounded-full [&_a]:rounded-full">
               {editButton}
             </div>
           )}
@@ -103,7 +111,7 @@ export function ProfileView({
 
         <div className="mt-4">
           <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-2xl sm:text-3xl font-bold">
+            <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight">
               {profile.full_name || profile.username || "Unnamed"}
             </h1>
             {!isCustomer && (
@@ -116,7 +124,7 @@ export function ProfileView({
             )}
           </div>
           <div className="mt-1 flex items-center gap-2 flex-wrap text-sm">
-            <span className="inline-block px-2 py-0.5 rounded-full bg-primary/10 text-primary capitalize text-xs font-medium">
+            <span className="inline-flex items-center px-3 py-1 rounded-full glass-card text-xs font-semibold capitalize text-primary">
               {isBusiness ? "Business" : profile.role === "professional" ? "Professional" : "Customer"}
             </span>
             {profile.username && (
@@ -134,7 +142,7 @@ export function ProfileView({
                 href={profile.website}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1 text-primary hover:underline"
+                className="inline-flex items-center gap-1 text-gradient-tri font-semibold hover:underline"
               >
                 <Globe className="h-4 w-4" /> Website
               </a>
@@ -144,15 +152,15 @@ export function ProfileView({
           {profile.bio && <p className="mt-4 text-sm leading-relaxed">{profile.bio}</p>}
 
           {isMe && (
-            <div className="mt-5 max-w-md rounded-xl border border-border bg-card p-4">
+            <div className="mt-5 max-w-md rounded-2xl glass-card p-5">
               <div className="flex items-center justify-between text-sm">
                 <span className="font-semibold">Profile completion</span>
-                <span className="text-primary font-bold">{completion}%</span>
+                <span className="text-gradient-tri font-extrabold text-base">{completion}%</span>
               </div>
-              <div className="mt-2 h-2 w-full bg-secondary rounded-full overflow-hidden">
+              <div className="mt-3 h-2.5 w-full bg-secondary/60 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-gradient-brand transition-all"
-                  style={{ width: `${completion}%` }}
+                  className="h-full bg-gradient-to-r from-primary via-accent to-coral transition-all"
+                  style={{ width: `${Math.max(4, completion)}%` }}
                 />
               </div>
               <ul className="mt-3 text-xs text-muted-foreground space-y-1">
@@ -195,19 +203,25 @@ export function ProfileView({
           )}
 
           {!isCustomer && (
-            <div className="mt-5 grid grid-cols-3 gap-2 sm:gap-3 max-w-md">
-              <Stat
+            <div className="mt-6 grid grid-cols-3 gap-2 sm:gap-4 max-w-xl">
+              <StatCard
+                icon={<StarIcon className="h-4 w-4 fill-amber-400 text-amber-400" />}
                 label="Rating"
-                value={
-                  <StarRating
-                    value={profile.avg_rating}
-                    count={profile.review_count}
-                    showNumber={false}
-                  />
-                }
+                value={Number(profile.avg_rating || 0).toFixed(1)}
+                accent="from-amber-400 to-coral"
               />
-              <Stat label="Reviews" value={profile.review_count} />
-              <Stat label="Services" value={services.length} />
+              <StatCard
+                icon={<MessageSquare className="h-4 w-4 text-accent" />}
+                label="Reviews"
+                value={profile.review_count}
+                accent="from-accent to-primary"
+              />
+              <StatCard
+                icon={<Briefcase className="h-4 w-4 text-primary" />}
+                label="Services"
+                value={services.length}
+                accent="from-primary to-coral"
+              />
             </div>
           )}
         </div>
@@ -215,21 +229,27 @@ export function ProfileView({
         {/* Tabs */}
         {!isCustomer && (
         <Tabs defaultValue="services" className="mt-8">
-          <TabsList>
-            <TabsTrigger value="services">Services</TabsTrigger>
-            <TabsTrigger value="reviews">Reviews</TabsTrigger>
-            <TabsTrigger value="posts">Posts</TabsTrigger>
+          <TabsList className="w-full justify-start bg-transparent border-b border-border rounded-none p-0 h-auto gap-2">
+            {(["services", "reviews", "posts"] as const).map((v) => (
+              <TabsTrigger
+                key={v}
+                value={v}
+                className="capitalize relative rounded-none bg-transparent px-4 py-2.5 text-sm font-semibold text-muted-foreground data-[state=active]:text-gradient-tri data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:after:absolute data-[state=active]:after:left-2 data-[state=active]:after:right-2 data-[state=active]:after:-bottom-px data-[state=active]:after:h-0.5 data-[state=active]:after:rounded-full data-[state=active]:after:bg-gradient-to-r data-[state=active]:after:from-primary data-[state=active]:after:via-accent data-[state=active]:after:to-coral transition-colors"
+              >
+                {v}
+              </TabsTrigger>
+            ))}
           </TabsList>
 
-          <TabsContent value="services" className="mt-4">
+          <TabsContent value="services" className="mt-6">
             {services.length === 0 ? (
               <EmptyState>No services yet</EmptyState>
             ) : (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid sm:grid-cols-2 gap-4">
                 {services.map((s) => (
-                  <div key={s.id} className="rounded-xl glass-card overflow-hidden flex flex-col lift-hover hover:-translate-y-0.5 hover:shadow-xl">
+                  <div key={s.id} className="rounded-2xl glass-card overflow-hidden flex flex-col lift-hover hover:-translate-y-1 hover:border-primary/50 hover:shadow-[0_20px_50px_-20px_color-mix(in_oklab,var(--primary)_55%,transparent)]">
                     <div
-                      className="h-32 bg-secondary"
+                      className="h-36 bg-mesh-brand"
                       style={
                         s.image_url
                           ? { backgroundImage: `url(${s.image_url})`, backgroundSize: "cover", backgroundPosition: "center" }
@@ -241,11 +261,11 @@ export function ProfileView({
                       <p className="text-sm text-muted-foreground mt-1 line-clamp-2 flex-1">
                         {s.description}
                       </p>
-                      <div className="mt-3 flex items-center justify-between">
-                        <span className="font-bold text-primary">
+                      <div className="mt-4 flex items-center justify-between">
+                        <span className="font-extrabold text-lg text-gradient-tri">
                           ₦{Number(s.price).toLocaleString()}
                         </span>
-                        <Button size="sm">Book Now</Button>
+                        <Button size="sm" className="rounded-full bg-gradient-brand glow-primary">Book Now</Button>
                       </div>
                     </div>
                   </div>
@@ -254,16 +274,24 @@ export function ProfileView({
             )}
           </TabsContent>
 
-          <TabsContent value="reviews" className="mt-4">
-            <div className="flex items-center gap-3 mb-4">
-              <StarRating value={profile.avg_rating} count={profile.review_count} />
+          <TabsContent value="reviews" className="mt-6">
+            <div className="mb-5 rounded-2xl glass-card p-5 flex items-center gap-4">
+              <div className="text-5xl font-extrabold text-gradient-tri leading-none">
+                {Number(profile.avg_rating || 0).toFixed(1)}
+              </div>
+              <div>
+                <StarRating value={profile.avg_rating} showNumber={false} size={18} />
+                <div className="text-xs text-muted-foreground mt-1">
+                  {profile.review_count ?? 0} review{(profile.review_count ?? 0) === 1 ? "" : "s"}
+                </div>
+              </div>
             </div>
             {reviews.length === 0 ? (
               <EmptyState>No reviews yet</EmptyState>
             ) : (
               <div className="space-y-4">
                 {reviews.map((r) => (
-                  <div key={r.id} className="rounded-xl border border-border bg-card p-4">
+                  <div key={r.id} className="rounded-2xl glass-card p-5 lift-hover hover:-translate-y-0.5">
                     <div className="flex items-center gap-3">
                       <Avatar className="h-9 w-9">
                         <AvatarImage src={r.reviewer?.avatar_url ?? undefined} />
@@ -281,14 +309,14 @@ export function ProfileView({
                         {new Date(r.created_at).toLocaleDateString()}
                       </span>
                     </div>
-                    {r.comment && <p className="mt-2 text-sm">{r.comment}</p>}
+                    {r.comment && <p className="mt-3 text-sm leading-relaxed">{r.comment}</p>}
                   </div>
                 ))}
               </div>
             )}
           </TabsContent>
 
-          <TabsContent value="posts" className="mt-4">
+          <TabsContent value="posts" className="mt-6">
               {posts.length === 0 ? (
                 <EmptyState>No posts yet</EmptyState>
               ) : (
@@ -316,18 +344,32 @@ export function ProfileView({
   );
 }
 
-function Stat({ label, value }: { label: string; value: React.ReactNode }) {
+function StatCard({
+  icon,
+  label,
+  value,
+  accent,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: React.ReactNode;
+  accent: string;
+}) {
   return (
-    <div className="rounded-xl glass-card px-3 py-2 border-l-2 border-l-primary/60">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="font-semibold text-sm mt-0.5">{value}</div>
+    <div className="relative rounded-2xl glass-card p-4 lift-hover hover:-translate-y-0.5 hover:shadow-[0_15px_40px_-15px_color-mix(in_oklab,var(--primary)_50%,transparent)] overflow-hidden">
+      <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${accent}`} />
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        {icon}
+        <span>{label}</span>
+      </div>
+      <div className="font-extrabold text-2xl mt-1 text-gradient-tri">{value}</div>
     </div>
   );
 }
 
 function EmptyState({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
+    <div className="rounded-2xl border border-dashed border-primary/30 glass-card p-12 text-center text-sm text-muted-foreground">
       {children}
     </div>
   );
