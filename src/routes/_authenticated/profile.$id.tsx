@@ -109,6 +109,7 @@ function PublicProfilePage() {
     <ProfileView
       key={profile.id}
       profile={profile}
+      isMe={isMe}
       editButton={
         isMe ? (
           <Button asChild variant="outline">
