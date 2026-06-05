@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { supabase, formatNgn, type Service } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/providers";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil, Trash2, Loader2, EyeOff } from "lucide-react";
 import { ServiceFormDialog } from "@/components/ServiceFormDialog";
 import { toast } from "sonner";
