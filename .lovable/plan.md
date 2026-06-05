@@ -1,41 +1,93 @@
-## Goal
-Make every interactive element fully visible and tappable at 375–430px wide. No desktop layout, functionality, or Supabase code changes.
+## Overview
 
-## Scope (visual/CSS only)
+Four substantial feature areas across Explore, Reviews, Gold Tick, and Verification flows. This plan groups the work so existing features stay intact.
 
-### 1. Landing header (`src/routes/index.tsx`)
-- On mobile the header packs theme toggle + "Sign in" + "Get Started" into a 16px-padded row — buttons get clipped.
-- Fix: tighten container padding on mobile (`px-3`), shrink buttons on `<sm` (`size="sm"`, `px-3 text-sm`), hide the standalone "Sign in" text button below `sm` (Sign-in remains accessible via Get Started → AuthModal toggle), keep theme toggle + Get Started visible. No desktop change (`sm:` breakpoints preserve current layout).
-- Hero CTAs: ensure buttons stack full-width on mobile (`w-full sm:w-auto`).
+---
 
-### 2. App navbar (`src/components/AppNavbar.tsx`)
-- The nav links row is `hidden md:flex` (good), but the right cluster (theme, bell, avatar) + logo can crowd 375px.
-- Fix: reduce horizontal padding on mobile (`px-3 sm:px-6`), shrink icon buttons gap, ensure Logo truncates.
-- Add a mobile bottom tab bar OR a hamburger menu? → Out of scope unless asked; instead expose the existing nav links via a `Sheet` triggered by a menu icon visible only on `<md`. This restores access to Home/Explore/Feed/Shop/Messages/Profile on mobile (currently they're inaccessible without desktop mode). Uses existing `Sheet` shadcn component — no new deps, no logic changes.
+## FIX 1 — Explore page improvements
 
-### 3. Dashboard (`src/routes/_authenticated/dashboard.tsx`)
-- Audit stat cards/grids for `grid-cols-*` without a mobile fallback; ensure `grid-cols-1 sm:grid-cols-2 lg:grid-cols-4` pattern.
-- Action buttons: `flex-wrap` + `w-full sm:w-auto` where they currently overflow.
+**DB migration**
+- Add `latitude numeric`, `longitude numeric` columns to `public.profiles` (nullable).
 
-### 4. My Services / My Products / My Orders / My Bookings
-- Header rows with title + "Create" button: switch to `flex-col sm:flex-row` with `w-full sm:w-auto` button.
-- Card grids: ensure `grid-cols-1 sm:grid-cols-2` minimum.
+**EditProfileDialog**
+- Add "Use my current location" button that calls `navigator.geolocation.getCurrentPosition`; on success store `latitude`/`longitude` into the update payload. Graceful fallback if denied.
 
-### 5. Profile pages (`ProfileView.tsx`, `profile.$id.tsx`)
-- Action buttons (Edit/Message/Follow) wrap to a column on mobile (`flex-wrap gap-2`, buttons `flex-1 min-w-0` or full-width).
-- Cover/avatar overlap area: ensure no negative-margin clipping below 375px.
+**ProfileCard** (`src/components/ProfileCard.tsx`)
+- Display: large avatar (h-14 w-14 / 56px), primary line = `@username` if present else `full_name`, location below in muted text, first 60 chars of bio (`...` if longer), optional `"X.X km away"` line when distance prop passed.
+- Add optional `distanceKm?: number` prop.
 
-### 6. Service / Product cards & dialogs
-- `ServiceFormDialog` / `ProductFormDialog`: ensure `DialogContent` uses `max-w-[95vw] sm:max-w-lg` and inner buttons stack on mobile.
+**Explore route** (`src/routes/_authenticated/explore.tsx`)
+- Add "Near Me" filter chip. On click, request geolocation; cache coords in state.
+- Haversine helper in `src/lib/geo.ts`.
+- When Near Me active, compute distance per profile (only those with lat/lng), sort ascending, pass `distanceKm` into card.
+- Profiles without coords appear after, no km shown.
 
-### 7. Global safety net (`src/styles.css`)
-- Add `html, body { overflow-x: hidden; }` (or `max-width: 100vw`) as a backstop against horizontal scroll from blur orbs/decoratives.
-- Constrain landing-page decorative blurs with `overflow-hidden` on their parent sections (already in hero — verify on others).
+---
 
-## Out of scope
-- Desktop layout (≥`sm`/`md` breakpoints untouched).
-- Any data fetching, Supabase, auth, routing, or business-logic code.
-- New features beyond a mobile menu Sheet to surface existing nav links.
+## FIX 2 — Review system after completed orders
 
-## Validation
-After edits: use `preview_ui--set_preview_device_viewport` (mobile) and visually verify each route — landing, dashboard, my-services, my-products, profile, shop, feed — at 375px. Confirm no horizontal scroll and all CTAs tappable.
+**ReviewOrderDialog** (new `src/components/ReviewOrderDialog.tsx`)
+- Star picker (1-5 required), textarea (max 300, optional), submit.
+- INSERT into `reviews` with `reviewer_id=auth.uid()`, `professional_id=order.provider_id`, `rating`, `comment`. (Schema uses `professional_id`/`reviewer_id`; no `service_id` field present — skip if not in schema.)
+- After insert, also insert notification for the customer when order becomes completed (handled below).
+
+**my-orders route**
+- For each order with `status='completed'` AND no existing review by current user for that provider+order, show "Leave a Review" button.
+- Track reviewed orders: query `reviews` filtered by `reviewer_id` once and match by `professional_id`+approximate — better: add `order_id` column? Spec doesn't require. Use simple check: one review per (reviewer, professional) — show button only if none exists yet for that provider. (Documented as limitation.)
+- After submit: replace button with "Thanks for your review!".
+
+**Notifications**
+- When the professional marks an order completed (existing update site), insert notification row for customer: "How was your experience with X? Leave a review."
+
+---
+
+## FIX 3 — Gold tick criteria
+
+**DB migration**
+- Add `is_banned boolean default false` to profiles.
+- Update/replace `award_gold_tick` trigger function: set `gold_tick=true` when `avg_rating>=4.8 AND review_count>=50 AND created_at <= now() - interval '6 months' AND is_banned=false AND profile_complete`. Profile complete = all of full_name, username, bio, location, phone, avatar_url not null/empty.
+- Trigger on profiles update of relevant fields + reviews insert.
+
+**UI**
+- Update gold tick description text on ProfileView / My Profile page.
+
+---
+
+## FIX 4 — Verification document upload flow
+
+**Storage**
+- Create private bucket `verification-docs` via tool. RLS: users can upload to/read their own `${uid}/...` path.
+
+**DB migration** — `verification_requests` table per spec, with RLS (select/insert own only) + grants.
+
+**VerificationModal** (new `src/components/VerificationModal.tsx`)
+- Multi-step: Documents → Payment → Confirmation.
+- Blue: ID upload, selfie, phone confirm, optional cert. Price ₦2,000/month.
+- White: CAC doc, business name, reg number, address proof, owner ID, business phone. Price ₦5,000/month.
+- Uploads files to `verification-docs/${userId}/${type}-${ts}-${name}`.
+- On payment success (existing Paystack flow), INSERT verification_requests row with collected URLs.
+- Final step shows 24–48h message.
+
+**ProfileView wiring**
+- Replace direct payment trigger on Blue/White tick buttons with opening this modal.
+- Update displayed pricing text.
+
+---
+
+## Technical details
+
+- Haversine in `src/lib/geo.ts` returns km.
+- Distance hidden when no lat/lng on profile.
+- All new SQL in fresh migration files under `supabase/migrations/`.
+- Bucket created via `supabase--storage_create_bucket`.
+- Tailwind/semantic tokens reused; brand purple/green already in theme.
+- Mobile-first layout retained on Explore grid and modals (sm: breakpoints already used).
+
+---
+
+## Out of scope / assumptions
+
+- Reverse geocoding of stored text locations into lat/lng is NOT done; only freshly captured coords count for distance.
+- Review uniqueness uses `(reviewer_id, professional_id)` since `reviews` table has no `order_id` column — one review per professional per reviewer.
+- Notifications use existing `notifications` table shape; if absent, fallback to skipping silently.
+- Admin approval workflow for verification_requests is not built (spec only requires user-side submission).

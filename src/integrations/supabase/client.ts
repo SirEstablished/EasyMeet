@@ -36,6 +36,9 @@ export interface Profile {
   sells_products?: boolean;
   offers_services?: boolean;
   phone?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  is_banned?: boolean;
 }
 
 export interface Service {

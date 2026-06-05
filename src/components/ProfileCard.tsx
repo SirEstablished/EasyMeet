@@ -4,14 +4,19 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { VerificationTicks } from "./VerificationTicks";
 import { StarRating } from "./StarRating";
 import { MapPin } from "lucide-react";
+import { formatDistance } from "@/lib/geo";
 
-export function ProfileCard({ p }: { p: Profile }) {
+export function ProfileCard({ p, distanceKm }: { p: Profile; distanceKm?: number }) {
+  const displayName = p.username ? `@${p.username}` : (p.full_name || "Unnamed");
   const initials = (p.full_name || p.username || "U")
     .split(" ")
     .map((s) => s[0])
     .slice(0, 2)
     .join("")
     .toUpperCase();
+  const bioPreview = p.bio
+    ? p.bio.length > 60 ? p.bio.slice(0, 60) + "..." : p.bio
+    : null;
   return (
     <Link
       to="/profile/$id"
@@ -20,7 +25,7 @@ export function ProfileCard({ p }: { p: Profile }) {
     >
       <div className="flex items-start gap-3">
         <span className="inline-block rounded-full p-[2px] bg-gradient-brand shrink-0">
-          <Avatar className="h-14 w-14 border-2 border-background">
+          <Avatar className="h-16 w-16 border-2 border-background">
             <AvatarImage src={p.avatar_url ?? undefined} />
             <AvatarFallback className="bg-primary text-primary-foreground">{initials}</AvatarFallback>
           </Avatar>
@@ -28,7 +33,7 @@ export function ProfileCard({ p }: { p: Profile }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="font-semibold truncate group-hover:text-primary transition-colors">
-              {p.full_name || p.username || "Unnamed"}
+              {displayName}
             </span>
             <VerificationTicks
               blue={p.blue_tick}
@@ -37,11 +42,22 @@ export function ProfileCard({ p }: { p: Profile }) {
               size="sm"
             />
           </div>
+          {p.username && p.full_name && (
+            <div className="text-xs text-muted-foreground truncate">{p.full_name}</div>
+          )}
           <div className="text-xs text-muted-foreground capitalize">{p.role}</div>
           {p.location && (
             <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
               <MapPin className="h-3 w-3" /> {p.location}
             </div>
+          )}
+          {typeof distanceKm === "number" && (
+            <div className="text-[11px] text-primary mt-0.5 font-medium">
+              {formatDistance(distanceKm)}
+            </div>
+          )}
+          {bioPreview && (
+            <p className="text-xs text-foreground/80 mt-1.5 leading-snug">{bioPreview}</p>
           )}
         </div>
       </div>

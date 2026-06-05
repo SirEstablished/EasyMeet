@@ -5,19 +5,17 @@ import { ProfileView } from "@/components/ProfileView";
 import { EditProfileDialog } from "@/components/EditProfileDialog";
 import { Button } from "@/components/ui/button";
 import { VerificationTicks } from "@/components/VerificationTicks";
-import { Pencil, Star, Loader2 } from "lucide-react";
-import { payWithPaystack } from "@/lib/paystack";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { Pencil, Star } from "lucide-react";
+import { VerificationModal } from "@/components/VerificationModal";
 
 export const Route = createFileRoute("/_authenticated/profile/")({
   component: MyProfilePage,
 });
 
 function MyProfilePage() {
-  const { profile, user, refreshProfile } = useAuth();
+  const { profile } = useAuth();
   const [edit, setEdit] = useState(false);
-  const [buyingTick, setBuyingTick] = useState<"blue" | "white" | null>(null);
+  const [verifyTick, setVerifyTick] = useState<"blue" | "white" | null>(null);
 
   if (!profile) {
     return (
@@ -29,42 +27,6 @@ function MyProfilePage() {
 
   const isBusiness = profile.role === "business";
   const isProfessional = profile.role === "professional";
-
-  const buyTick = async (type: "blue" | "white") => {
-    if (!user) return;
-    const amount = type === "blue" ? 5000 : 10000;
-    setBuyingTick(type);
-    try {
-      const res = await payWithPaystack({
-        email: user.email || `${user.id}@easymeet.app`,
-        amountNgn: amount,
-        metadata: { kind: "tick", tick_type: type },
-      });
-      const expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
-      const [{ error: tErr }, { error: pErr }] = await Promise.all([
-        supabase.from("tick_purchases").insert({
-          user_id: user.id,
-          tick_type: type,
-          amount_paid: amount,
-          payment_ref: res.reference,
-          expires_at: expiresAt,
-        }),
-        supabase.from("profiles").update(type === "blue" ? { blue_tick: true } : { white_tick: true }).eq("id", user.id),
-      ]);
-      if (tErr || pErr) throw tErr || pErr;
-      await refreshProfile();
-      if (type === "blue") toast.success("Blue tick activated! Your profile is now verified.");
-      else toast.success("White tick activated! Your organisation is now verified.");
-    } catch (e) {
-      if (e instanceof Error && e.message === "Payment cancelled") {
-        toast.message("Payment cancelled");
-      } else {
-        toast.error(e instanceof Error ? e.message : "Payment failed");
-      }
-    } finally {
-      setBuyingTick(null);
-    }
-  };
 
   return (
     <>
@@ -104,12 +66,11 @@ function MyProfilePage() {
                   title="Blue Tick"
                   badge={<VerificationTicks blue size="lg" />}
                   description="Verified Professional badge. Builds trust with customers."
-                  price="₦5,000/year"
+                  price="₦2,000/month"
                   cta="Get Blue Tick"
                   disabled={profile.blue_tick}
                   disabledLabel="Active"
-                  loading={buyingTick === "blue"}
-                  onClick={() => buyTick("blue")}
+                  onClick={() => setVerifyTick("blue")}
                 />
               )}
               {isBusiness && (
@@ -117,12 +78,11 @@ function MyProfilePage() {
                   title="White Tick"
                   badge={<VerificationTicks white size="lg" />}
                   description="Verified Organisation badge for registered businesses."
-                  price="₦10,000/year"
+                  price="₦5,000/month"
                   cta="Get White Tick"
                   disabled={profile.white_tick}
                   disabledLabel="Active"
-                  loading={buyingTick === "white"}
-                  onClick={() => buyTick("white")}
+                  onClick={() => setVerifyTick("white")}
                 />
               )}
               <div className="rounded-xl border border-border p-4">
@@ -132,7 +92,7 @@ function MyProfilePage() {
                 </div>
                 <p className="text-xs text-muted-foreground mt-2 flex items-start gap-1">
                   <Star className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
-                  Earned automatically when your rating reaches 4.5+ with 10+ reviews.
+                  Earned automatically when you have 4.8+ rating, 50+ reviews, active for 6+ months, and a complete profile.
                 </p>
                 <div className="mt-3 text-xs">
                   Status:{" "}
@@ -147,6 +107,13 @@ function MyProfilePage() {
       )}
 
       <EditProfileDialog open={edit} onOpenChange={setEdit} profile={profile} />
+      {verifyTick && (
+        <VerificationModal
+          open={!!verifyTick}
+          onOpenChange={(v) => !v && setVerifyTick(null)}
+          tickType={verifyTick}
+        />
+      )}
     </>
   );
 }
@@ -159,7 +126,6 @@ function VerificationCard({
   cta,
   disabled,
   disabledLabel,
-  loading,
   onClick,
 }: {
   title: string;
@@ -169,7 +135,6 @@ function VerificationCard({
   cta: string;
   disabled?: boolean;
   disabledLabel?: string;
-  loading?: boolean;
   onClick?: () => void;
 }) {
   return (
@@ -180,8 +145,7 @@ function VerificationCard({
       </div>
       <p className="text-xs text-muted-foreground mt-2 flex-1">{description}</p>
       <div className="mt-3 font-bold text-primary">{price}</div>
-      <Button className="mt-3 bg-gradient-brand" disabled={disabled || loading} onClick={onClick}>
-        {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+      <Button className="mt-3 bg-gradient-brand" disabled={disabled} onClick={onClick}>
         {disabled ? disabledLabel || "Active" : cta}
       </Button>
     </div>

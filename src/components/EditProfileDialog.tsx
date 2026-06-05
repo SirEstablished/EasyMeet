@@ -15,6 +15,7 @@ import { Upload } from "lucide-react";
 import { supabase, type Profile } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/providers";
 import { optimizeImage } from "@/lib/imageOptimize";
+import { getBrowserLocation } from "@/lib/geo";
 
 export function EditProfileDialog({
   open,
@@ -34,6 +35,9 @@ export function EditProfileDialog({
   const [phone, setPhone] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
+  const [locating, setLocating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState<"avatar" | "cover" | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -48,6 +52,8 @@ export function EditProfileDialog({
     setPhone(profile.phone ?? "");
     setAvatarUrl(profile.avatar_url);
     setCoverUrl(profile.cover_url);
+    setLatitude(profile.latitude ?? null);
+    setLongitude(profile.longitude ?? null);
     setErr(null);
   }, [open, profile]);
 
@@ -117,6 +123,8 @@ export function EditProfileDialog({
       avatar_url: avatarUrl,
       cover_url: coverUrl,
       phone: phone || null,
+      latitude,
+      longitude,
     };
     let { error } = await supabase.from("profiles").update(payload).eq("id", user.id);
     if (error && /column .*phone/i.test(error.message)) {
@@ -191,6 +199,31 @@ export function EditProfileDialog({
           <div className="space-y-1.5">
             <Label htmlFor="ep-location">Location</Label>
             <Input id="ep-location" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Lagos, Nigeria" />
+            <div className="flex items-center gap-2 text-xs">
+              <button
+                type="button"
+                onClick={async () => {
+                  setLocating(true);
+                  try {
+                    const c = await getBrowserLocation();
+                    setLatitude(c.lat);
+                    setLongitude(c.lng);
+                  } catch {
+                    setErr("Couldn't access your location");
+                  } finally {
+                    setLocating(false);
+                  }
+                }}
+                className="text-primary hover:underline"
+              >
+                {locating ? "Detecting…" : "Use my current location"}
+              </button>
+              {latitude != null && longitude != null && (
+                <span className="text-muted-foreground">
+                  ✓ {latitude.toFixed(3)}, {longitude.toFixed(3)}
+                </span>
+              )}
+            </div>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="ep-website">Website</Label>

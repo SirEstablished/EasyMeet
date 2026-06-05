@@ -4,7 +4,9 @@ import { supabase, formatNgn, type Order } from "@/integrations/supabase/client"
 import { useAuth } from "@/lib/providers";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Loader2, Star } from "lucide-react";
+import { ReviewOrderDialog } from "@/components/ReviewOrderDialog";
 
 export const Route = createFileRoute("/_authenticated/my-orders")({
   component: MyOrdersPage,
@@ -21,21 +23,32 @@ function MyOrdersPage() {
   const { user } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reviewedProviders, setReviewedProviders] = useState<Set<string>>(new Set());
+  const [reviewing, setReviewing] = useState<Order | null>(null);
 
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
     setLoading(true);
-    supabase
-      .from("orders")
-      .select("*, provider:provider_id(id, full_name, username, avatar_url)")
-      .eq("customer_id", user.id)
-      .order("created_at", { ascending: false })
-      .then(({ data }) => {
-        if (cancelled) return;
-        setOrders((data as Order[]) ?? []);
-        setLoading(false);
-      });
+    (async () => {
+      const [{ data: orderData }, { data: revData }] = await Promise.all([
+        supabase
+          .from("orders")
+          .select("*, provider:provider_id(id, full_name, username, avatar_url)")
+          .eq("customer_id", user.id)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("reviews")
+          .select("professional_id")
+          .eq("reviewer_id", user.id),
+      ]);
+      if (cancelled) return;
+      setOrders((orderData as Order[]) ?? []);
+      setReviewedProviders(
+        new Set(((revData as { professional_id: string }[]) ?? []).map((r) => r.professional_id)),
+      );
+      setLoading(false);
+    })();
     return () => { cancelled = true; };
   }, [user]);
 
@@ -76,11 +89,37 @@ function MyOrdersPage() {
                   <div className="font-bold text-primary">{formatNgn(o.amount)}</div>
                   <Badge variant={(statusColor[o.status] as any) || "secondary"} className="capitalize mt-1">{o.status}</Badge>
                 </div>
+                {o.status === "completed" && (
+                  reviewedProviders.has(o.provider_id) ? (
+                    <div className="ml-auto sm:ml-0 sm:basis-full text-xs text-accent font-medium mt-1">
+                      ✓ Thanks for your review!
+                    </div>
+                  ) : (
+                    <Button
+                      size="sm"
+                      className="ml-auto sm:ml-0 sm:basis-full bg-gradient-brand mt-1"
+                      onClick={(e) => { e.preventDefault(); setReviewing(o); }}
+                    >
+                      <Star className="h-3.5 w-3.5 mr-1" /> Leave a Review
+                    </Button>
+                  )
+                )}
               </div>
             );
           })
         )}
       </div>
+      {reviewing && (
+        <ReviewOrderDialog
+          open={!!reviewing}
+          onOpenChange={(v) => !v && setReviewing(null)}
+          providerId={reviewing.provider_id}
+          providerName={reviewing.provider?.full_name || reviewing.provider?.username || "Provider"}
+          onSubmitted={() =>
+            setReviewedProviders((cur) => new Set(cur).add(reviewing.provider_id))
+          }
+        />
+      )}
     </div>
   );
 }
