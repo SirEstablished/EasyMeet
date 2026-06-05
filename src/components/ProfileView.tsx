@@ -22,9 +22,11 @@ function initialsOf(s: string) {
 export function ProfileView({
   profile,
   editButton,
+  isMe,
 }: {
   profile: Profile;
   editButton?: React.ReactNode;
+  isMe?: boolean;
 }) {
   const [services, setServices] = useState<Service[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
