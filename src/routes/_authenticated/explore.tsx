@@ -5,12 +5,14 @@ import { supabase, type Profile } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ProfileCard } from "@/components/ProfileCard";
+import { getBrowserLocation, haversineKm } from "@/lib/geo";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/explore")({
   component: Explore,
 });
 
-type Filter = "all" | "professional" | "business" | "top" | "verified";
+type Filter = "all" | "professional" | "business" | "top" | "verified" | "near";
 
 const filters: { id: Filter; label: string }[] = [
   { id: "all", label: "All" },
@@ -18,6 +20,7 @@ const filters: { id: Filter; label: string }[] = [
   { id: "business", label: "Businesses" },
   { id: "top", label: "Top Rated" },
   { id: "verified", label: "Verified" },
+  { id: "near", label: "Near Me" },
 ];
 
 function Explore() {
@@ -25,6 +28,21 @@ function Explore() {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
+
+  const enableNearMe = async () => {
+    if (userCoords) {
+      setFilter("near");
+      return;
+    }
+    try {
+      const coords = await getBrowserLocation();
+      setUserCoords(coords);
+      setFilter("near");
+    } catch {
+      toast.error("Couldn't get your location. Please allow location access.");
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -46,7 +64,7 @@ function Explore() {
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    return profiles.filter((p) => {
+    const list = profiles.filter((p) => {
       if (filter === "professional" && p.role !== "professional") return false;
       if (filter === "business" && p.role !== "business") return false;
       if (filter === "top" && !p.gold_tick) return false;
@@ -59,7 +77,26 @@ function Explore() {
         (p.location || "").toLowerCase().includes(needle)
       );
     });
-  }, [profiles, q, filter]);
+    if (filter === "near" && userCoords) {
+      const withDist = list.map((p) => {
+        const lat = p.latitude == null ? null : Number(p.latitude);
+        const lng = p.longitude == null ? null : Number(p.longitude);
+        const dist =
+          lat != null && lng != null && !isNaN(lat) && !isNaN(lng)
+            ? haversineKm(userCoords, { lat, lng })
+            : null;
+        return { p, dist };
+      });
+      withDist.sort((a, b) => {
+        if (a.dist == null && b.dist == null) return 0;
+        if (a.dist == null) return 1;
+        if (b.dist == null) return -1;
+        return a.dist - b.dist;
+      });
+      return withDist;
+    }
+    return list.map((p) => ({ p, dist: null as number | null }));
+  }, [profiles, q, filter, userCoords]);
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
@@ -86,7 +123,7 @@ function Explore() {
             key={f.id}
             size="sm"
             variant={filter === f.id ? "default" : "outline"}
-            onClick={() => setFilter(f.id)}
+            onClick={() => (f.id === "near" ? enableNearMe() : setFilter(f.id))}
             className={filter === f.id ? "bg-gradient-brand" : ""}
           >
             {f.label}
@@ -103,8 +140,8 @@ function Explore() {
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filtered.map((p) => (
-              <ProfileCard key={p.id} p={p} />
+            {filtered.map(({ p, dist }) => (
+              <ProfileCard key={p.id} p={p} distanceKm={dist ?? undefined} />
             ))}
           </div>
         )}
