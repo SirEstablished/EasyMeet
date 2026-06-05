@@ -73,7 +73,7 @@ function ProductDetailPage() {
         amountNgn: product.price,
         metadata: { product_id: product.id, kind: "product" },
       });
-      const { error } = await supabase.from("orders").insert({
+      const { error: orderError } = await supabase.from("orders").insert({
         customer_id: user.id,
         provider_id: product.seller_id,
         product_id: product.id,
@@ -81,15 +81,31 @@ function ProductDetailPage() {
         kind: "product",
         service_title: product.title,
         amount: product.price,
+        currency: "NGN",
         notes: null,
         payment_ref: res.reference,
         payment_status: "paid",
         status: "confirmed",
       });
-      if (error) throw error;
+      if (orderError) {
+        console.error("Order insert failed after payment:", orderError, "ref:", res.reference);
+        toast.error("Payment received but order record failed. Please contact support.");
+        return;
+      }
       if (product.product_type === "physical") {
         await supabase.from("products").update({ stock_count: Math.max(0, product.stock_count - 1) }).eq("id", product.id);
       }
+      const { error: notifyError } = await supabase.from("notifications").insert({
+        user_id: product.seller_id,
+        recipient_id: product.seller_id,
+        sender_id: user.id,
+        type: "new_order",
+        title: "New order",
+        message: `You received a new order for "${product.title}".`,
+        body: `You received a new order for "${product.title}".`,
+        read: false,
+      } as any);
+      if (notifyError) console.warn("Seller notification failed:", notifyError);
       toast.success("Purchase successful 🎉");
       navigate({ to: "/my-orders" });
     } catch (e) {

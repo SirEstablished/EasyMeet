@@ -179,7 +179,7 @@ function PurchaseModal({ product, onClose }: { product: Product | null; onClose:
         amountNgn: product.price,
         metadata: { product_id: product.id, kind: "product" },
       });
-      const { error } = await supabase.from("orders").insert({
+      const { error: orderError } = await supabase.from("orders").insert({
         customer_id: user.id,
         provider_id: product.seller_id,
         product_id: product.id,
@@ -187,12 +187,30 @@ function PurchaseModal({ product, onClose }: { product: Product | null; onClose:
         kind: "product",
         service_title: product.title,
         amount: product.price,
+        currency: "NGN",
         notes: null,
         payment_ref: res.reference,
         payment_status: "paid",
         status: "confirmed",
       });
-      if (error) throw error;
+      if (orderError) {
+        console.error("Order insert failed after payment:", orderError, "ref:", res.reference);
+        toast.error("Payment received but order record failed. Please contact support.");
+        return;
+      }
+
+      // Notify the seller (best-effort)
+      const { error: notifyError } = await supabase.from("notifications").insert({
+        user_id: product.seller_id,
+        recipient_id: product.seller_id,
+        sender_id: user.id,
+        type: "new_order",
+        title: "New order",
+        message: `You received a new order for "${product.title}".`,
+        body: `You received a new order for "${product.title}".`,
+        read: false,
+      } as any);
+      if (notifyError) console.warn("Seller notification failed:", notifyError);
 
       // Decrement stock for physical products
       if (product.product_type === "physical") {
@@ -210,8 +228,13 @@ function PurchaseModal({ product, onClose }: { product: Product | null; onClose:
         downloadUrl = data?.signedUrl ?? null;
       }
 
-      setDone({ sellerId: product.seller_id, sellerName, downloadUrl });
       toast.success("Purchase successful 🎉");
+      if (product.product_type === "digital" && downloadUrl) {
+        setDone({ sellerId: product.seller_id, sellerName, downloadUrl });
+      } else {
+        onClose();
+        navigate({ to: "/my-orders" });
+      }
     } catch (e) {
       if (e instanceof Error && e.message === "Payment cancelled") {
         toast.message("Payment cancelled");
