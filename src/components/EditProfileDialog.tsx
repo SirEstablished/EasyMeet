@@ -199,6 +199,31 @@ export function EditProfileDialog({
           <div className="space-y-1.5">
             <Label htmlFor="ep-location">Location</Label>
             <Input id="ep-location" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Lagos, Nigeria" />
+            <div className="flex items-center gap-2 text-xs">
+              <button
+                type="button"
+                onClick={async () => {
+                  setLocating(true);
+                  try {
+                    const c = await getBrowserLocation();
+                    setLatitude(c.lat);
+                    setLongitude(c.lng);
+                  } catch {
+                    setErr("Couldn't access your location");
+                  } finally {
+                    setLocating(false);
+                  }
+                }}
+                className="text-primary hover:underline"
+              >
+                {locating ? "Detecting…" : "Use my current location"}
+              </button>
+              {latitude != null && longitude != null && (
+                <span className="text-muted-foreground">
+                  ✓ {latitude.toFixed(3)}, {longitude.toFixed(3)}
+                </span>
+              )}
+            </div>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="ep-website">Website</Label>
