@@ -61,10 +61,10 @@ function Landing() {
 
       {/* HERO */}
       <section className="relative overflow-hidden min-h-[92vh] flex items-center">
-        <div className="absolute inset-0 -z-10 bg-mesh-brand opacity-[0.18]" />
+        <div className="absolute inset-0 -z-10 bg-mesh-brand opacity-[0.28] dark:opacity-[0.45]" />
         <div className="absolute -top-32 -left-32 -z-10 h-96 w-96 rounded-full bg-primary/30 blur-3xl float-soft" />
         <div className="absolute -bottom-32 -right-32 -z-10 h-[28rem] w-[28rem] rounded-full bg-accent/30 blur-3xl float-soft-slow" />
-        <div className="absolute top-1/3 right-1/4 -z-10 h-72 w-72 rounded-full bg-[oklch(0.72_0.18_330)]/20 blur-3xl float-soft-delayed" />
+        <div className="absolute top-1/3 right-1/4 -z-10 h-72 w-72 rounded-full bg-coral/25 blur-3xl float-soft-delayed" />
 
         {/* Floating profile cards (decorative, desktop only) */}
         <div className="hidden lg:block pointer-events-none absolute inset-0 -z-[5]">
@@ -80,20 +80,54 @@ function Landing() {
             Now live in Nigeria
           </div>
           <h1 className="text-5xl sm:text-7xl font-extrabold tracking-tight max-w-4xl mx-auto leading-[1.02]">
-            Find <span className="text-gradient-brand">Verified Professionals</span> Near You
+            Find <span className="text-gradient-tri">Verified Professionals</span> Near You
           </h1>
           <p className="mt-6 max-w-2xl mx-auto text-lg sm:text-xl text-muted-foreground">
             EasyMeet is Nigeria's top service marketplace — connecting customers with trusted local
             professionals and businesses, in minutes.
           </p>
           <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 max-w-sm sm:max-w-none mx-auto">
-            <Button size="lg" className="bg-gradient-brand text-primary-foreground h-12 px-7 glow-primary hover:scale-[1.03] transition-transform w-full sm:w-auto" onClick={goApp}>
-              Get Started
+            <Button size="lg" className="bg-gradient-brand text-primary-foreground h-12 px-8 rounded-full glow-primary hover:scale-[1.03] transition-transform w-full sm:w-auto" onClick={goApp}>
+              Get Started Free
             </Button>
-            <Button size="lg" variant="outline" className="h-12 px-7 glass-card hover:bg-primary/5 w-full sm:w-auto" onClick={() => openModal("signup")}>
-              Browse Professionals
+            <Button size="lg" variant="outline" className="h-12 px-8 rounded-full glass-card border-white/40 hover:bg-primary/5 w-full sm:w-auto" onClick={() => openModal("signup")}>
+              See How It Works
             </Button>
           </div>
+        </div>
+
+        {/* Marquee ticker of profession categories */}
+        <div className="absolute bottom-0 left-0 right-0 overflow-hidden border-y border-border/60 bg-background/40 backdrop-blur-md py-3">
+          <div className="flex w-max animate-marquee whitespace-nowrap text-sm sm:text-base font-semibold text-muted-foreground">
+            {Array.from({ length: 2 }).map((_, dup) => (
+              <div key={dup} className="flex items-center gap-8 px-4">
+                {["Plumbers","Designers","Lawyers","Chefs","Photographers","Teachers","Developers","Accountants","Stylists","Electricians","Tutors","Event Planners"].map((p, i) => (
+                  <span key={`${dup}-${i}`} className="flex items-center gap-8">
+                    <span className="text-gradient-brand">{p}</span>
+                    <span className="text-primary/40">•</span>
+                  </span>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* STATS */}
+      <section className="relative overflow-hidden border-b border-border/60">
+        <div className="absolute inset-0 -z-10 bg-[radial-gradient(color-mix(in_oklab,var(--primary)_22%,transparent)_1px,transparent_1px)] [background-size:24px_24px] opacity-30" />
+        <div className="absolute inset-0 -z-10 bg-gradient-to-br from-primary/10 via-transparent to-accent/10" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16 grid gap-8 sm:grid-cols-3 text-center">
+          {[
+            { num: "10,000+", label: "Professionals" },
+            { num: "50,000+", label: "Customers" },
+            { num: "₦500M+", label: "Transactions" },
+          ].map((s) => (
+            <div key={s.label} className="rounded-2xl glass-card p-8 lift-hover hover:-translate-y-1">
+              <div className="text-5xl sm:text-6xl font-extrabold tracking-tight text-gradient-tri">{s.num}</div>
+              <div className="mt-2 text-sm font-medium text-muted-foreground uppercase tracking-widest">{s.label}</div>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -184,7 +218,7 @@ function Landing() {
           <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(white_1px,transparent_1px)] [background-size:18px_18px]" />
           <h2 className="relative text-3xl sm:text-5xl font-bold">Ready to meet your match?</h2>
           <p className="relative mt-3 opacity-90">Join thousands of Nigerians using EasyMeet every day.</p>
-          <Button size="lg" variant="secondary" className="relative mt-6 h-12 px-8 hover:scale-[1.03] transition-transform" onClick={goApp}>
+          <Button size="lg" variant="secondary" className="relative mt-6 h-12 px-8 rounded-full hover:scale-[1.03] transition-transform" onClick={goApp}>
             Get Started Free
           </Button>
         </div>
