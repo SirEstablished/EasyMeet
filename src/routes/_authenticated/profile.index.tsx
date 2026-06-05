@@ -42,8 +42,8 @@ function MyProfilePage() {
 
       {(isBusiness || isProfessional) && (
         <div className="max-w-5xl mx-auto px-4 sm:px-6 pb-16">
-          <div className="rounded-2xl border border-border bg-card p-6">
-            <h2 className="font-semibold text-lg">Verification</h2>
+          <div className="rounded-3xl glass-card p-6">
+            <h2 className="font-extrabold text-xl text-gradient-tri">Get Verified</h2>
             <p className="text-sm text-muted-foreground mt-1">
               Your current verification status:
             </p>
@@ -85,7 +85,8 @@ function MyProfilePage() {
                   onClick={() => setVerifyTick("white")}
                 />
               )}
-              <div className="rounded-xl border border-border p-4">
+              <div className="relative rounded-2xl p-4 overflow-hidden border border-amber-400/40 bg-gradient-to-br from-amber-500/10 via-amber-300/5 to-transparent shadow-[0_10px_30px_-15px_rgba(245,193,74,0.5)]">
+                <div className="absolute inset-0 pointer-events-none gold-shimmer opacity-[0.06]" />
                 <div className="flex items-center gap-2">
                   <VerificationTicks gold size="lg" />
                   <h3 className="font-semibold">Gold Tick</h3>
