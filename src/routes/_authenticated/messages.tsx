@@ -155,7 +155,7 @@ function MessagesPage() {
             <Input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search conversations…"
+              placeholder="      Search conversations…"
               className="search-pill h-10"
             />
           </div>
