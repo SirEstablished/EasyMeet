@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
-import { supabase, formatNgn, type Service } from "@/integrations/supabase/client";
+import { supabase, formatServicePrice, type Service } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/providers";
 import { Button } from "@/components/ui/button";
 import { Plus, Pencil, Trash2, Loader2, EyeOff } from "lucide-react";
@@ -94,18 +94,12 @@ function MyServicesPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {services.map((s) => (
               <div key={s.id} className="group rounded-2xl glass-card overflow-hidden flex flex-col lift-hover hover:-translate-y-1 hover:border-primary/50 hover:shadow-[0_20px_50px_-20px_color-mix(in_oklab,var(--primary)_45%,transparent)]">
-                <div className="aspect-video bg-secondary overflow-hidden">
-                  {s.image_url ? (
-                    <img src={s.image_url} alt={s.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                  ) : (
-                    <div className="w-full h-full grid place-items-center text-xs text-muted-foreground">No image</div>
-                  )}
-                </div>
+                <ServiceMediaGallery media={s.media_urls ?? (s.image_url ? [s.image_url] : [])} title={s.title} />
                 <div className="p-4 flex-1 flex flex-col">
                   <div className="flex items-start gap-2">
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold truncate">{s.title}</h3>
-                      <div className="font-extrabold text-gradient-brand mt-0.5">{formatNgn(s.price)}</div>
+                      <div className="font-extrabold text-gradient-brand mt-0.5">{formatServicePrice(s.price)}</div>
                     </div>
                     {!s.is_active && (
                       <span className="status-pill status-cancelled"><EyeOff className="h-3 w-3" />Hidden</span>
@@ -131,6 +125,41 @@ function MyServicesPage() {
       </div>
 
       <ServiceFormDialog open={open} onOpenChange={setOpen} service={editing} onSaved={onSaved} />
+    </div>
+  );
+}
+
+function ServiceMediaGallery({ media, title }: { media: string[]; title: string }) {
+  const isVideo = (u: string) => /\.(mp4|webm|mov|m4v)(\?|$)/i.test(u);
+  const [idx, setIdx] = useState(0);
+  if (!media || media.length === 0) {
+    return (
+      <div className="aspect-video bg-secondary grid place-items-center text-xs text-muted-foreground">
+        No media
+      </div>
+    );
+  }
+  const current = media[Math.min(idx, media.length - 1)];
+  return (
+    <div className="relative aspect-video bg-secondary overflow-hidden">
+      {isVideo(current) ? (
+        <video src={current} controls className="w-full h-full object-cover" />
+      ) : (
+        <img src={current} alt={title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+      )}
+      {media.length > 1 && (
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5 px-2 py-1 rounded-full bg-black/50 backdrop-blur-sm">
+          {media.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setIdx(i); }}
+              aria-label={`Go to media ${i + 1}`}
+              className={`h-1.5 rounded-full transition-all ${i === idx ? "w-4 bg-white" : "w-1.5 bg-white/50"}`}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
