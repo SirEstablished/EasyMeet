@@ -17,7 +17,7 @@ import {
   PROFESSIONS,
   BUSINESS_TYPES,
 } from "@/integrations/supabase/client";
-import { User as UserIcon, Briefcase, Building2 } from "lucide-react";
+import { User as UserIcon, Briefcase, Building2, Lightbulb } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import {
   Select,
@@ -409,6 +409,17 @@ export function AuthModal() {
                       onChange={(e) => setProfessionOther(e.target.value)}
                     />
                   )}
+                  <div className="mt-2 flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-2.5 text-xs text-muted-foreground">
+                    <Lightbulb className="h-3.5 w-3.5 mt-0.5 text-primary shrink-0" />
+                    <div>
+                      <span className="font-semibold text-foreground">Tip:</span>{" "}
+                      Use specific keywords in your profession so customers can find you easily.{" "}
+                      <span className="block mt-1 italic">
+                        Example: Instead of "I do hair" write "Professional hair stylist
+                        specialising in braids, weaves and natural hair in Lagos".
+                      </span>
+                    </div>
+                  </div>
                 </div>
                 <div className="flex items-center justify-between rounded-lg border border-border p-3">
                   <div>
@@ -446,6 +457,17 @@ export function AuthModal() {
                       onChange={(e) => setBusinessTypeOther(e.target.value)}
                     />
                   )}
+                  <div className="mt-2 flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-2.5 text-xs text-muted-foreground">
+                    <Lightbulb className="h-3.5 w-3.5 mt-0.5 text-primary shrink-0" />
+                    <div>
+                      <span className="font-semibold text-foreground">Tip:</span>{" "}
+                      Use specific keywords for your business so customers can find you easily.{" "}
+                      <span className="block mt-1 italic">
+                        Example: Instead of "We sell food" write "Authentic Nigerian jollof and
+                        small chops catering in Lagos".
+                      </span>
+                    </div>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label>What does your business do?</Label>
