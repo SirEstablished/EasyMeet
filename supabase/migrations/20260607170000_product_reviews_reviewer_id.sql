@@ -37,6 +37,9 @@ ALTER TABLE public.product_reviews
   DROP CONSTRAINT IF EXISTS product_reviews_product_id_reviewer_id_key;
 
 ALTER TABLE public.product_reviews
+  DROP COLUMN IF EXISTS customer_id;
+
+ALTER TABLE public.product_reviews
   ADD CONSTRAINT product_reviews_product_id_reviewer_id_key UNIQUE (product_id, reviewer_id);
 
 DROP POLICY IF EXISTS "Product reviews: customer insert after completed order" ON public.product_reviews;
