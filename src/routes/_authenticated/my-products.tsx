@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase, formatNgn, type Product } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/providers";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil, Trash2, Loader2, EyeOff } from "lucide-react";
 import { ProductFormDialog } from "@/components/ProductFormDialog";
 import { toast } from "sonner";
+import { useLiveData } from "@/hooks/use-live-data";
 
 export const Route = createFileRoute("/_authenticated/my-products")({
   component: MyProductsPage,
@@ -28,23 +29,25 @@ function MyProductsPage() {
     }
   }, [profile, navigate]);
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (!user) return;
-    let cancelled = false;
-    setLoading(true);
-    supabase
+    const { data, error } = await supabase
       .from("products")
       .select("*")
       .eq("seller_id", user.id)
-      .order("created_at", { ascending: false })
-      .then(({ data, error }) => {
-        if (cancelled) return;
-        if (error) toast.error(error.message);
-        setProducts((data as Product[]) ?? []);
-        setLoading(false);
-      });
-    return () => { cancelled = true; };
+      .order("created_at", { ascending: false });
+    if (error) toast.error(error.message);
+    setProducts((data as Product[]) ?? []);
+    setLoading(false);
   }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    setLoading(true);
+    load();
+  }, [user, load]);
+
+  useLiveData(["products"], load);
 
   const onSaved = (p: Product) => {
     setProducts((cur) => {
