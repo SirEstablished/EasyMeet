@@ -272,6 +272,12 @@ function ProductDetailPage() {
     } as any);
     setSubmittingReview(false);
     if (error) {
+      if ((error as any).code === "23505") {
+        setHasReviewed(true);
+        setReviewOpen(false);
+        toast.message("You've already reviewed this product.");
+        return;
+      }
       toast.error(error.message);
       return;
     }
