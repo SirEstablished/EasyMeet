@@ -74,7 +74,7 @@ function ShopPage() {
 
       <div className="mt-6 relative">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search products…" className="search-pill" />
+        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="      Search products…" className="search-pill" />
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
