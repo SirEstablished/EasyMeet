@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase, formatNgn, PRODUCT_CATEGORIES, type Product } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/providers";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ import { payWithPaystack } from "@/lib/paystack";
 import { toast } from "sonner";
 import { getOrCreateConversation } from "@/lib/conversations";
 import { cn } from "@/lib/utils";
+import { useLiveData } from "@/hooks/use-live-data";
 
 export const Route = createFileRoute("/_authenticated/shop")({
   component: ShopPage,
@@ -31,21 +32,22 @@ function ShopPage() {
   const [sort, setSort] = useState<SortKey>("newest");
   const [buying, setBuying] = useState<Product | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    supabase
+  const load = useCallback(async () => {
+    const { data } = await supabase
       .from("products")
       .select("*, seller:seller_id(id, full_name, username, avatar_url, role, blue_tick, white_tick, gold_tick)")
       .eq("is_active", true)
-      .order("created_at", { ascending: false })
-      .then(({ data }) => {
-        if (cancelled) return;
-        setProducts((data as Product[]) ?? []);
-        setLoading(false);
-      });
-    return () => { cancelled = true; };
+      .order("created_at", { ascending: false });
+    setProducts((data as Product[]) ?? []);
+    setLoading(false);
   }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    load();
+  }, [load]);
+
+  useLiveData(["products"], load);
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
