@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase, formatNgn, type Product } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/providers";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -23,6 +23,7 @@ function ProductDetailPage() {
   const [loading, setLoading] = useState(true);
   const [activeImg, setActiveImg] = useState(0);
   const [paying, setPaying] = useState(false);
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -61,6 +62,7 @@ function ProductDetailPage() {
   const seller = product.seller;
   const images = (product.image_urls ?? []).slice(0, 4);
   const sellerInitials = (seller?.full_name || "U").split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase();
+  const isOwner = !!user && user.id === product.seller_id;
 
   const buy = async () => {
     if (!user) return;
@@ -133,7 +135,9 @@ function ProductDetailPage() {
     if (!user || !seller) return;
     try {
       const cid = await getOrCreateConversation(user.id, seller.id);
-      navigate({ to: "/messages", search: { c: cid } as any });
+      const sellerName = seller.full_name || seller.username || "there";
+      const prefilled = `Hi ${sellerName} 👋 I just saw your product ${product.title} on the EasyMeet Shop and I'm interested. Can you tell me more about it?`;
+      navigate({ to: "/messages", search: { c: cid, m: prefilled } as any });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Couldn't open chat");
     }
@@ -146,28 +150,75 @@ function ProductDetailPage() {
       </Button>
       <div className="grid md:grid-cols-2 gap-6">
         <div>
-          <div className="aspect-square rounded-2xl overflow-hidden bg-secondary border border-border">
-            {images[activeImg] ? (
-              <img src={images[activeImg]} alt={product.title} className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full grid place-items-center text-muted-foreground">
+          {/* Mobile: swipeable horizontal gallery with dots */}
+          <div className="md:hidden">
+            {images.length === 0 ? (
+              <div className="aspect-square rounded-2xl overflow-hidden bg-secondary border border-border grid place-items-center text-muted-foreground">
                 <Package className="h-12 w-12" />
+              </div>
+            ) : (
+              <>
+                <div
+                  ref={scrollerRef}
+                  onScroll={(e) => {
+                    const el = e.currentTarget;
+                    const idx = Math.round(el.scrollLeft / el.clientWidth);
+                    if (idx !== activeImg) setActiveImg(idx);
+                  }}
+                  className="flex overflow-x-auto snap-x snap-mandatory rounded-2xl border border-border bg-secondary scrollbar-hide"
+                  style={{ scrollbarWidth: "none" }}
+                >
+                  {images.map((src, i) => (
+                    <div key={i} className="shrink-0 w-full aspect-square snap-center">
+                      <img src={src} alt={`${product.title} ${i + 1}`} className="w-full h-full object-cover" draggable={false} />
+                    </div>
+                  ))}
+                </div>
+                {images.length > 1 && (
+                  <div className="mt-3 flex items-center justify-center gap-1.5">
+                    {images.map((_, i) => (
+                      <button
+                        key={i}
+                        aria-label={`Go to image ${i + 1}`}
+                        onClick={() => {
+                          const el = scrollerRef.current;
+                          if (el) el.scrollTo({ left: i * el.clientWidth, behavior: "smooth" });
+                          setActiveImg(i);
+                        }}
+                        className={`h-2 rounded-full transition-all ${i === activeImg ? "w-6 bg-primary" : "w-2 bg-muted-foreground/40"}`}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Desktop: main + thumbnails */}
+          <div className="hidden md:block">
+            <div className="aspect-square rounded-2xl overflow-hidden bg-secondary border border-border">
+              {images[activeImg] ? (
+                <img src={images[activeImg]} alt={product.title} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full grid place-items-center text-muted-foreground">
+                  <Package className="h-12 w-12" />
+                </div>
+              )}
+            </div>
+            {images.length > 1 && (
+              <div className="mt-3 grid grid-cols-4 gap-2">
+                {images.map((src, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setActiveImg(i)}
+                    className={`aspect-square rounded-lg overflow-hidden border-2 ${i === activeImg ? "border-primary" : "border-transparent"}`}
+                  >
+                    <img src={src} alt="" className="w-full h-full object-cover" />
+                  </button>
+                ))}
               </div>
             )}
           </div>
-          {images.length > 1 && (
-            <div className="mt-3 grid grid-cols-4 gap-2">
-              {images.map((src, i) => (
-                <button
-                  key={i}
-                  onClick={() => setActiveImg(i)}
-                  className={`aspect-square rounded-lg overflow-hidden border-2 ${i === activeImg ? "border-primary" : "border-transparent"}`}
-                >
-                  <img src={src} alt="" className="w-full h-full object-cover" />
-                </button>
-              ))}
-            </div>
-          )}
         </div>
 
         <div className="flex flex-col">
@@ -213,14 +264,22 @@ function ProductDetailPage() {
             </Link>
           )}
 
-          <div className="mt-6 flex flex-col sm:flex-row gap-2">
-            <Button onClick={buy} disabled={paying} className="bg-gradient-brand flex-1 h-11">
-              {paying ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-              Buy Now
-            </Button>
-            <Button onClick={message} variant="outline" className="flex-1 h-11">
-              <MessageCircle className="h-4 w-4 mr-2" /> Message Seller
-            </Button>
+          <div className="mt-6">
+            {isOwner ? (
+              <div className="h-11 grid place-items-center rounded-md border border-dashed border-border text-sm text-muted-foreground">
+                This is your listing
+              </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button onClick={buy} disabled={paying} className="bg-gradient-brand flex-1 h-11">
+                  {paying ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                  Buy Now
+                </Button>
+                <Button onClick={message} variant="outline" className="flex-1 h-11">
+                  <MessageCircle className="h-4 w-4 mr-2" /> Message Seller
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </div>

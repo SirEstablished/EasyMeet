@@ -35,12 +35,32 @@ function ShopPage() {
   const [buying, setBuying] = useState<Product | null>(null);
 
   const load = useCallback(async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("products")
       .select("*, seller:seller_id(id, full_name, username, avatar_url, role, blue_tick, white_tick, gold_tick)")
       .eq("is_active", true)
       .order("created_at", { ascending: false });
-    setProducts((data as Product[]) ?? []);
+    if (error) {
+      console.warn("[shop] join query failed, retrying without seller join:", error);
+      const { data: bare } = await supabase
+        .from("products")
+        .select("*")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false });
+      const list = (bare as Product[]) ?? [];
+      const sellerIds = Array.from(new Set(list.map((p) => p.seller_id))).filter(Boolean);
+      if (sellerIds.length > 0) {
+        const { data: sellers } = await supabase
+          .from("profiles")
+          .select("id, full_name, username, avatar_url, role, blue_tick, white_tick, gold_tick")
+          .in("id", sellerIds);
+        const map = new Map((sellers ?? []).map((s: any) => [s.id, s]));
+        list.forEach((p) => { (p as any).seller = map.get(p.seller_id) ?? null; });
+      }
+      setProducts(list);
+    } else {
+      setProducts((data as Product[]) ?? []);
+    }
     setLoading(false);
   }, []);
 
