@@ -31,6 +31,7 @@ function ProductDetailPage() {
   const [reviews, setReviews] = useState<ProductReview[]>([]);
   const [hasReviewed, setHasReviewed] = useState(false);
   const [hasCompletedOrder, setHasCompletedOrder] = useState(false);
+  const [completedOrderId, setCompletedOrderId] = useState<string | null>(null);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewHover, setReviewHover] = useState(0);
@@ -61,12 +62,13 @@ function ProductDetailPage() {
           setReviews([]);
           setHasReviewed(false);
           setHasCompletedOrder(false);
+          setCompletedOrderId(null);
         }
         return;
       }
       const { data: revData } = await supabase
         .from("product_reviews")
-        .select("*, customer:customer_id(id, full_name, username, avatar_url)")
+        .select("*, reviewer:reviewer_id(id, full_name, username, avatar_url)")
         .eq("product_id", product.id)
         .order("created_at", { ascending: false });
       let myRevData: any = null;
@@ -76,7 +78,7 @@ function ProductDetailPage() {
           .from("product_reviews")
           .select("id")
           .eq("product_id", product.id)
-          .eq("customer_id", user.id)
+          .eq("reviewer_id", user.id)
           .maybeSingle();
         myRevData = myRevRes.data;
         const orderRes = await supabase
@@ -85,6 +87,8 @@ function ProductDetailPage() {
           .eq("product_id", product.id)
           .eq("customer_id", user.id)
           .eq("status", "completed")
+          .order("created_at", { ascending: false })
+          .limit(1)
           .maybeSingle();
         orderData = orderRes.data;
       }
@@ -93,9 +97,11 @@ function ProductDetailPage() {
       if (user?.id) {
         setHasReviewed(!!myRevData);
         setHasCompletedOrder(!!orderData);
+        setCompletedOrderId(orderData?.id ?? null);
       } else {
         setHasReviewed(false);
         setHasCompletedOrder(false);
+        setCompletedOrderId(null);
       }
     }
     fetchExtras();
@@ -112,10 +118,16 @@ function ProductDetailPage() {
         () => {
           supabase
             .from("product_reviews")
-            .select("*, customer:customer_id(id, full_name, username, avatar_url)")
+            .select("*, reviewer:reviewer_id(id, full_name, username, avatar_url)")
             .eq("product_id", product.id)
             .order("created_at", { ascending: false })
-            .then(({ data }) => setReviews((data as ProductReview[]) ?? []));
+            .then(({ data }) => {
+              const nextReviews = (data as ProductReview[]) ?? [];
+              setReviews(nextReviews);
+              if (user?.id && nextReviews.some((review) => review.reviewer_id === user.id)) {
+                setHasReviewed(true);
+              }
+            });
           supabase
             .from("products")
             .select("avg_rating, review_count")
@@ -237,6 +249,14 @@ function ProductDetailPage() {
 
   const submitReview = async () => {
     if (!user || !product) return;
+    if (hasReviewed) {
+      setReviewOpen(false);
+      return;
+    }
+    if (!completedOrderId) {
+      toast.error("You can review this product after completing an order.");
+      return;
+    }
     if (reviewRating < 1) {
       toast.error("Please select a star rating");
       return;
@@ -244,12 +264,20 @@ function ProductDetailPage() {
     setSubmittingReview(true);
     const { error } = await supabase.from("product_reviews").insert({
       product_id: product.id,
-      customer_id: user.id,
+      reviewer_id: user.id,
+      order_id: completedOrderId,
       rating: reviewRating,
       comment: reviewComment.trim() || null,
+      created_at: new Date().toISOString(),
     } as any);
     setSubmittingReview(false);
     if (error) {
+      if ((error as any).code === "23505") {
+        setHasReviewed(true);
+        setReviewOpen(false);
+        toast.message("You've already reviewed this product.");
+        return;
+      }
       toast.error(error.message);
       return;
     }
@@ -260,7 +288,7 @@ function ProductDetailPage() {
     setReviewComment("");
     const { data } = await supabase
       .from("product_reviews")
-      .select("*, customer:customer_id(id, full_name, username, avatar_url)")
+      .select("*, reviewer:reviewer_id(id, full_name, username, avatar_url)")
       .eq("product_id", product.id)
       .order("created_at", { ascending: false });
     setReviews((data as ProductReview[]) ?? []);
@@ -439,16 +467,16 @@ function ProductDetailPage() {
 
         <div className="mt-6 space-y-4">
           {reviews.map((r) => {
-            const initials = (r.customer?.full_name || "U").split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase();
+            const initials = (r.reviewer?.full_name || "U").split(" ").map((s: string) => s[0]).slice(0, 2).join("").toUpperCase();
             return (
               <div key={r.id} className="rounded-xl border border-border p-4">
                 <div className="flex items-center gap-3">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={r.customer?.avatar_url ?? undefined} />
+                    <AvatarImage src={r.reviewer?.avatar_url ?? undefined} />
                     <AvatarFallback className="text-xs bg-primary text-primary-foreground">{initials}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium">{r.customer?.full_name || r.customer?.username || "Customer"}</div>
+                    <div className="text-sm font-medium">{r.reviewer?.full_name || r.reviewer?.username || "Customer"}</div>
                     <div className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</div>
                   </div>
                   <StarRating value={r.rating} size={14} showNumber={false} />

@@ -225,12 +225,12 @@ export interface Product {
 export interface ProductReview {
   id: string;
   product_id: string;
-  customer_id: string;
+  reviewer_id: string;
   order_id: string | null;
   rating: number;
   comment: string | null;
   created_at: string;
-  customer?: Pick<Profile, "id" | "full_name" | "username" | "avatar_url"> | null;
+  reviewer?: Pick<Profile, "id" | "full_name" | "username" | "avatar_url"> | null;
 }
 
 export function formatNgn(n: number | null | undefined): string {
