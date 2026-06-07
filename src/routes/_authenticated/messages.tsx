@@ -12,7 +12,7 @@ import { ArrowLeft, MessageCircle, Search, Send } from "lucide-react";
 import { containsPhone, PHONE_BLOCK_MESSAGE } from "@/lib/phoneCheck";
 import { cn } from "@/lib/utils";
 
-const searchSchema = z.object({ c: z.string().optional() });
+const searchSchema = z.object({ c: z.string().optional(), m: z.string().optional() });
 
 export const Route = createFileRoute("/_authenticated/messages")({
   validateSearch: searchSchema,
@@ -49,6 +49,7 @@ function MessagesPage() {
   const [q, setQ] = useState("");
 
   const activeId = search.c ?? null;
+  const initialMessage = search.m ?? "";
   const activeConvo = useMemo(() => convos.find((c) => c.id === activeId) || null, [convos, activeId]);
 
   const loadConvos = async () => {
@@ -143,7 +144,7 @@ function MessagesPage() {
       {/* Sidebar */}
       <aside
         className={cn(
-          "w-full sm:w-80 sm:border-r border-border flex flex-col bg-[#0D0D1A]/40 dark:bg-[#0D0D1A]",
+          "w-full sm:w-80 sm:border-r border-border flex flex-col bg-card",
           activeId && "hidden sm:flex",
         )}
       >
@@ -229,6 +230,8 @@ function MessagesPage() {
             meId={user.id}
             onBack={() => navigate({ search: {} })}
             onMessagesChanged={loadConvos}
+            initialText={initialMessage}
+            onConsumedInitialText={() => navigate({ search: { c: activeConvo.id } })}
           />
         ) : (
           <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
