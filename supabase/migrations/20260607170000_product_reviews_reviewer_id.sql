@@ -29,6 +29,13 @@ BEGIN
   END IF;
 END $$;
 
+DROP POLICY IF EXISTS "Product reviews: customer insert after completed order" ON public.product_reviews;
+DROP POLICY IF EXISTS "Product reviews: reviewer insert after completed order" ON public.product_reviews;
+DROP POLICY IF EXISTS "Product reviews: customer update own" ON public.product_reviews;
+DROP POLICY IF EXISTS "Product reviews: reviewer update own" ON public.product_reviews;
+DROP POLICY IF EXISTS "Product reviews: customer delete own" ON public.product_reviews;
+DROP POLICY IF EXISTS "Product reviews: reviewer delete own" ON public.product_reviews;
+
 ALTER TABLE public.product_reviews
   ALTER COLUMN reviewer_id SET NOT NULL;
 
@@ -42,8 +49,6 @@ ALTER TABLE public.product_reviews
 ALTER TABLE public.product_reviews
   ADD CONSTRAINT product_reviews_product_id_reviewer_id_key UNIQUE (product_id, reviewer_id);
 
-DROP POLICY IF EXISTS "Product reviews: customer insert after completed order" ON public.product_reviews;
-DROP POLICY IF EXISTS "Product reviews: reviewer insert after completed order" ON public.product_reviews;
 CREATE POLICY "Product reviews: reviewer insert after completed order"
   ON public.product_reviews FOR INSERT
   TO authenticated
@@ -58,16 +63,12 @@ CREATE POLICY "Product reviews: reviewer insert after completed order"
     )
   );
 
-DROP POLICY IF EXISTS "Product reviews: customer update own" ON public.product_reviews;
-DROP POLICY IF EXISTS "Product reviews: reviewer update own" ON public.product_reviews;
 CREATE POLICY "Product reviews: reviewer update own"
   ON public.product_reviews FOR UPDATE
   TO authenticated
   USING (auth.uid() = reviewer_id)
   WITH CHECK (auth.uid() = reviewer_id);
 
-DROP POLICY IF EXISTS "Product reviews: customer delete own" ON public.product_reviews;
-DROP POLICY IF EXISTS "Product reviews: reviewer delete own" ON public.product_reviews;
 CREATE POLICY "Product reviews: reviewer delete own"
   ON public.product_reviews FOR DELETE
   TO authenticated
