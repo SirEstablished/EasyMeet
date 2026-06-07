@@ -217,7 +217,20 @@ export interface Product {
   stock_count: number;
   is_active: boolean;
   created_at: string;
+  avg_rating?: number;
+  review_count?: number;
   seller?: Pick<Profile, "id" | "full_name" | "username" | "avatar_url" | "role" | "blue_tick" | "white_tick" | "gold_tick"> | null;
+}
+
+export interface ProductReview {
+  id: string;
+  product_id: string;
+  customer_id: string;
+  order_id: string | null;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+  customer?: Pick<Profile, "id" | "full_name" | "username" | "avatar_url"> | null;
 }
 
 export function formatNgn(n: number | null | undefined): string {
