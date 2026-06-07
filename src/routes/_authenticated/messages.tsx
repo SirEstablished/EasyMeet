@@ -254,17 +254,29 @@ function Thread({
   meId,
   onBack,
   onMessagesChanged,
+  initialText,
+  onConsumedInitialText,
 }: {
   conversation: ConvoRow;
   meId: string;
   onBack: () => void;
   onMessagesChanged: () => void;
+  initialText?: string;
+  onConsumedInitialText?: () => void;
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [text, setText] = useState("");
+  const [text, setText] = useState(initialText ?? "");
   const [warn, setWarn] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (initialText) {
+      setText(initialText);
+      onConsumedInitialText?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversation.id]);
 
   const scrollToBottom = () => {
     requestAnimationFrame(() => {
