@@ -64,37 +64,35 @@ function ProductDetailPage() {
         }
         return;
       }
-      const revPromise = supabase
+      const { data: revData } = await supabase
         .from("product_reviews")
         .select("*, customer:customer_id(id, full_name, username, avatar_url)")
         .eq("product_id", product.id)
         .order("created_at", { ascending: false });
-      const promises: Promise<any>[] = [revPromise];
+      let myRevData: any = null;
+      let orderData: any = null;
       if (user?.id) {
-        promises.push(
-          supabase
-            .from("product_reviews")
-            .select("id")
-            .eq("product_id", product.id)
-            .eq("customer_id", user.id)
-            .maybeSingle()
-        );
-        promises.push(
-          supabase
-            .from("orders")
-            .select("id")
-            .eq("product_id", product.id)
-            .eq("customer_id", user.id)
-            .eq("status", "completed")
-            .maybeSingle()
-        );
+        const myRevRes = await supabase
+          .from("product_reviews")
+          .select("id")
+          .eq("product_id", product.id)
+          .eq("customer_id", user.id)
+          .maybeSingle();
+        myRevData = myRevRes.data;
+        const orderRes = await supabase
+          .from("orders")
+          .select("id")
+          .eq("product_id", product.id)
+          .eq("customer_id", user.id)
+          .eq("status", "completed")
+          .maybeSingle();
+        orderData = orderRes.data;
       }
-      const [revRes, myRevRes, orderRes] = await Promise.all(promises);
       if (cancelled) return;
-      setReviews((revRes.data as ProductReview[]) ?? []);
+      setReviews((revData as ProductReview[]) ?? []);
       if (user?.id) {
-        setHasReviewed(!!(myRevRes as any)?.data);
-        setHasCompletedOrder(!!(orderRes as any)?.data);
+        setHasReviewed(!!myRevData);
+        setHasCompletedOrder(!!orderData);
       } else {
         setHasReviewed(false);
         setHasCompletedOrder(false);
