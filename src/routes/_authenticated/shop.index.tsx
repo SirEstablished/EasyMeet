@@ -223,6 +223,7 @@ function PurchaseModal({ product, onClose }: { product: Product | null; onClose:
         kind: "product",
         service_title: product.title,
         amount: product.price,
+        commission_amount: Math.round(product.price * 0.03 * 100) / 100,
         currency: "NGN",
         notes: null,
         payment_ref: res.reference,
