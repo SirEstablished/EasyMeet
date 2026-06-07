@@ -18,7 +18,6 @@ import { getOrCreateConversation } from "@/lib/conversations";
 import { cn } from "@/lib/utils";
 import { useLiveData } from "@/hooks/use-live-data";
 import { StarRating } from "@/components/StarRating";
-import { useAuth } from "@/lib/providers";
 
 export const Route = createFileRoute("/_authenticated/shop")({
   component: ShopPage,
