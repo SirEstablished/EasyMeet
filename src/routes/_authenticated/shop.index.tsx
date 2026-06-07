@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 import { useLiveData } from "@/hooks/use-live-data";
 import { StarRating } from "@/components/StarRating";
 
-export const Route = createFileRoute("/_authenticated/shop")({
+export const Route = createFileRoute("/_authenticated/shop/")({
   component: ShopPage,
 });
 
@@ -223,6 +223,7 @@ function PurchaseModal({ product, onClose }: { product: Product | null; onClose:
         kind: "product",
         service_title: product.title,
         amount: product.price,
+        commission_amount: Math.round(product.price * 0.03 * 100) / 100,
         currency: "NGN",
         notes: null,
         payment_ref: res.reference,
