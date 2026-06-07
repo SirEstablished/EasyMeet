@@ -5,6 +5,7 @@ import { CreatePostCard } from "@/components/CreatePostCard";
 import { PostCard } from "@/components/PostCard";
 import { CommentsDrawer } from "@/components/CommentsDrawer";
 import { Loader2 } from "lucide-react";
+import { useLiveData } from "@/hooks/use-live-data";
 
 export const Route = createFileRoute("/_authenticated/feed")({
   component: FeedPage,
@@ -16,7 +17,6 @@ function FeedPage() {
   const [commentsFor, setCommentsFor] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    setLoading(true);
     const { data: rawPosts } = await supabase
       .from("posts")
       .select(
@@ -51,8 +51,11 @@ function FeedPage() {
   }, []);
 
   useEffect(() => {
+    setLoading(true);
     load();
   }, [load]);
+
+  useLiveData(["posts", "comments", "post_likes"], load);
 
   const onPosted = (p: Post) => setPosts((cur) => [p, ...cur]);
   const onDeleted = (id: string) => setPosts((cur) => cur.filter((p) => p.id !== id));
