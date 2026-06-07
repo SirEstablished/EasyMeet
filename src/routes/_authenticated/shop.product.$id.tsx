@@ -31,6 +31,7 @@ function ProductDetailPage() {
   const [reviews, setReviews] = useState<ProductReview[]>([]);
   const [hasReviewed, setHasReviewed] = useState(false);
   const [hasCompletedOrder, setHasCompletedOrder] = useState(false);
+  const [completedOrderId, setCompletedOrderId] = useState<string | null>(null);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewHover, setReviewHover] = useState(0);
@@ -61,12 +62,13 @@ function ProductDetailPage() {
           setReviews([]);
           setHasReviewed(false);
           setHasCompletedOrder(false);
+          setCompletedOrderId(null);
         }
         return;
       }
       const { data: revData } = await supabase
         .from("product_reviews")
-        .select("*, customer:customer_id(id, full_name, username, avatar_url)")
+        .select("*, reviewer:reviewer_id(id, full_name, username, avatar_url)")
         .eq("product_id", product.id)
         .order("created_at", { ascending: false });
       let myRevData: any = null;
@@ -76,7 +78,7 @@ function ProductDetailPage() {
           .from("product_reviews")
           .select("id")
           .eq("product_id", product.id)
-          .eq("customer_id", user.id)
+          .eq("reviewer_id", user.id)
           .maybeSingle();
         myRevData = myRevRes.data;
         const orderRes = await supabase
@@ -93,9 +95,11 @@ function ProductDetailPage() {
       if (user?.id) {
         setHasReviewed(!!myRevData);
         setHasCompletedOrder(!!orderData);
+        setCompletedOrderId(orderData?.id ?? null);
       } else {
         setHasReviewed(false);
         setHasCompletedOrder(false);
+        setCompletedOrderId(null);
       }
     }
     fetchExtras();
@@ -112,10 +116,16 @@ function ProductDetailPage() {
         () => {
           supabase
             .from("product_reviews")
-            .select("*, customer:customer_id(id, full_name, username, avatar_url)")
+            .select("*, reviewer:reviewer_id(id, full_name, username, avatar_url)")
             .eq("product_id", product.id)
             .order("created_at", { ascending: false })
-            .then(({ data }) => setReviews((data as ProductReview[]) ?? []));
+            .then(({ data }) => {
+              const nextReviews = (data as ProductReview[]) ?? [];
+              setReviews(nextReviews);
+              if (user?.id && nextReviews.some((review) => review.reviewer_id === user.id)) {
+                setHasReviewed(true);
+              }
+            });
           supabase
             .from("products")
             .select("avg_rating, review_count")
