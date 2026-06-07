@@ -87,6 +87,8 @@ function ProductDetailPage() {
           .eq("product_id", product.id)
           .eq("customer_id", user.id)
           .eq("status", "completed")
+          .order("created_at", { ascending: false })
+          .limit(1)
           .maybeSingle();
         orderData = orderRes.data;
       }
