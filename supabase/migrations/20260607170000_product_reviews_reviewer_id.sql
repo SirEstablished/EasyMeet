@@ -25,9 +25,7 @@ BEGIN
     SELECT 1 FROM information_schema.columns
     WHERE table_schema = 'public' AND table_name = 'product_reviews' AND column_name = 'customer_id'
   ) THEN
-    UPDATE public.product_reviews
-    SET reviewer_id = customer_id
-    WHERE reviewer_id IS NULL;
+    EXECUTE 'UPDATE public.product_reviews SET reviewer_id = customer_id WHERE reviewer_id IS NULL';
   END IF;
 END $$;
 
