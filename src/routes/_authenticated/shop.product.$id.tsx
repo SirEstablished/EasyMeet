@@ -1,15 +1,18 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { supabase, formatNgn, type Product } from "@/integrations/supabase/client";
+import { supabase, formatNgn, type Product, type ProductReview } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/providers";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { VerificationTicks } from "@/components/VerificationTicks";
-import { ArrowLeft, Loader2, MessageCircle, Package } from "lucide-react";
+import { ArrowLeft, Loader2, MessageCircle, Package, Star } from "lucide-react";
 import { payWithPaystack } from "@/lib/paystack";
 import { getOrCreateConversation } from "@/lib/conversations";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { StarRating } from "@/components/StarRating";
 
 export const Route = createFileRoute("/_authenticated/shop/product/$id")({
   component: ProductDetailPage,
@@ -24,6 +27,15 @@ function ProductDetailPage() {
   const [activeImg, setActiveImg] = useState(0);
   const [paying, setPaying] = useState(false);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
+
+  const [reviews, setReviews] = useState<ProductReview[]>([]);
+  const [hasReviewed, setHasReviewed] = useState(false);
+  const [hasCompletedOrder, setHasCompletedOrder] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewHover, setReviewHover] = useState(0);
+  const [reviewComment, setReviewComment] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -40,6 +52,93 @@ function ProductDetailPage() {
       });
     return () => { cancelled = true; };
   }, [id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchExtras() {
+      if (!product?.id) {
+        if (!cancelled) {
+          setReviews([]);
+          setHasReviewed(false);
+          setHasCompletedOrder(false);
+        }
+        return;
+      }
+      const { data: revData } = await supabase
+        .from("product_reviews")
+        .select("*, customer:customer_id(id, full_name, username, avatar_url)")
+        .eq("product_id", product.id)
+        .order("created_at", { ascending: false });
+      let myRevData: any = null;
+      let orderData: any = null;
+      if (user?.id) {
+        const myRevRes = await supabase
+          .from("product_reviews")
+          .select("id")
+          .eq("product_id", product.id)
+          .eq("customer_id", user.id)
+          .maybeSingle();
+        myRevData = myRevRes.data;
+        const orderRes = await supabase
+          .from("orders")
+          .select("id")
+          .eq("product_id", product.id)
+          .eq("customer_id", user.id)
+          .eq("status", "completed")
+          .maybeSingle();
+        orderData = orderRes.data;
+      }
+      if (cancelled) return;
+      setReviews((revData as ProductReview[]) ?? []);
+      if (user?.id) {
+        setHasReviewed(!!myRevData);
+        setHasCompletedOrder(!!orderData);
+      } else {
+        setHasReviewed(false);
+        setHasCompletedOrder(false);
+      }
+    }
+    fetchExtras();
+    return () => { cancelled = true; };
+  }, [product?.id, user?.id]);
+
+  useEffect(() => {
+    if (!product?.id) return;
+    const channel = supabase
+      .channel(`product-reviews-${product.id}`)
+      .on(
+        "postgres_changes" as never,
+        { event: "*", schema: "public", table: "product_reviews", filter: `product_id=eq.${product.id}` } as never,
+        () => {
+          supabase
+            .from("product_reviews")
+            .select("*, customer:customer_id(id, full_name, username, avatar_url)")
+            .eq("product_id", product.id)
+            .order("created_at", { ascending: false })
+            .then(({ data }) => setReviews((data as ProductReview[]) ?? []));
+          supabase
+            .from("products")
+            .select("avg_rating, review_count")
+            .eq("id", product.id)
+            .maybeSingle()
+            .then(({ data }) => {
+              if (data) {
+                setProduct((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        avg_rating: (data as any).avg_rating,
+                        review_count: (data as any).review_count,
+                      }
+                    : prev
+                );
+              }
+            });
+        },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [product?.id]);
 
   if (loading) {
     return (
@@ -63,6 +162,7 @@ function ProductDetailPage() {
   const images = (product.image_urls ?? []).slice(0, 4);
   const sellerInitials = (seller?.full_name || "U").split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase();
   const isOwner = !!user && user.id === product.seller_id;
+  const canReview = !!user && !isOwner && hasCompletedOrder && !hasReviewed;
 
   const buy = async () => {
     if (!user) return;
@@ -75,10 +175,7 @@ function ProductDetailPage() {
         amountNgn: product.price,
         metadata: { product_id: product.id, kind: "product" },
       });
-      console.log("Payment success fired, reference:", res);
-      console.log("Product:", product);
       const authUser = await supabase.auth.getUser();
-      console.log("Current user:", authUser);
       const orderData = {
         customer_id: authUser.data.user!.id,
         provider_id: product.seller_id,
@@ -94,19 +191,14 @@ function ProductDetailPage() {
         payment_status: "paid",
         status: "confirmed",
       };
-      console.log("Order data to insert:", orderData);
-      const { data: insertData, error: orderError } = await supabase
+      const { error: orderError } = await supabase
         .from("orders")
         .insert(orderData)
         .select();
-      console.log("Insert result:", insertData);
-      console.log("Insert error:", orderError);
       if (orderError) {
-        alert("Order save failed: " + orderError.message);
         toast.error("Payment received but order record failed. Please contact support.");
         return;
       }
-      alert("Order saved successfully!");
       if (product.product_type === "physical") {
         await supabase.from("products").update({ stock_count: Math.max(0, product.stock_count - 1) }).eq("id", product.id);
       }
@@ -140,6 +232,53 @@ function ProductDetailPage() {
       navigate({ to: "/messages", search: { c: cid, m: prefilled } as any });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Couldn't open chat");
+    }
+  };
+
+  const submitReview = async () => {
+    if (!user || !product) return;
+    if (reviewRating < 1) {
+      toast.error("Please select a star rating");
+      return;
+    }
+    setSubmittingReview(true);
+    const { error } = await supabase.from("product_reviews").insert({
+      product_id: product.id,
+      customer_id: user.id,
+      rating: reviewRating,
+      comment: reviewComment.trim() || null,
+    } as any);
+    setSubmittingReview(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Review submitted!");
+    setHasReviewed(true);
+    setReviewOpen(false);
+    setReviewRating(0);
+    setReviewComment("");
+    const { data } = await supabase
+      .from("product_reviews")
+      .select("*, customer:customer_id(id, full_name, username, avatar_url)")
+      .eq("product_id", product.id)
+      .order("created_at", { ascending: false });
+    setReviews((data as ProductReview[]) ?? []);
+    const { data: prodData } = await supabase
+      .from("products")
+      .select("avg_rating, review_count")
+      .eq("id", product.id)
+      .maybeSingle();
+    if (prodData) {
+      setProduct((prev) =>
+        prev
+          ? {
+              ...prev,
+              avg_rating: (prodData as any).avg_rating,
+              review_count: (prodData as any).review_count,
+            }
+          : prev
+      );
     }
   };
 
@@ -283,6 +422,86 @@ function ProductDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Reviews & Ratings */}
+      <div className="mt-10 border-t border-border pt-8">
+        <h2 className="text-xl font-bold">Reviews & Ratings</h2>
+        <div className="mt-2 flex items-center gap-3">
+          <StarRating value={Number(product.avg_rating ?? 0)} count={Number(product.review_count ?? 0)} size={20} />
+          <span className="text-sm text-muted-foreground">{product.review_count ?? 0} reviews</span>
+        </div>
+
+        {canReview && (
+          <Button onClick={() => setReviewOpen(true)} variant="outline" className="mt-4">
+            <Star className="h-4 w-4 mr-2" /> Leave a Review
+          </Button>
+        )}
+
+        <div className="mt-6 space-y-4">
+          {reviews.map((r) => {
+            const initials = (r.customer?.full_name || "U").split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase();
+            return (
+              <div key={r.id} className="rounded-xl border border-border p-4">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={r.customer?.avatar_url ?? undefined} />
+                    <AvatarFallback className="text-xs bg-primary text-primary-foreground">{initials}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium">{r.customer?.full_name || r.customer?.username || "Customer"}</div>
+                    <div className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</div>
+                  </div>
+                  <StarRating value={r.rating} size={14} showNumber={false} />
+                </div>
+                {r.comment && <p className="mt-2 text-sm text-muted-foreground">{r.comment}</p>}
+              </div>
+            );
+          })}
+          {reviews.length === 0 && (
+            <p className="text-sm text-muted-foreground">No reviews yet.</p>
+          )}
+        </div>
+      </div>
+
+      {/* Review Dialog */}
+      <Dialog open={reviewOpen} onOpenChange={setReviewOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Leave a review</DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center justify-center gap-1 py-2">
+            {[1, 2, 3, 4, 5].map((n) => (
+              <button
+                key={n}
+                type="button"
+                onMouseEnter={() => setReviewHover(n)}
+                onMouseLeave={() => setReviewHover(0)}
+                onClick={() => setReviewRating(n)}
+                className="p-1"
+                aria-label={`${n} star${n > 1 ? "s" : ""}`}
+              >
+                <Star
+                  className={`h-7 w-7 ${(reviewHover || reviewRating) >= n ? "fill-amber-400 text-amber-400" : "text-muted-foreground"}`}
+                />
+              </button>
+            ))}
+          </div>
+          <Textarea
+            rows={3}
+            maxLength={500}
+            value={reviewComment}
+            onChange={(e) => setReviewComment(e.target.value)}
+            placeholder="Share your experience (optional)"
+          />
+          <div className="text-right text-xs text-muted-foreground">{reviewComment.length}/500</div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setReviewOpen(false)}>Cancel</Button>
+            <Button onClick={submitReview} disabled={submittingReview} className="bg-gradient-brand">
+              {submittingReview ? "Submitting…" : "Submit review"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
