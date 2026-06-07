@@ -28,7 +28,6 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedProfileIndexRouteImport } from './routes/_authenticated/profile.index'
 import { Route as AuthenticatedProfileIdRouteImport } from './routes/_authenticated/profile.$id'
 import { Route as AuthenticatedShopProductIdRouteImport } from './routes/_authenticated/shop.product.$id'
-import { Route as AuthenticatedShopProductRouteImport } from './routes/_authenticated/shop.product.'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
@@ -126,12 +125,6 @@ const AuthenticatedShopProductIdRoute =
     path: '/product/$id',
     getParentRoute: () => AuthenticatedShopRoute,
   } as any)
-const AuthenticatedShopProductRoute =
-  AuthenticatedShopProductRouteImport.update({
-    id: '/product/',
-    path: '/product/',
-    getParentRoute: () => AuthenticatedShopRoute,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -151,7 +144,6 @@ export interface FileRoutesByFullPath {
   '/shop': typeof AuthenticatedShopRouteWithChildren
   '/profile/$id': typeof AuthenticatedProfileIdRoute
   '/profile/': typeof AuthenticatedProfileIndexRoute
-  '/shop/product/': typeof AuthenticatedShopProductRoute
   '/shop/product/$id': typeof AuthenticatedShopProductIdRoute
 }
 export interface FileRoutesByTo {
@@ -171,7 +163,6 @@ export interface FileRoutesByTo {
   '/shop': typeof AuthenticatedShopRouteWithChildren
   '/profile/$id': typeof AuthenticatedProfileIdRoute
   '/profile': typeof AuthenticatedProfileIndexRoute
-  '/shop/product': typeof AuthenticatedShopProductRoute
   '/shop/product/$id': typeof AuthenticatedShopProductIdRoute
 }
 export interface FileRoutesById {
@@ -194,7 +185,6 @@ export interface FileRoutesById {
   '/_authenticated/shop': typeof AuthenticatedShopRouteWithChildren
   '/_authenticated/profile/$id': typeof AuthenticatedProfileIdRoute
   '/_authenticated/profile/': typeof AuthenticatedProfileIndexRoute
-  '/_authenticated/shop/product/': typeof AuthenticatedShopProductRoute
   '/_authenticated/shop/product/$id': typeof AuthenticatedShopProductIdRoute
 }
 export interface FileRouteTypes {
@@ -217,7 +207,6 @@ export interface FileRouteTypes {
     | '/shop'
     | '/profile/$id'
     | '/profile/'
-    | '/shop/product/'
     | '/shop/product/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -237,7 +226,6 @@ export interface FileRouteTypes {
     | '/shop'
     | '/profile/$id'
     | '/profile'
-    | '/shop/product'
     | '/shop/product/$id'
   id:
     | '__root__'
@@ -259,7 +247,6 @@ export interface FileRouteTypes {
     | '/_authenticated/shop'
     | '/_authenticated/profile/$id'
     | '/_authenticated/profile/'
-    | '/_authenticated/shop/product/'
     | '/_authenticated/shop/product/$id'
   fileRoutesById: FileRoutesById
 }
@@ -406,13 +393,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedShopProductIdRouteImport
       parentRoute: typeof AuthenticatedShopRoute
     }
-    '/_authenticated/shop/product/': {
-      id: '/_authenticated/shop/product/'
-      path: '/product'
-      fullPath: '/shop/product/'
-      preLoaderRoute: typeof AuthenticatedShopProductRouteImport
-      parentRoute: typeof AuthenticatedShopRoute
-    }
   }
 }
 
@@ -430,12 +410,10 @@ const AuthenticatedProfileRouteWithChildren =
   AuthenticatedProfileRoute._addFileChildren(AuthenticatedProfileRouteChildren)
 
 interface AuthenticatedShopRouteChildren {
-  AuthenticatedShopProductRoute: typeof AuthenticatedShopProductRoute
   AuthenticatedShopProductIdRoute: typeof AuthenticatedShopProductIdRoute
 }
 
 const AuthenticatedShopRouteChildren: AuthenticatedShopRouteChildren = {
-  AuthenticatedShopProductRoute: AuthenticatedShopProductRoute,
   AuthenticatedShopProductIdRoute: AuthenticatedShopProductIdRoute,
 }
 
@@ -483,3 +461,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
