@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase, type Profile, type Service, type Review, type Post } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,6 +9,11 @@ import { Globe, MapPin, Star as StarIcon, MessageSquare, Briefcase } from "lucid
 import { PostCard } from "./PostCard";
 import { CommentsDrawer } from "./CommentsDrawer";
 import { calcCompletion } from "@/lib/profileCompletion";
+import { useLiveData } from "@/hooks/use-live-data";
+import { useNavigate } from "@tanstack/react-router";
+import { useAuth } from "@/lib/providers";
+import { getOrCreateConversation } from "@/lib/conversations";
+import { toast } from "sonner";
 
 function initialsOf(s: string) {
   return s
@@ -32,36 +37,52 @@ export function ProfileView({
   const [reviews, setReviews] = useState<Review[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
   const [commentsFor, setCommentsFor] = useState<string | null>(null);
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  const load = useCallback(async () => {
+    const [{ data: s }, { data: r }, { data: p }] = await Promise.all([
+      supabase.from("services").select("*").eq("provider_id", profile.id).order("created_at", { ascending: false }),
+      supabase
+        .from("reviews")
+        .select("*, reviewer:reviewer_id(id, full_name, username, avatar_url)")
+        .eq("professional_id", profile.id)
+        .order("created_at", { ascending: false }),
+      profile.role === "customer"
+        ? Promise.resolve({ data: [] as Post[] })
+        : supabase
+            .from("posts")
+            .select(
+              "*, author:author_id(id, full_name, username, avatar_url, role, blue_tick, white_tick, gold_tick)",
+            )
+            .eq("author_id", profile.id)
+            .order("created_at", { ascending: false }),
+    ]);
+    setServices((s as Service[]) ?? []);
+    setReviews((r as Review[]) ?? []);
+    setPosts((p as Post[]) ?? []);
+  }, [profile.id, profile.role]);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const [{ data: s }, { data: r }, { data: p }] = await Promise.all([
-        supabase.from("services").select("*").eq("provider_id", profile.id).order("created_at", { ascending: false }),
-        supabase
-          .from("reviews")
-          .select("*, reviewer:reviewer_id(id, full_name, username, avatar_url)")
-          .eq("professional_id", profile.id)
-          .order("created_at", { ascending: false }),
-        profile.role === "customer"
-          ? Promise.resolve({ data: [] as Post[] })
-          : supabase
-              .from("posts")
-              .select(
-                "*, author:author_id(id, full_name, username, avatar_url, role, blue_tick, white_tick, gold_tick)",
-              )
-              .eq("author_id", profile.id)
-              .order("created_at", { ascending: false }),
-      ]);
-      if (cancelled) return;
-      setServices((s as Service[]) ?? []);
-      setReviews((r as Review[]) ?? []);
-      setPosts((p as Post[]) ?? []);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [profile.id, profile.role]);
+    load();
+  }, [load]);
+
+  useLiveData(["services", "reviews", "posts"], load);
+
+  const bookService = async (s: Service) => {
+    if (!user) return;
+    if (user.id === profile.id) {
+      toast.message("This is your own service.");
+      return;
+    }
+    try {
+      const cid = await getOrCreateConversation(user.id, profile.id);
+      const m = `Hi, I'm interested in your service: ${s.title}. Can we discuss further?`;
+      navigate({ to: "/messages", search: { c: cid, m } as any });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't open chat");
+    }
+  };
 
   const isBusiness = profile.role === "business";
   const isCustomer = profile.role === "customer";
@@ -265,7 +286,14 @@ export function ProfileView({
                         <span className="font-extrabold text-lg text-gradient-tri">
                           ₦{Number(s.price).toLocaleString()}
                         </span>
-                        <Button size="sm" className="rounded-full bg-gradient-brand glow-primary">Book Now</Button>
+                        <Button
+                          size="sm"
+                          className="rounded-full bg-gradient-brand glow-primary"
+                          onClick={() => bookService(s)}
+                          disabled={isMe}
+                        >
+                          Book Now
+                        </Button>
                       </div>
                     </div>
                   </div>

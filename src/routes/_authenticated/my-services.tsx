@@ -1,11 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase, formatNgn, type Service } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/providers";
 import { Button } from "@/components/ui/button";
 import { Plus, Pencil, Trash2, Loader2, EyeOff } from "lucide-react";
 import { ServiceFormDialog } from "@/components/ServiceFormDialog";
 import { toast } from "sonner";
+import { useLiveData } from "@/hooks/use-live-data";
 
 export const Route = createFileRoute("/_authenticated/my-services")({
   component: MyServicesPage,
@@ -27,23 +28,25 @@ function MyServicesPage() {
     }
   }, [profile, navigate]);
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (!user) return;
-    let cancelled = false;
-    setLoading(true);
-    supabase
+    const { data, error } = await supabase
       .from("services")
       .select("*")
       .eq("provider_id", user.id)
-      .order("created_at", { ascending: false })
-      .then(({ data, error }) => {
-        if (cancelled) return;
-        if (error) toast.error(error.message);
-        setServices((data as Service[]) ?? []);
-        setLoading(false);
-      });
-    return () => { cancelled = true; };
+      .order("created_at", { ascending: false });
+    if (error) toast.error(error.message);
+    setServices((data as Service[]) ?? []);
+    setLoading(false);
   }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    setLoading(true);
+    load();
+  }, [user, load]);
+
+  useLiveData(["services"], load);
 
   const onSaved = (s: Service) => {
     setServices((cur) => {

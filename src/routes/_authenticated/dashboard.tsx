@@ -54,7 +54,7 @@ function Dashboard() {
       : [
           ...(offersServices ? [{ Icon: Sparkles, label: "My Services", to: "/my-services" }] : []),
           ...(sellsProducts ? [{ Icon: Package, label: "My Products", to: "/my-products" }] : []),
-          { Icon: CalendarCheck, label: "My Bookings", to: "/my-bookings" },
+          { Icon: CalendarCheck, label: "Orders", to: "/my-orders" },
           { Icon: Store, label: "Shop", to: "/shop" },
           { Icon: Users, label: "Explore", to: "/explore" },
           { Icon: MessageCircle, label: "Messages", to: "/messages" },

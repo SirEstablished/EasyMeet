@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { supabase, type Profile } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ProfileCard } from "@/components/ProfileCard";
 import { getBrowserLocation, haversineKm } from "@/lib/geo";
 import { toast } from "sonner";
+import { useLiveData } from "@/hooks/use-live-data";
 
 export const Route = createFileRoute("/_authenticated/explore")({
   component: Explore,
@@ -44,23 +45,22 @@ function Explore() {
     }
   };
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    supabase
+  const load = useCallback(async () => {
+    const { data } = await supabase
       .from("profiles")
       .select("*")
       .in("role", ["professional", "business"])
-      .order("avg_rating", { ascending: false })
-      .then(({ data }) => {
-        if (cancelled) return;
-        setProfiles((data as Profile[]) ?? []);
-        setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
+      .order("avg_rating", { ascending: false });
+    setProfiles((data as Profile[]) ?? []);
+    setLoading(false);
   }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    load();
+  }, [load]);
+
+  useLiveData(["profiles"], load);
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();

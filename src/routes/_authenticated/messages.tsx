@@ -12,7 +12,7 @@ import { ArrowLeft, MessageCircle, Search, Send } from "lucide-react";
 import { containsPhone, PHONE_BLOCK_MESSAGE } from "@/lib/phoneCheck";
 import { cn } from "@/lib/utils";
 
-const searchSchema = z.object({ c: z.string().optional() });
+const searchSchema = z.object({ c: z.string().optional(), m: z.string().optional() });
 
 export const Route = createFileRoute("/_authenticated/messages")({
   validateSearch: searchSchema,
@@ -49,6 +49,7 @@ function MessagesPage() {
   const [q, setQ] = useState("");
 
   const activeId = search.c ?? null;
+  const initialMessage = search.m ?? "";
   const activeConvo = useMemo(() => convos.find((c) => c.id === activeId) || null, [convos, activeId]);
 
   const loadConvos = async () => {
@@ -143,7 +144,7 @@ function MessagesPage() {
       {/* Sidebar */}
       <aside
         className={cn(
-          "w-full sm:w-80 sm:border-r border-border flex flex-col bg-[#0D0D1A]/40 dark:bg-[#0D0D1A]",
+          "w-full sm:w-80 sm:border-r border-border flex flex-col bg-card",
           activeId && "hidden sm:flex",
         )}
       >
@@ -229,6 +230,8 @@ function MessagesPage() {
             meId={user.id}
             onBack={() => navigate({ search: {} })}
             onMessagesChanged={loadConvos}
+            initialText={initialMessage}
+            onConsumedInitialText={() => navigate({ search: { c: activeConvo.id } })}
           />
         ) : (
           <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
@@ -251,17 +254,29 @@ function Thread({
   meId,
   onBack,
   onMessagesChanged,
+  initialText,
+  onConsumedInitialText,
 }: {
   conversation: ConvoRow;
   meId: string;
   onBack: () => void;
   onMessagesChanged: () => void;
+  initialText?: string;
+  onConsumedInitialText?: () => void;
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [text, setText] = useState("");
+  const [text, setText] = useState(initialText ?? "");
   const [warn, setWarn] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (initialText) {
+      setText(initialText);
+      onConsumedInitialText?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversation.id]);
 
   const scrollToBottom = () => {
     requestAnimationFrame(() => {
@@ -446,7 +461,7 @@ function MessageBubble({ m, mine }: { m: Message; mine: boolean }) {
           "max-w-[75%] rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap break-words",
           mine
             ? "bg-gradient-to-br from-primary to-[color-mix(in_oklab,var(--primary)_70%,white)] text-primary-foreground rounded-br-md shadow-[0_8px_24px_-12px_color-mix(in_oklab,var(--primary)_55%,transparent)]"
-            : "glass-card rounded-bl-md text-foreground",
+            : "bg-secondary text-foreground rounded-bl-md border border-border/60 dark:bg-card/80 dark:backdrop-blur-md",
         )}
       >
         {m.body}

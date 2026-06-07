@@ -1,11 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase, formatNgn, type Order, type OrderStatus } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/providers";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
+import { useLiveData } from "@/hooks/use-live-data";
 
 export const Route = createFileRoute("/_authenticated/my-bookings")({
   component: MyBookingsPage,
@@ -22,22 +23,24 @@ function MyBookingsPage() {
     if (profile.role === "customer") navigate({ to: "/dashboard" });
   }, [profile, navigate]);
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (!user) return;
-    let cancelled = false;
-    setLoading(true);
-    supabase
+    const { data } = await supabase
       .from("orders")
       .select("*, customer:customer_id(id, full_name, username, avatar_url)")
       .eq("provider_id", user.id)
-      .order("created_at", { ascending: false })
-      .then(({ data }) => {
-        if (cancelled) return;
-        setOrders((data as Order[]) ?? []);
-        setLoading(false);
-      });
-    return () => { cancelled = true; };
+      .order("created_at", { ascending: false });
+    setOrders((data as Order[]) ?? []);
+    setLoading(false);
   }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    setLoading(true);
+    load();
+  }, [user, load]);
+
+  useLiveData(["orders"], load);
 
   const update = async (o: Order, status: OrderStatus) => {
     const { error } = await supabase.from("orders").update({ status }).eq("id", o.id);

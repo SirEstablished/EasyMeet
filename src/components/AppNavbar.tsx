@@ -22,20 +22,23 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
-const navLinks = [
-  { to: "/dashboard", label: "Home" },
-  { to: "/explore", label: "Explore" },
-  { to: "/feed", label: "Feed" },
-  { to: "/shop", label: "Shop" },
-  { to: "/messages", label: "Messages" },
-  { to: "/profile", label: "My Profile" },
-] as const;
-
 export function AppNavbar() {
   const { profile, user, signOut } = useAuth();
   const { theme, toggle } = useTheme();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const isCustomer = profile?.role === "customer";
+  const ordersLabel = isCustomer ? "My Orders" : "Orders";
+  const navLinks: { to: string; label: string }[] = [
+    { to: "/dashboard", label: "Home" },
+    { to: "/explore", label: "Explore" },
+    { to: "/feed", label: "Feed" },
+    { to: "/shop", label: "Shop" },
+    { to: "/messages", label: "Messages" },
+    { to: "/my-orders", label: ordersLabel },
+    { to: "/profile", label: "My Profile" },
+  ];
 
   const initials =
     (profile?.full_name || user?.email || "U")
