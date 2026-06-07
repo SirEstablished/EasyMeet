@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 import { useLiveData } from "@/hooks/use-live-data";
 import { StarRating } from "@/components/StarRating";
 
-export const Route = createFileRoute("/_authenticated/shop")({
+export const Route = createFileRoute("/_authenticated/shop/")({
   component: ShopPage,
 });
 
