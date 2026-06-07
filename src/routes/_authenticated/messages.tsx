@@ -461,7 +461,7 @@ function MessageBubble({ m, mine }: { m: Message; mine: boolean }) {
           "max-w-[75%] rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap break-words",
           mine
             ? "bg-gradient-to-br from-primary to-[color-mix(in_oklab,var(--primary)_70%,white)] text-primary-foreground rounded-br-md shadow-[0_8px_24px_-12px_color-mix(in_oklab,var(--primary)_55%,transparent)]"
-            : "glass-card rounded-bl-md text-foreground",
+            : "bg-secondary text-foreground rounded-bl-md border border-border/60 dark:bg-card/80 dark:backdrop-blur-md",
         )}
       >
         {m.body}
