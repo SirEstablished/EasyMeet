@@ -30,8 +30,6 @@ function ProductDetailPage() {
 
   const [reviews, setReviews] = useState<ProductReview[]>([]);
   const [hasReviewed, setHasReviewed] = useState(false);
-  const [hasCompletedOrder, setHasCompletedOrder] = useState(false);
-  const [completedOrderId, setCompletedOrderId] = useState<string | null>(null);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewHover, setReviewHover] = useState(0);
@@ -61,8 +59,6 @@ function ProductDetailPage() {
         if (!cancelled) {
           setReviews([]);
           setHasReviewed(false);
-          setHasCompletedOrder(false);
-          setCompletedOrderId(null);
         }
         return;
       }
@@ -72,7 +68,6 @@ function ProductDetailPage() {
         .eq("product_id", product.id)
         .order("created_at", { ascending: false });
       let myRevData: any = null;
-      let orderData: any = null;
       if (user?.id) {
         const myRevRes = await supabase
           .from("product_reviews")
@@ -81,27 +76,13 @@ function ProductDetailPage() {
           .eq("reviewer_id", user.id)
           .maybeSingle();
         myRevData = myRevRes.data;
-        const orderRes = await supabase
-          .from("orders")
-          .select("id")
-          .eq("product_id", product.id)
-          .eq("customer_id", user.id)
-          .eq("status", "completed")
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        orderData = orderRes.data;
       }
       if (cancelled) return;
       setReviews((revData as ProductReview[]) ?? []);
       if (user?.id) {
         setHasReviewed(!!myRevData);
-        setHasCompletedOrder(!!orderData);
-        setCompletedOrderId(orderData?.id ?? null);
       } else {
         setHasReviewed(false);
-        setHasCompletedOrder(false);
-        setCompletedOrderId(null);
       }
     }
     fetchExtras();
@@ -174,7 +155,7 @@ function ProductDetailPage() {
   const images = (product.image_urls ?? []).slice(0, 4);
   const sellerInitials = (seller?.full_name || "U").split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase();
   const isOwner = !!user && user.id === product.seller_id;
-  const canReview = !!user && !isOwner && hasCompletedOrder && !hasReviewed;
+  const canReview = !!user && !isOwner && !hasReviewed;
 
   const buy = async () => {
     if (!user) return;
@@ -253,10 +234,6 @@ function ProductDetailPage() {
       setReviewOpen(false);
       return;
     }
-    if (!completedOrderId) {
-      toast.error("You can review this product after completing an order.");
-      return;
-    }
     if (reviewRating < 1) {
       toast.error("Please select a star rating");
       return;
@@ -265,7 +242,6 @@ function ProductDetailPage() {
     const { error } = await supabase.from("product_reviews").insert({
       product_id: product.id,
       reviewer_id: user.id,
-      order_id: completedOrderId,
       rating: reviewRating,
       comment: reviewComment.trim() || null,
       created_at: new Date().toISOString(),
