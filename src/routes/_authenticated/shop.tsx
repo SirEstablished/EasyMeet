@@ -17,6 +17,8 @@ import { toast } from "sonner";
 import { getOrCreateConversation } from "@/lib/conversations";
 import { cn } from "@/lib/utils";
 import { useLiveData } from "@/hooks/use-live-data";
+import { StarRating } from "@/components/StarRating";
+import { useAuth } from "@/lib/providers";
 
 export const Route = createFileRoute("/_authenticated/shop")({
   component: ShopPage,
@@ -25,6 +27,7 @@ export const Route = createFileRoute("/_authenticated/shop")({
 type SortKey = "newest" | "price_asc" | "price_desc";
 
 function ShopPage() {
+  const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
@@ -47,7 +50,7 @@ function ShopPage() {
     load();
   }, [load]);
 
-  useLiveData(["products"], load);
+  useLiveData(["products", "product_reviews"], load);
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -118,7 +121,12 @@ function ShopPage() {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
             {filtered.map((p) => (
-              <ProductCard key={p.id} product={p} onBuy={() => setBuying(p)} />
+              <ProductCard
+                key={p.id}
+                product={p}
+                isOwner={user?.id === p.seller_id}
+                onBuy={() => setBuying(p)}
+              />
             ))}
           </div>
         )}
@@ -129,7 +137,7 @@ function ShopPage() {
   );
 }
 
-function ProductCard({ product, onBuy }: { product: Product; onBuy: () => void }) {
+function ProductCard({ product, isOwner, onBuy }: { product: Product; isOwner: boolean; onBuy: () => void }) {
   const seller = product.seller;
   const cover = product.image_urls?.[0];
   return (
@@ -154,18 +162,27 @@ function ProductCard({ product, onBuy }: { product: Product; onBuy: () => void }
       <div className="p-2.5 flex-1 flex flex-col gap-1">
         <h3 className="text-sm font-medium leading-tight line-clamp-2 min-h-[2.5rem]">{product.title}</h3>
         <div className="text-base font-extrabold text-gradient-brand">{formatNgn(product.price)}</div>
+        {Number(product.review_count ?? 0) > 0 && (
+          <StarRating value={Number(product.avg_rating ?? 0)} count={Number(product.review_count ?? 0)} size={12} />
+        )}
         {seller && (
           <div className="text-[11px] text-muted-foreground truncate">
             by {seller.full_name || seller.username}
           </div>
         )}
-        <Button
-          size="sm"
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onBuy(); }}
-          className="mt-1 h-8 text-xs rounded-full bg-gradient-coral glow-coral"
-        >
-          Buy Now
-        </Button>
+        {isOwner ? (
+          <div className="mt-1 h-8 grid place-items-center text-[11px] text-muted-foreground rounded-full border border-dashed border-border">
+            Your listing
+          </div>
+        ) : (
+          <Button
+            size="sm"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onBuy(); }}
+            className="mt-1 h-8 text-xs rounded-full bg-gradient-coral glow-coral"
+          >
+            Buy Now
+          </Button>
+        )}
       </div>
     </Link>
   );
