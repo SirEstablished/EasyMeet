@@ -46,9 +46,10 @@ export interface Service {
   provider_id: string;
   title: string;
   description: string | null;
-  price: number;
+  price: number | null;
   currency: string;
   image_url: string | null;
+  media_urls: string[] | null;
   created_at: string;
   category?: string | null;
   is_active?: boolean;
@@ -222,4 +223,9 @@ export interface Product {
 export function formatNgn(n: number | null | undefined): string {
   const v = typeof n === "number" ? n : 0;
   return "₦" + v.toLocaleString("en-NG");
+}
+
+export function formatServicePrice(n: number | null | undefined): string {
+  if (n == null || Number(n) <= 0) return "Contact for quote";
+  return formatNgn(n);
 }

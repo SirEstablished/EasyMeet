@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Upload } from "lucide-react";
+import { Upload, Lightbulb } from "lucide-react";
 import { supabase, type Profile } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/providers";
 import { optimizeImage } from "@/lib/imageOptimize";
@@ -242,6 +242,17 @@ export function EditProfileDialog({
           <div className="space-y-1.5">
             <Label htmlFor="ep-bio">Bio</Label>
             <Textarea id="ep-bio" rows={4} value={bio} onChange={(e) => setBio(e.target.value)} />
+            <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-2.5 text-xs text-muted-foreground">
+              <Lightbulb className="h-3.5 w-3.5 mt-0.5 text-primary shrink-0" />
+              <div>
+                <span className="font-semibold text-foreground">Tip:</span>{" "}
+                Use specific keywords in your bio so customers can find you easily.{" "}
+                <span className="block mt-1 italic">
+                  Example: Instead of "I do hair" write "Professional hair stylist specialising in
+                  braids, weaves and natural hair in Lagos".
+                </span>
+              </div>
+            </div>
           </div>
 
           {err && <div className="text-sm text-destructive">{err}</div>}

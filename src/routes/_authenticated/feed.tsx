@@ -4,14 +4,16 @@ import { supabase, type Post } from "@/integrations/supabase/client";
 import { CreatePostCard } from "@/components/CreatePostCard";
 import { PostCard } from "@/components/PostCard";
 import { CommentsDrawer } from "@/components/CommentsDrawer";
-import { Loader2 } from "lucide-react";
+import { Loader2, Lock } from "lucide-react";
 import { useLiveData } from "@/hooks/use-live-data";
+import { useAuth } from "@/lib/providers";
 
 export const Route = createFileRoute("/_authenticated/feed")({
   component: FeedPage,
 });
 
 function FeedPage() {
+  const { profile } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [commentsFor, setCommentsFor] = useState<string | null>(null);
@@ -73,7 +75,21 @@ function FeedPage() {
         </p>
       </div>
 
-      <CreatePostCard onPosted={onPosted} />
+      {profile?.role === "customer" ? (
+        <div className="rounded-2xl glass-card p-5 flex items-start gap-3 border-primary/30">
+          <div className="h-9 w-9 rounded-full bg-gradient-brand grid place-items-center text-white shrink-0">
+            <Lock className="h-4 w-4" />
+          </div>
+          <div className="text-sm">
+            <div className="font-semibold">Customer accounts can't post</div>
+            <p className="text-muted-foreground mt-1">
+              Only professionals and businesses can post on the feed. Upgrade your account to share your work.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <CreatePostCard onPosted={onPosted} />
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center py-12 text-muted-foreground">

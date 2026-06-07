@@ -69,6 +69,25 @@ export function PostCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [post.id, user?.id]);
 
+  // Realtime subscription: refresh like count whenever any post_like row changes
+  // for THIS post, so all viewers see the new count instantly.
+  useEffect(() => {
+    const channel = supabase
+      .channel(`post-likes-${post.id}`)
+      .on(
+        "postgres_changes" as never,
+        { event: "*", schema: "public", table: "post_likes", filter: `post_id=eq.${post.id}` } as never,
+        () => {
+          void fetchLikes();
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [post.id, user?.id]);
+
   // Auto-pause videos when scrolled out of view; resume when back in view if user had played them.
   useEffect(() => {
     const el = videoRef.current;
