@@ -39,6 +39,11 @@ export interface Profile {
   latitude?: number | null;
   longitude?: number | null;
   is_banned?: boolean;
+  is_staff?: boolean;
+  staff_business_id?: string | null;
+  staff_commission_pct?: number | null;
+  staff_subscription_active?: boolean;
+  staff_subscription_expires_at?: string | null;
 }
 
 export interface Service {
