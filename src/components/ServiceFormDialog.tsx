@@ -22,6 +22,7 @@ import { supabase, SERVICE_CATEGORIES, type Service } from "@/integrations/supab
 import { Loader2, ImagePlus, X, Lightbulb, Video as VideoIcon } from "lucide-react";
 import { toast } from "sonner";
 import { optimizeImage } from "@/lib/imageOptimize";
+import { useAuth } from "@/lib/providers";
 
 export function ServiceFormDialog({
   open,
@@ -34,6 +35,8 @@ export function ServiceFormDialog({
   service?: Service | null;
   onSaved: (s: Service) => void;
 }) {
+  const { profile } = useAuth();
+  const priceLocked = !!profile?.is_staff && !!service;
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState<string>("");
@@ -312,10 +315,13 @@ export function ServiceFormDialog({
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
                 placeholder="Leave blank for 'Contact for quote'"
+              disabled={priceLocked}
               />
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Optional — leave blank to display "Contact for quote".
-              </p>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              {priceLocked
+                ? "Price is locked by the business."
+                : "Optional — leave blank to display \"Contact for quote\"."}
+            </p>
             </div>
             <div>
               <Label>Category</Label>

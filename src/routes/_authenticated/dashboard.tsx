@@ -11,6 +11,7 @@ import {
   Users,
   Store,
   Package,
+  Users2,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -58,6 +59,7 @@ function Dashboard() {
           { Icon: Store, label: "Shop", to: "/shop" },
           { Icon: Users, label: "Explore", to: "/explore" },
           { Icon: MessageCircle, label: "Messages", to: "/messages" },
+          ...(role === "business" ? [{ Icon: Users2, label: "Staffs", to: "/staffs" }] : []),
         ];
 
   return (
