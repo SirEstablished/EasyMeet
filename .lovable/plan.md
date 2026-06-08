@@ -1,57 +1,57 @@
-## Functional smoke test — EasyMeet
+# Staff System & Subscription Plan
 
-Goal: click through every interactive surface on the site and report a per-feature pass/fail with the exact error (console message, failed network call, broken navigation, etc.). No code changes in this pass — fixes come after we agree on what's actually broken.
+## 1. Database (new migration)
 
-### How I'll run it
+**Add columns to `profiles`:**
+- `is_staff boolean default false`
+- `staff_business_id uuid references profiles(id)`
+- `staff_commission_pct numeric`
+- `staff_subscription_active boolean default false`
+- `staff_subscription_expires_at timestamptz`
 
-1. Open the preview in the test browser, sign in with the existing session (if not signed in I'll stop and ask you to log in once).
-2. Walk each page below and exercise every button, link, form, filter, dialog, and tab.
-3. Capture console errors, failed network requests (4xx/5xx), and any UI that does nothing or crashes.
-4. For destructive actions (delete order, delete product, cancel booking, send money) I will NOT click — I'll only verify the dialog opens and note that I skipped the confirm step.
+**New table `staff_invites`:**
+- `id uuid pk`, `business_id uuid`, `full_name text`, `email text`, `commission_pct numeric`, `invite_code text unique`, `status text` (pending/accepted/expired/revoked), `expires_at timestamptz`, `created_at timestamptz`
+- RLS: business owner can CRUD their own invites; anon can SELECT a row by `invite_code` (for the registration page lookup).
 
-### Pages and features I'll cover
+**New table `staff_subscriptions`:**
+- `id`, `staff_id uuid`, `paystack_ref text`, `amount numeric`, `paid_at timestamptz`, `expires_at timestamptz`, `created_at`
+- RLS: staff sees own, service_role full.
 
-Public
-- `/` landing — all nav links, CTAs, footer links, theme toggle
-- `/about`, `/privacy`, `/terms` — render + links
-- `/auth` — sign-up, sign-in, password reset, Google OAuth button (open only)
+Standard GRANTs (`authenticated`, plus targeted `anon SELECT` on `staff_invites`).
 
-Authenticated app
-- `/dashboard` — stat cards, quick-link tiles, sidebar nav
-- `/feed` — create post, image upload, like, comment, boost dialog, mention autocomplete, post menu, infinite scroll
-- `/explore` — search, category pills, profile card → profile navigation
-- `/shop` — search, filters, product card → detail page
-- `/shop/product/:id` — image gallery, Paystack buy flow (init only, no real payment), review section
-- `/messages` — conversation list, send message, unread indicator
-- `/profile`, `/profile/:id`, `/my-profile` — tabs (services / products / reviews / posts), edit profile dialog, verification modal, message button
-- `/my-orders` — status filters, review dialog (open only)
-- `/my-bookings` — status filters, cancel dialog (open only)
-- `/my-services` — create, edit, delete dialog (open only)
-- `/my-products` — create, edit, delete dialog (open only)
-- `/settings` — every toggle, notification prefs, save button, sign-out
+## 2. Frontend routes
 
-Global
-- App navbar links, notifications bell dropdown, back-to-top button, route transitions
+**`src/routes/_authenticated/staffs.tsx`** — Business dashboard staff manager
+- Lists active staff (query profiles where `staff_business_id = me`)
+- Lists pending invites
+- "Add Staff" dialog: full name, email, commission % → inserts into `staff_invites` with generated code + 48h expiry, then triggers email send via existing mail infra or simple `mailto:` fallback if no email service. Will use a `createServerFn` that calls Resend if `RESEND_API_KEY` exists; otherwise display the invite link in the UI with a Copy button so the business can send it manually (fallback path noted to user).
+- Remove/Deactivate buttons (sets `is_staff=false`, clears `staff_business_id`)
+- Link from Dashboard quick-links for business role users
 
-### Deliverable
+**`src/routes/staff-register.tsx`** (public)
+- Reads `?invite=CODE` from search params
+- Loads invite row; if missing/expired/accepted → show error
+- Shows business name + commission + agreement terms
+- Form: full name, phone, password, gov ID upload (Supabase Storage bucket `staff-kyc`)
+- On submit: signUp via supabase auth, upload ID, update profile with `is_staff=true`, `staff_business_id`, `white_tick=true`, `full_name`, `bio = "Staff @ <BusinessName>"`; mark invite `accepted`
+- Then prompts to pay ₦1,000 via Paystack → on success insert `staff_subscriptions` row with `expires_at = now()+30d`, set profile subscription fields
 
-A single report grouped by page, in this shape:
+## 3. Price-lock for staff
+In `ProductFormDialog` and `ServiceFormDialog`: if `profile.is_staff`, disable the price input and show "Price locked by business".
 
-```text
-/feed
-  ✓ Create post (text)
-  ✓ Like / unlike
-  ✗ Comment submit — 403 from POST /rest/v1/comments, RLS rejection
-  ⚠ Boost dialog opens but "Pay" button does nothing (no network call)
-  ⊘ Delete post — skipped (destructive)
-```
+## 4. Subscription enforcement
+A simple client-side check on staff dashboard: if `staff_subscription_expires_at < now()`, set `staff_subscription_active=false` and show "Renew subscription" CTA (auto-deactivate row update).
 
-Plus a short "top issues to fix first" list at the end.
+## 5. Files
+- `supabase/migrations/20260608120000_staff_system.sql` (new)
+- `src/routes/_authenticated/staffs.tsx` (new)
+- `src/routes/staff-register.tsx` (new)
+- `src/lib/staffInvite.ts` (helpers: generate code, send email)
+- `src/integrations/supabase/client.ts` (extend `Profile` type)
+- `src/routes/_authenticated/dashboard.tsx` (add Staffs quick link for business role)
+- `src/components/ProductFormDialog.tsx` & `ServiceFormDialog.tsx` (lock price for staff)
+- `src/routeTree.gen.ts` regenerated by plugin
 
-### What I will NOT do in this pass
-
-- No code edits, no schema changes, no migrations.
-- No real Paystack charges, no real deletes, no sending real money.
-- No responsive / visual audit (you picked functional only).
-
-After you see the report, tell me which issues to fix and I'll switch to build mode and patch them.
+## Notes / Open questions
+- Email sending: I'll wire it through a `createServerFn` using Resend if you've added a `RESEND_API_KEY`; otherwise the invite link is shown in the UI to copy/share manually. Confirm if you'd like me to set up Lovable Emails instead (recommended) — that's a separate setup step.
+- KYC review workflow (admin approval) is not in scope here; uploads are stored and flagged for later review.
