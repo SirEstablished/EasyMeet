@@ -42,7 +42,8 @@ export function ProductFormDialog({
   product?: Product | null;
   onSaved: (p: Product) => void;
 }) {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const priceLocked = !!profile?.is_staff && !!product;
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState<string>("");
@@ -236,7 +237,18 @@ export function ProductFormDialog({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Price (NGN) *</Label>
-              <Input type="number" min={0} value={price} onChange={(e) => setPrice(e.target.value)} />
+              <Input
+                type="number"
+                min={0}
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                disabled={priceLocked}
+              />
+              {priceLocked && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Price is locked by the business.
+                </p>
+              )}
             </div>
             <div>
               <Label>Category</Label>
