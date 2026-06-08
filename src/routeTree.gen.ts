@@ -14,6 +14,7 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedStaffsRouteImport } from './routes/_authenticated/staffs'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedMyServicesRouteImport } from './routes/_authenticated/my-services'
@@ -52,6 +53,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedStaffsRoute = AuthenticatedStaffsRouteImport.update({
+  id: '/staffs',
+  path: '/staffs',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
@@ -141,6 +147,7 @@ export interface FileRoutesByFullPath {
   '/my-services': typeof AuthenticatedMyServicesRoute
   '/profile': typeof AuthenticatedProfileRouteWithChildren
   '/settings': typeof AuthenticatedSettingsRoute
+  '/staffs': typeof AuthenticatedStaffsRoute
   '/profile/$id': typeof AuthenticatedProfileIdRoute
   '/profile/': typeof AuthenticatedProfileIndexRoute
   '/shop/': typeof AuthenticatedShopIndexRoute
@@ -160,6 +167,7 @@ export interface FileRoutesByTo {
   '/my-products': typeof AuthenticatedMyProductsRoute
   '/my-services': typeof AuthenticatedMyServicesRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/staffs': typeof AuthenticatedStaffsRoute
   '/profile/$id': typeof AuthenticatedProfileIdRoute
   '/profile': typeof AuthenticatedProfileIndexRoute
   '/shop': typeof AuthenticatedShopIndexRoute
@@ -182,6 +190,7 @@ export interface FileRoutesById {
   '/_authenticated/my-services': typeof AuthenticatedMyServicesRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRouteWithChildren
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/staffs': typeof AuthenticatedStaffsRoute
   '/_authenticated/profile/$id': typeof AuthenticatedProfileIdRoute
   '/_authenticated/profile/': typeof AuthenticatedProfileIndexRoute
   '/_authenticated/shop/': typeof AuthenticatedShopIndexRoute
@@ -204,6 +213,7 @@ export interface FileRouteTypes {
     | '/my-services'
     | '/profile'
     | '/settings'
+    | '/staffs'
     | '/profile/$id'
     | '/profile/'
     | '/shop/'
@@ -223,6 +233,7 @@ export interface FileRouteTypes {
     | '/my-products'
     | '/my-services'
     | '/settings'
+    | '/staffs'
     | '/profile/$id'
     | '/profile'
     | '/shop'
@@ -244,6 +255,7 @@ export interface FileRouteTypes {
     | '/_authenticated/my-services'
     | '/_authenticated/profile'
     | '/_authenticated/settings'
+    | '/_authenticated/staffs'
     | '/_authenticated/profile/$id'
     | '/_authenticated/profile/'
     | '/_authenticated/shop/'
@@ -294,6 +306,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/staffs': {
+      id: '/_authenticated/staffs'
+      path: '/staffs'
+      fullPath: '/staffs'
+      preLoaderRoute: typeof AuthenticatedStaffsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/settings': {
       id: '/_authenticated/settings'
@@ -420,6 +439,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMyServicesRoute: typeof AuthenticatedMyServicesRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRouteWithChildren
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedStaffsRoute: typeof AuthenticatedStaffsRoute
   AuthenticatedShopIndexRoute: typeof AuthenticatedShopIndexRoute
   AuthenticatedShopProductIdRoute: typeof AuthenticatedShopProductIdRoute
 }
@@ -435,6 +455,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMyServicesRoute: AuthenticatedMyServicesRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRouteWithChildren,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedStaffsRoute: AuthenticatedStaffsRoute,
   AuthenticatedShopIndexRoute: AuthenticatedShopIndexRoute,
   AuthenticatedShopProductIdRoute: AuthenticatedShopProductIdRoute,
 }
@@ -452,3 +473,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
