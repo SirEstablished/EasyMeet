@@ -430,6 +430,15 @@ function Thread({
         {warn && (
           <div className="text-xs text-destructive mb-2 px-1">{warn}</div>
         )}
+      </div>
+      <EscrowPanel
+        conversationId={conversation.id}
+        meId={meId}
+        myEmail={user?.email || `${meId}@easymeet.app`}
+        other={conversation.other}
+        meRole={profile?.role}
+      />
+      <div className="border-t border-border p-3 glass-panel">
         <div className="flex items-center gap-2">
           <Input
             value={text}
