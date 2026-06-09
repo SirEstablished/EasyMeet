@@ -12,6 +12,7 @@ import { ArrowLeft, MessageCircle, Search, Send } from "lucide-react";
 import { containsPhone, PHONE_BLOCK_MESSAGE } from "@/lib/phoneCheck";
 import { cn } from "@/lib/utils";
 import { EscrowPanel } from "@/components/EscrowPanel";
+import { useAuth } from "@/lib/providers";
 
 const searchSchema = z.object({ c: z.string().optional(), m: z.string().optional() });
 
@@ -265,7 +266,7 @@ function Thread({
   initialText?: string;
   onConsumedInitialText?: () => void;
 }) {
-  // Note: useAuth is fine but we need meRole/email; pull from local meId props by querying parent context.
+  const { user, profile } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState(initialText ?? "");
   const [warn, setWarn] = useState<string | null>(null);
