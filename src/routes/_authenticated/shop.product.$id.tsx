@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { VerificationTicks } from "@/components/VerificationTicks";
 import { ArrowLeft, Loader2, MessageCircle, Package, Star } from "lucide-react";
 import { payWithPaystack } from "@/lib/paystack";
+import { verifyPaystackTransaction } from "@/lib/paystack.functions";
 import { getOrCreateConversation } from "@/lib/conversations";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -168,6 +169,13 @@ function ProductDetailPage() {
         amountNgn: product.price,
         metadata: { product_id: product.id, kind: "product" },
       });
+      const verify = await verifyPaystackTransaction({
+        data: { reference: res.reference, expectedAmountNgn: product.price },
+      });
+      if (!verify.ok) {
+        toast.error(verify.message || "Payment could not be verified");
+        return;
+      }
       const authUser = await supabase.auth.getUser();
       const orderData = {
         customer_id: authUser.data.user!.id,

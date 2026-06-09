@@ -11,6 +11,7 @@ import { Loader2, Rocket } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { payWithPaystack } from "@/lib/paystack";
+import { verifyPaystackTransaction } from "@/lib/paystack.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/providers";
 
@@ -42,6 +43,13 @@ export function BoostPostModal({
         amountNgn: 2000,
         metadata: { post_id: postId, kind: "boost" },
       });
+      const verify = await verifyPaystackTransaction({
+        data: { reference: res.reference, expectedAmountNgn: 2000 },
+      });
+      if (!verify.ok) {
+        toast.error(verify.message || "Payment could not be verified");
+        return;
+      }
       const endAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
       const [{ error: bErr }, { error: pErr }] = await Promise.all([
         supabase.from("boosts").insert({

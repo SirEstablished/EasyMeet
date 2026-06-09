@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { payWithPaystack } from "@/lib/paystack";
+import { verifyPaystackTransaction } from "@/lib/paystack.functions";
 
 export const Route = createFileRoute("/staff-register")({
   ssr: false,
@@ -48,17 +49,17 @@ function StaffRegisterPage() {
         setLoading(false);
         return;
       }
-      const { data, error: e } = await supabase
-        .from("staff_invites")
-        .select("*")
-        .eq("invite_code", invite)
-        .maybeSingle();
-      if (e || !data) {
+      const { data, error: e } = await supabase.rpc("get_staff_invite_by_code", {
+        p_code: invite,
+      });
+      const row = (Array.isArray(data) ? data[0] : data) as
+        | (InviteRow & { business_name: string | null })
+        | null;
+      if (e || !row) {
         setError("Invalid invite link.");
         setLoading(false);
         return;
       }
-      const row = data as InviteRow;
       if (row.status !== "pending") {
         setError("This invite has already been used or revoked.");
         setLoading(false);
@@ -71,12 +72,7 @@ function StaffRegisterPage() {
       }
       setInviteRow(row);
       setFullName(row.full_name);
-      const { data: biz } = await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("id", row.business_id)
-        .maybeSingle();
-      setBusinessName((biz?.full_name as string) || "your business");
+      setBusinessName(row.business_name || "your business");
       setLoading(false);
     })();
   }, [invite]);
@@ -127,6 +123,12 @@ function StaffRegisterPage() {
         amountNgn: 1000,
         metadata: { kind: "staff_subscription", staff_id: userId },
       });
+      const verify = await verifyPaystackTransaction({
+        data: { reference: payRes.reference, expectedAmountNgn: 1000 },
+      });
+      if (!verify.ok) {
+        throw new Error(verify.message || "Payment could not be verified");
+      }
 
       const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
