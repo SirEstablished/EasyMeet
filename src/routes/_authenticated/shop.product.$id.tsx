@@ -9,6 +9,7 @@ import { VerificationTicks } from "@/components/VerificationTicks";
 import { ArrowLeft, Loader2, MessageCircle, Package, Star } from "lucide-react";
 import { payWithPaystack } from "@/lib/paystack";
 import { verifyPaystackTransaction } from "@/lib/paystack.functions";
+import { computeCommission } from "@/lib/escrow";
 import { getOrCreateConversation } from "@/lib/conversations";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -190,7 +191,7 @@ function ProductDetailPage() {
         notes: null,
         payment_ref: res.reference,
         payment_status: "paid",
-        status: "confirmed",
+        status: "pending",
       };
       const { error: orderError } = await supabase
         .from("orders")
@@ -200,6 +201,22 @@ function ProductDetailPage() {
         toast.error("Payment received but order record failed. Please contact support.");
         return;
       }
+      // Escrow: hold funds until customer marks complete
+      const { commission, payout } = computeCommission(product.price);
+      await supabase.from("escrow_orders").insert({
+        kind: "product",
+        customer_id: authUser.data.user!.id,
+        professional_id: product.seller_id,
+        product_id: product.id,
+        quantity: 1,
+        title: product.title,
+        amount_ngn: product.price,
+        commission_amount: commission,
+        payout_amount: payout,
+        status: "holding",
+        paystack_reference: res.reference,
+        paid_at: new Date().toISOString(),
+      });
       if (product.product_type === "physical") {
         await supabase.from("products").update({ stock_count: Math.max(0, product.stock_count - 1) }).eq("id", product.id);
       }
