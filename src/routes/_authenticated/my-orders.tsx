@@ -9,6 +9,7 @@ import { ReviewOrderDialog } from "@/components/ReviewOrderDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLiveData } from "@/hooks/use-live-data";
 import { toast } from "sonner";
+import { EscrowOrdersSection } from "@/components/EscrowOrdersSection";
 
 export const Route = createFileRoute("/_authenticated/my-orders")({
   component: MyOrdersPage,
@@ -75,6 +76,8 @@ function MyOrdersPage() {
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
       <h1 className="text-3xl sm:text-4xl font-extrabold text-gradient-tri">{title}</h1>
       <p className="text-sm text-muted-foreground">{subtitle}</p>
+
+      <EscrowOrdersSection />
 
       {loading ? (
         <div className="flex items-center justify-center py-12 text-muted-foreground">
