@@ -12,7 +12,6 @@ import { ArrowLeft, MessageCircle, Search, Send } from "lucide-react";
 import { containsPhone, PHONE_BLOCK_MESSAGE } from "@/lib/phoneCheck";
 import { cn } from "@/lib/utils";
 import { EscrowPanel } from "@/components/EscrowPanel";
-import { useAuth } from "@/lib/providers";
 
 const searchSchema = z.object({ c: z.string().optional(), m: z.string().optional() });
 
