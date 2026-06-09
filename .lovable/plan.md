@@ -1,57 +1,83 @@
-# Staff System & Subscription Plan
+
+# Escrow, Disputes & Refunds
+
+A large, multi-surface feature. Plan below — please approve before I start building.
 
 ## 1. Database (new migration)
 
-**Add columns to `profiles`:**
-- `is_staff boolean default false`
-- `staff_business_id uuid references profiles(id)`
-- `staff_commission_pct numeric`
-- `staff_subscription_active boolean default false`
-- `staff_subscription_expires_at timestamptz`
+New tables in `public`:
 
-**New table `staff_invites`:**
-- `id uuid pk`, `business_id uuid`, `full_name text`, `email text`, `commission_pct numeric`, `invite_code text unique`, `status text` (pending/accepted/expired/revoked), `expires_at timestamptz`, `created_at timestamptz`
-- RLS: business owner can CRUD their own invites; anon can SELECT a row by `invite_code` (for the registration page lookup).
+- `escrow_orders`
+  - `id uuid pk`, `created_at`, `updated_at`
+  - `kind text check in ('service','product')`
+  - `customer_id uuid`, `professional_id uuid`
+  - `conversation_id uuid null` (services)
+  - `product_id uuid null`, `quantity int null` (shop)
+  - `agreement_id uuid null`
+  - `amount_ngn numeric`, `commission_amount numeric`, `payout_amount numeric`
+  - `status text` — `pending_payment | holding | in_progress | completed | disputed | refunded | cancelled`
+  - `paystack_reference text`, `paid_at`, `released_at`, `refunded_at`
+  - `refund_status text null`, `refund_amount numeric null`
+- `service_agreements`
+  - `id`, `conversation_id`, `professional_id`, `customer_id`
+  - `title`, `description`, `price_ngn`, `terms`
+  - `status text` (`pending|accepted|rejected|cancelled`), `accepted_at`
+- `escrow_disputes`
+  - `id`, `order_id`, `opened_by`, `reason`, `status` (`open|resolved_release|resolved_refund`)
+  - `resolution_note`, `resolved_by`, `resolved_at`
+- `escrow_dispute_evidence`
+  - `id`, `dispute_id`, `uploaded_by`, `file_url`, `note`, `is_chat_snapshot bool`
+- Storage bucket `dispute-evidence` (private)
+- RLS: customer & professional read/write their own rows; admin (`has_role admin`) full read; service_role full.
+- Grants per project rules.
 
-**New table `staff_subscriptions`:**
-- `id`, `staff_id uuid`, `paystack_ref text`, `amount numeric`, `paid_at timestamptz`, `expires_at timestamptz`, `created_at`
-- RLS: staff sees own, service_role full.
+## 2. Server functions (`src/lib/escrow.functions.ts`)
 
-Standard GRANTs (`authenticated`, plus targeted `anon SELECT` on `staff_invites`).
+All authenticated via `requireSupabaseAuth`, with Zod validation:
 
-## 2. Frontend routes
+- `createAgreement({conversation_id, title, description, price_ngn, terms})` (professional)
+- `acceptAgreement({agreement_id})` (customer) → creates `escrow_orders` row `pending_payment`
+- `confirmEscrowPayment({order_id, reference})` → verifies via existing `verifyPaystackTransaction`, sets `status='holding'`, computes 3% commission
+- `markOrderComplete({order_id})` (customer) → status `completed`, sets released_at, computes `payout_amount` (97%). Records release; payout to professional handled manually for now (note in UI).
+- `openDispute({order_id, reason})` → status `disputed`, snapshots last 100 chat messages into `dispute_evidence` as JSON file
+- `uploadDisputeEvidence` (signed URL helper)
+- `resolveDispute({dispute_id, outcome, note})` (admin only)
+- `requestRefund({order_id})` (customer, only when cancelled or dispute resolved in their favour) → marks `refund_status='processing'`, `refunded_at`. (Actual Paystack refund API call server-side using secret key.)
+- `createShopEscrowOrder({product_id, quantity, reference})` for shop checkout
 
-**`src/routes/_authenticated/staffs.tsx`** — Business dashboard staff manager
-- Lists active staff (query profiles where `staff_business_id = me`)
-- Lists pending invites
-- "Add Staff" dialog: full name, email, commission % → inserts into `staff_invites` with generated code + 48h expiry, then triggers email send via existing mail infra or simple `mailto:` fallback if no email service. Will use a `createServerFn` that calls Resend if `RESEND_API_KEY` exists; otherwise display the invite link in the UI with a Copy button so the business can send it manually (fallback path noted to user).
-- Remove/Deactivate buttons (sets `is_staff=false`, clears `staff_business_id`)
-- Link from Dashboard quick-links for business role users
+## 3. UI changes
 
-**`src/routes/staff-register.tsx`** (public)
-- Reads `?invite=CODE` from search params
-- Loads invite row; if missing/expired/accepted → show error
-- Shows business name + commission + agreement terms
-- Form: full name, phone, password, gov ID upload (Supabase Storage bucket `staff-kyc`)
-- On submit: signUp via supabase auth, upload ID, update profile with `is_staff=true`, `staff_business_id`, `white_tick=true`, `full_name`, `bio = "Staff @ <BusinessName>"`; mark invite `accepted`
-- Then prompts to pay ₦1,000 via Paystack → on success insert `staff_subscriptions` row with `expires_at = now()+30d`, set profile subscription fields
+### Messages thread (`src/routes/_authenticated/messages.tsx`)
+Add an **Escrow panel** above the composer showing current agreement/order state with stage-appropriate buttons:
+- Professional: "Send Agreement" → dialog (title, description, price, terms)
+- Customer: "Accept Agreement", "Pay into Escrow" (Paystack), "Mark as Complete", "Open Dispute"
+- Professional: "Open Dispute" after payment
+- Stage indicator (1–6)
 
-## 3. Price-lock for staff
-In `ProductFormDialog` and `ServiceFormDialog`: if `profile.is_staff`, disable the price input and show "Price locked by business".
+### Shop product page (`shop.product.$id.tsx`)
+Replace direct seller payment with escrow flow: pay → `createShopEscrowOrder` → order appears in "My Orders" with "Mark as Complete" / "Open Dispute" / "Refund" buttons.
 
-## 4. Subscription enforcement
-A simple client-side check on staff dashboard: if `staff_subscription_expires_at < now()`, set `staff_subscription_active=false` and show "Renew subscription" CTA (auto-deactivate row update).
+### My Orders (`my-orders.tsx`)
+Show escrow orders with current stage, action buttons, and refund popup with the exact copy specified.
 
-## 5. Files
-- `supabase/migrations/20260608120000_staff_system.sql` (new)
-- `src/routes/_authenticated/staffs.tsx` (new)
-- `src/routes/staff-register.tsx` (new)
-- `src/lib/staffInvite.ts` (helpers: generate code, send email)
-- `src/integrations/supabase/client.ts` (extend `Profile` type)
-- `src/routes/_authenticated/dashboard.tsx` (add Staffs quick link for business role)
-- `src/components/ProductFormDialog.tsx` & `ServiceFormDialog.tsx` (lock price for staff)
-- `src/routeTree.gen.ts` regenerated by plugin
+### Admin disputes page (new `src/routes/_authenticated/admin.disputes.tsx`)
+Admin-only list of open disputes with evidence viewer and Release/Refund buttons.
 
-## Notes / Open questions
-- Email sending: I'll wire it through a `createServerFn` using Resend if you've added a `RESEND_API_KEY`; otherwise the invite link is shown in the UI to copy/share manually. Confirm if you'd like me to set up Lovable Emails instead (recommended) — that's a separate setup step.
-- KYC review workflow (admin approval) is not in scope here; uploads are stored and flagged for later review.
+## 4. Refund flow
+
+Server function calls Paystack `POST /refund` with `transaction: reference`. On success sets `refund_status='processing'`. Popup copy shown client-side after success.
+
+## 5. Notifications
+
+Insert rows into existing `notifications` table (if present) for:
+- agreement sent/accepted
+- payment received
+- order completed/released
+- dispute opened/resolved
+- refund processed
+
+## Out of scope (will note in chat after build)
+- Automated payout to professional bank account (Paystack Transfers requires recipient setup — left as manual admin action for now; payout_amount tracked).
+- Email notifications.
+
+Approve to proceed and I'll implement.

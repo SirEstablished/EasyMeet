@@ -11,6 +11,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowLeft, MessageCircle, Search, Send } from "lucide-react";
 import { containsPhone, PHONE_BLOCK_MESSAGE } from "@/lib/phoneCheck";
 import { cn } from "@/lib/utils";
+import { EscrowPanel } from "@/components/EscrowPanel";
 
 const searchSchema = z.object({ c: z.string().optional(), m: z.string().optional() });
 
@@ -264,6 +265,7 @@ function Thread({
   initialText?: string;
   onConsumedInitialText?: () => void;
 }) {
+  const { user, profile } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState(initialText ?? "");
   const [warn, setWarn] = useState<string | null>(null);
@@ -428,6 +430,15 @@ function Thread({
         {warn && (
           <div className="text-xs text-destructive mb-2 px-1">{warn}</div>
         )}
+      </div>
+      <EscrowPanel
+        conversationId={conversation.id}
+        meId={meId}
+        myEmail={user?.email || `${meId}@easymeet.app`}
+        other={conversation.other}
+        meRole={profile?.role}
+      />
+      <div className="border-t border-border p-3 glass-panel">
         <div className="flex items-center gap-2">
           <Input
             value={text}
