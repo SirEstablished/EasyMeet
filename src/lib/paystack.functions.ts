@@ -62,3 +62,53 @@ export const verifyPaystackTransaction = createServerFn({ method: "POST" })
 
     return { ok: true, reference: tx.reference || data.reference, amountNgn: paidKobo / 100 };
   });
+
+const RefundSchema = z.object({
+  reference: z.string().min(6).max(128).regex(/^[a-zA-Z0-9_\-]+$/),
+  amountNgn: z.number().positive().max(10_000_000).optional(),
+});
+
+export interface RefundResult {
+  ok: boolean;
+  message?: string;
+  refundAmountNgn?: number;
+  status?: string;
+}
+
+/**
+ * Server-side Paystack refund. Initiates a refund for the given reference.
+ * If amountNgn is omitted the entire transaction is refunded.
+ */
+export const refundPaystackTransaction = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => RefundSchema.parse(data))
+  .handler(async ({ data }): Promise<RefundResult> => {
+    const secret = process.env.PAYSTACK_SECRET_KEY;
+    if (!secret) return { ok: false, message: "Server not configured" };
+    const body: Record<string, unknown> = { transaction: data.reference };
+    if (data.amountNgn) body.amount = Math.round(data.amountNgn * 100);
+    let res: Response;
+    try {
+      res = await fetch("https://api.paystack.co/refund", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${secret}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+    } catch (e) {
+      console.error("Paystack refund network error", e);
+      return { ok: false, message: "Refund unavailable" };
+    }
+    const json = (await res.json().catch(() => null)) as
+      | { status?: boolean; message?: string; data?: { amount?: number; status?: string } }
+      | null;
+    if (!res.ok || !json?.status) {
+      return { ok: false, message: json?.message || `Refund failed (${res.status})` };
+    }
+    return {
+      ok: true,
+      refundAmountNgn: json.data?.amount ? json.data.amount / 100 : undefined,
+      status: json.data?.status,
+    };
+  });
