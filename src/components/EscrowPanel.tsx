@@ -129,24 +129,67 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole }: Pr
         return;
       }
       const { commission, payout } = computeCommission(agreement.price);
-      const { error } = await supabase.from("escrow_orders").insert({
-        kind: "service",
-        customer_id: meId,
-        professional_id: agreement.sender_id,
-        conversation_id: conversationId,
-        agreement_id: agreement.id,
-        title: agreement.job_title,
-        amount_ngn: agreement.price,
-        commission_amount: commission,
-        payout_amount: payout,
-        status: "holding",
-        paystack_reference: res.reference,
-        paid_at: new Date().toISOString(),
-      });
-      if (error) {
-        toast.error("Payment received but escrow record failed. Contact support.");
+      const { data: insertedOrder, error } = await supabase
+        .from("escrow_orders")
+        .insert({
+          kind: "service",
+          customer_id: meId,
+          professional_id: agreement.sender_id,
+          conversation_id: conversationId,
+          agreement_id: agreement.id,
+          title: agreement.job_title,
+          amount_ngn: agreement.price,
+          commission_amount: commission,
+          payout_amount: payout,
+          status: "holding",
+          paystack_reference: res.reference,
+          paid_at: new Date().toISOString(),
+        })
+        .select("*")
+        .single();
+      if (error || !insertedOrder) {
+        console.error("escrow insert failed", error);
+        toast.error(
+          error?.message
+            ? `Payment received but escrow record failed: ${error.message}`
+            : "Payment received but escrow record failed. Contact support.",
+        );
         return;
       }
+      // Optimistically reflect new state so the Pay button hides immediately
+      setOrder(insertedOrder as EscrowOrder);
+
+      // Mirror into legacy orders table for /my-orders compatibility
+      const { error: orderErr } = await supabase.from("orders").insert({
+        customer_id: meId,
+        provider_id: agreement.sender_id,
+        product_id: null,
+        service_id: null,
+        kind: "service",
+        service_title: agreement.job_title,
+        amount: agreement.price,
+        commission_amount: commission,
+        currency: "NGN",
+        notes: agreement.job_description ?? null,
+        payment_ref: res.reference,
+        payment_status: "paid",
+        status: "pending",
+      } as never);
+      if (orderErr) console.warn("legacy order insert failed", orderErr);
+
+      // Notify professional
+      const { error: notifyErr } = await supabase.from("notifications").insert({
+        user_id: agreement.sender_id,
+        recipient_id: agreement.sender_id,
+        sender_id: meId,
+        type: "escrow_payment_received",
+        title: "Payment held in escrow",
+        message: `Payment of ${formatNgn(agreement.price)} for "${agreement.job_title}" is held in escrow. You can start the work.`,
+        body: `Payment of ${formatNgn(agreement.price)} for "${agreement.job_title}" is held in escrow. You can start the work.`,
+        read: false,
+      } as never);
+      if (notifyErr) console.warn("professional notification failed", notifyErr);
+
       await supabase.from("messages").insert({
         conversation_id: conversationId,
         sender_id: meId,
