@@ -13,6 +13,7 @@ import { Upload, CheckCircle2, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/providers";
 import { payWithPaystack } from "@/lib/paystack";
+import { verifyPaystackTransaction } from "@/lib/paystack.functions";
 import { toast } from "sonner";
 
 type Tick = "blue" | "white";
@@ -105,6 +106,13 @@ export function VerificationModal({
         amountNgn: amount,
         metadata: { kind: "tick_verification", tick_type: tickType },
       });
+      const verify = await verifyPaystackTransaction({
+        data: { reference: res.reference, expectedAmountNgn: amount },
+      });
+      if (!verify.ok) {
+        toast.error(verify.message || "Payment could not be verified");
+        return;
+      }
       const document_urls =
         tickType === "blue"
           ? [govIdUrl, selfieUrl, certUrl].filter(Boolean) as string[]

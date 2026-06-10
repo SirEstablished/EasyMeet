@@ -13,6 +13,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import { payWithPaystack } from "@/lib/paystack";
+import { verifyPaystackTransaction } from "@/lib/paystack.functions";
 import { toast } from "sonner";
 import { getOrCreateConversation } from "@/lib/conversations";
 import { cn } from "@/lib/utils";
@@ -235,6 +236,13 @@ function PurchaseModal({ product, onClose }: { product: Product | null; onClose:
         amountNgn: product.price,
         metadata: { product_id: product.id, kind: "product" },
       });
+      const verify = await verifyPaystackTransaction({
+        data: { reference: res.reference, expectedAmountNgn: product.price },
+      });
+      if (!verify.ok) {
+        toast.error(verify.message || "Payment could not be verified");
+        return;
+      }
       const { error: orderError } = await supabase.from("orders").insert({
         customer_id: user.id,
         provider_id: product.seller_id,
