@@ -311,16 +311,22 @@ function SendAgreementDialog({
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
-    const p = Number(price);
-    if (!title.trim() || !(p > 0)) return toast.error("Enter title and a valid price");
+    const jobTitle = title.trim();
+    const jobDescription = description.trim();
+    const priceNum = Number(price);
+    if (!jobTitle) return toast.error("Job title is required");
+    if (!jobDescription) return toast.error("Job description is required");
+    if (!price.trim() || !Number.isFinite(priceNum) || priceNum <= 0) {
+      return toast.error("Enter a valid price greater than 0");
+    }
     setBusy(true);
     const { error } = await supabase.from("service_agreements").insert({
       conversation_id: conversationId,
-      professional_id: professionalId,
-      customer_id: customerId,
-      title: title.trim(),
-      description: description.trim() || null,
-      price_ngn: p,
+      sender_id: professionalId,
+      receiver_id: customerId,
+      job_title: jobTitle,
+      job_description: jobDescription,
+      price: priceNum,
       terms: terms.trim() || null,
       status: "pending",
     });
@@ -328,7 +334,7 @@ function SendAgreementDialog({
       await supabase.from("messages").insert({
         conversation_id: conversationId,
         sender_id: professionalId,
-        body: `📄 Agreement sent: "${title.trim()}" — ${formatNgn(p)}. Please review and accept.`,
+        body: `📄 Agreement sent: "${jobTitle}" — ${formatNgn(priceNum)}. Please review and accept.`,
       });
     }
     setBusy(false);
@@ -346,16 +352,16 @@ function SendAgreementDialog({
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <Label>Job title</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} />
+            <Label>Job title <span className="text-destructive">*</span></Label>
+            <Input required value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} />
           </div>
           <div>
-            <Label>Details</Label>
-            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={2000} rows={3} />
+            <Label>Job description <span className="text-destructive">*</span></Label>
+            <Textarea required value={description} onChange={(e) => setDescription(e.target.value)} maxLength={2000} rows={3} />
           </div>
           <div>
-            <Label>Price (NGN)</Label>
-            <Input type="number" min="1" value={price} onChange={(e) => setPrice(e.target.value)} />
+            <Label>Price (NGN) <span className="text-destructive">*</span></Label>
+            <Input required type="number" min="1" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} />
           </div>
           <div>
             <Label>Terms (optional)</Label>
