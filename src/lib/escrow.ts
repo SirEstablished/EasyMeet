@@ -5,11 +5,11 @@ export const ESCROW_COMMISSION_PCT = 0.03;
 export interface ServiceAgreement {
   id: string;
   conversation_id: string;
-  professional_id: string;
-  customer_id: string;
-  title: string;
-  description: string | null;
-  price_ngn: number;
+  sender_id: string;
+  receiver_id: string;
+  job_title: string;
+  job_description: string | null;
+  price: number;
   terms: string | null;
   status: "pending" | "accepted" | "rejected" | "cancelled";
   accepted_at: string | null;
