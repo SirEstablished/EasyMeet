@@ -118,25 +118,25 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole }: Pr
     try {
       const res = await payWithPaystack({
         email: myEmail,
-        amountNgn: agreement.price_ngn,
+        amountNgn: agreement.price,
         metadata: { agreement_id: agreement.id, kind: "escrow_service" },
       });
       const v = await verifyPaystackTransaction({
-        data: { reference: res.reference, expectedAmountNgn: agreement.price_ngn },
+        data: { reference: res.reference, expectedAmountNgn: agreement.price },
       });
       if (!v.ok) {
         toast.error(v.message || "Payment not verified");
         return;
       }
-      const { commission, payout } = computeCommission(agreement.price_ngn);
+      const { commission, payout } = computeCommission(agreement.price);
       const { error } = await supabase.from("escrow_orders").insert({
         kind: "service",
         customer_id: meId,
-        professional_id: agreement.professional_id,
+        professional_id: agreement.sender_id,
         conversation_id: conversationId,
         agreement_id: agreement.id,
-        title: agreement.title,
-        amount_ngn: agreement.price_ngn,
+        title: agreement.job_title,
+        amount_ngn: agreement.price,
         commission_amount: commission,
         payout_amount: payout,
         status: "holding",
@@ -150,7 +150,7 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole }: Pr
       await supabase.from("messages").insert({
         conversation_id: conversationId,
         sender_id: meId,
-        body: `💳 Payment of ${formatNgn(agreement.price_ngn)} placed in escrow. Work can begin.`,
+        body: `💳 Payment of ${formatNgn(agreement.price)} placed in escrow. Work can begin.`,
       });
       toast.success("Funds held in escrow");
       load();
@@ -199,14 +199,14 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole }: Pr
           <div className="flex items-start gap-2">
             <FileText className="h-4 w-4 text-primary mt-0.5" />
             <div className="flex-1 min-w-0">
-              <div className="font-semibold text-sm">{agreement.title}</div>
-              {agreement.description && (
-                <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">{agreement.description}</p>
+              <div className="font-semibold text-sm">{agreement.job_title}</div>
+              {agreement.job_description && (
+                <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">{agreement.job_description}</p>
               )}
               {agreement.terms && (
                 <p className="text-[11px] text-muted-foreground mt-1 italic">Terms: {agreement.terms}</p>
               )}
-              <div className="mt-1 font-bold text-gradient-brand">{formatNgn(agreement.price_ngn)}</div>
+              <div className="mt-1 font-bold text-gradient-brand">{formatNgn(agreement.price)}</div>
             </div>
             <Badge variant="secondary" className="capitalize text-[10px]">{agreement.status}</Badge>
           </div>
@@ -232,7 +232,7 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole }: Pr
         {!isProfessional && agreement?.status === "accepted" && !order && (
           <Button size="sm" onClick={payEscrow} disabled={paying} className="bg-gradient-brand">
             {paying ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <CreditCard className="h-4 w-4 mr-1" />}
-            Pay into Escrow ({formatNgn(agreement.price_ngn)})
+            Pay into Escrow ({formatNgn(agreement.price)})
           </Button>
         )}
 
