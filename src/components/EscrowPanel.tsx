@@ -63,7 +63,7 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole }: Pr
         .limit(1)
         .maybeSingle(),
       supabase
-        .from("escrow_orders")
+        .from("escrow")
         .select("*")
         .eq("conversation_id", conversationId)
         .order("created_at", { ascending: false })
@@ -87,7 +87,7 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole }: Pr
       )
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "escrow_orders", filter: `conversation_id=eq.${conversationId}` },
+        { event: "*", schema: "public", table: "escrow", filter: `conversation_id=eq.${conversationId}` },
         () => load(),
       )
       .subscribe();
@@ -129,38 +129,8 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole }: Pr
         return;
       }
       const { commission, payout } = computeCommission(agreement.price);
-      const { data: insertedOrder, error } = await supabase
-        .from("escrow_orders")
-        .insert({
-          kind: "service",
-          customer_id: meId,
-          professional_id: agreement.sender_id,
-          conversation_id: conversationId,
-          agreement_id: agreement.id,
-          title: agreement.job_title,
-          amount_ngn: agreement.price,
-          commission_amount: commission,
-          payout_amount: payout,
-          status: "holding",
-          paystack_reference: res.reference,
-          paid_at: new Date().toISOString(),
-        })
-        .select("*")
-        .single();
-      if (error || !insertedOrder) {
-        console.error("escrow insert failed", error);
-        toast.error(
-          error?.message
-            ? `Payment received but escrow record failed: ${error.message}`
-            : "Payment received but escrow record failed. Contact support.",
-        );
-        return;
-      }
-      // Optimistically reflect new state so the Pay button hides immediately
-      setOrder(insertedOrder as EscrowOrder);
-
-      // Mirror into legacy orders table for /my-orders compatibility
-      const { error: orderErr } = await supabase.from("orders").insert({
+      // 1) Insert into orders first to get the order id
+      const { data: orderRow, error: orderErr } = await supabase.from("orders").insert({
         customer_id: meId,
         provider_id: agreement.sender_id,
         product_id: null,
@@ -174,8 +144,49 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole }: Pr
         payment_ref: res.reference,
         payment_status: "paid",
         status: "pending",
-      } as never);
-      if (orderErr) console.warn("legacy order insert failed", orderErr);
+      } as never).select("id").single();
+      if (orderErr || !orderRow) {
+        console.error("orders insert failed", orderErr);
+        toast.error(
+          orderErr?.message
+            ? `Payment received but order record failed: ${orderErr.message}`
+            : "Payment received but order record failed. Contact support.",
+        );
+        return;
+      }
+
+      // 2) Insert into escrow with link to the order
+      const { data: insertedEscrow, error } = await supabase
+        .from("escrow")
+        .insert({
+          order_id: (orderRow as { id: string }).id,
+          kind: "service",
+          customer_id: meId,
+          professional_id: agreement.sender_id,
+          conversation_id: conversationId,
+          agreement_id: agreement.id,
+          title: agreement.job_title,
+          amount_ngn: agreement.price,
+          commission_amount: commission,
+          payout_amount: payout,
+          status: "holding",
+          payment_ref: res.reference,
+          paystack_reference: res.reference,
+          paid_at: new Date().toISOString(),
+        })
+        .select("*")
+        .single();
+      if (error || !insertedEscrow) {
+        console.error("escrow insert failed", error);
+        toast.error(
+          error?.message
+            ? `Payment received but escrow record failed: ${error.message}`
+            : "Payment received but escrow record failed. Contact support.",
+        );
+        return;
+      }
+      // Optimistically reflect new state so the Pay button hides immediately
+      setOrder(insertedEscrow as EscrowOrder);
 
       // Notify professional
       const { error: notifyErr } = await supabase.from("notifications").insert({
@@ -209,7 +220,7 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole }: Pr
     if (!order) return;
     setBusy(true);
     const { error } = await supabase
-      .from("escrow_orders")
+      .from("escrow")
       .update({ status: "completed", released_at: new Date().toISOString() })
       .eq("id", order.id);
     setBusy(false);
@@ -453,7 +464,7 @@ function OpenDisputeDialog({
       setBusy(false);
       return toast.error(error?.message || "Could not open dispute");
     }
-    await supabase.from("escrow_orders").update({ status: "disputed" }).eq("id", orderId);
+    await supabase.from("escrow").update({ status: "disputed" }).eq("id", orderId);
     if (evidence.trim()) {
       await supabase.from("escrow_dispute_evidence").insert({
         dispute_id: (dispute as { id: string }).id,
