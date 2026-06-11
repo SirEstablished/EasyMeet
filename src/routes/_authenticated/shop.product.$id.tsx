@@ -193,17 +193,19 @@ function ProductDetailPage() {
         payment_status: "paid",
         status: "pending",
       };
-      const { error: orderError } = await supabase
+      const { data: orderRow, error: orderError } = await supabase
         .from("orders")
         .insert(orderData)
-        .select();
-      if (orderError) {
+        .select("id")
+        .single();
+      if (orderError || !orderRow) {
         toast.error("Payment received but order record failed. Please contact support.");
         return;
       }
       // Escrow: hold funds until customer marks complete
       const { commission, payout } = computeCommission(product.price);
       await supabase.from("escrow").insert({
+        order_id: (orderRow as { id: string }).id,
         kind: "product",
         customer_id: authUser.data.user!.id,
         professional_id: product.seller_id,
@@ -214,6 +216,7 @@ function ProductDetailPage() {
         commission_amount: commission,
         payout_amount: payout,
         status: "holding",
+        payment_ref: res.reference,
         paystack_reference: res.reference,
         paid_at: new Date().toISOString(),
       });
