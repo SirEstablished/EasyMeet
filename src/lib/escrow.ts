@@ -27,6 +27,7 @@ export type EscrowStatus =
 
 export interface EscrowOrder {
   id: string;
+  order_id: string | null;
   kind: "service" | "product";
   customer_id: string;
   professional_id: string;
@@ -39,6 +40,7 @@ export interface EscrowOrder {
   commission_amount: number;
   payout_amount: number;
   status: EscrowStatus;
+  payment_ref: string | null;
   paystack_reference: string | null;
   paid_at: string | null;
   released_at: string | null;
