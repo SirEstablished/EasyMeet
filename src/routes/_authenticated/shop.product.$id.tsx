@@ -203,7 +203,7 @@ function ProductDetailPage() {
       }
       // Escrow: hold funds until customer marks complete
       const { commission, payout } = computeCommission(product.price);
-      await supabase.from("escrow_orders").insert({
+      await supabase.from("escrow").insert({
         kind: "product",
         customer_id: authUser.data.user!.id,
         professional_id: product.seller_id,

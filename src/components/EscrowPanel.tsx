@@ -63,7 +63,7 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole }: Pr
         .limit(1)
         .maybeSingle(),
       supabase
-        .from("escrow_orders")
+        .from("escrow")
         .select("*")
         .eq("conversation_id", conversationId)
         .order("created_at", { ascending: false })
@@ -87,7 +87,7 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole }: Pr
       )
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "escrow_orders", filter: `conversation_id=eq.${conversationId}` },
+        { event: "*", schema: "public", table: "escrow", filter: `conversation_id=eq.${conversationId}` },
         () => load(),
       )
       .subscribe();
@@ -130,7 +130,7 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole }: Pr
       }
       const { commission, payout } = computeCommission(agreement.price);
       const { data: insertedOrder, error } = await supabase
-        .from("escrow_orders")
+        .from("escrow")
         .insert({
           kind: "service",
           customer_id: meId,
@@ -209,7 +209,7 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole }: Pr
     if (!order) return;
     setBusy(true);
     const { error } = await supabase
-      .from("escrow_orders")
+      .from("escrow")
       .update({ status: "completed", released_at: new Date().toISOString() })
       .eq("id", order.id);
     setBusy(false);
@@ -453,7 +453,7 @@ function OpenDisputeDialog({
       setBusy(false);
       return toast.error(error?.message || "Could not open dispute");
     }
-    await supabase.from("escrow_orders").update({ status: "disputed" }).eq("id", orderId);
+    await supabase.from("escrow").update({ status: "disputed" }).eq("id", orderId);
     if (evidence.trim()) {
       await supabase.from("escrow_dispute_evidence").insert({
         dispute_id: (dispute as { id: string }).id,

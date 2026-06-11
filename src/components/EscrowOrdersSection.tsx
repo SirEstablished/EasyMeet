@@ -41,7 +41,7 @@ export function EscrowOrdersSection() {
   const load = useCallback(async () => {
     if (!user) return;
     const { data } = await supabase
-      .from("escrow_orders")
+      .from("escrow")
       .select("*")
       .or(`customer_id.eq.${user.id},professional_id.eq.${user.id}`)
       .order("created_at", { ascending: false });
@@ -55,7 +55,7 @@ export function EscrowOrdersSection() {
     load();
     const ch = supabase
       .channel(`escrow-my-${user.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "escrow_orders" }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "escrow" }, () => load())
       .subscribe();
     return () => {
       supabase.removeChannel(ch);
@@ -65,7 +65,7 @@ export function EscrowOrdersSection() {
   const markComplete = async (o: EscrowOrder) => {
     setBusyId(o.id);
     const { error } = await supabase
-      .from("escrow_orders")
+      .from("escrow")
       .update({ status: "completed", released_at: new Date().toISOString() })
       .eq("id", o.id);
     setBusyId(null);
@@ -85,7 +85,7 @@ export function EscrowOrdersSection() {
       return toast.error(r.message || "Refund failed");
     }
     await supabase
-      .from("escrow_orders")
+      .from("escrow")
       .update({
         refund_status: "processing",
         refund_amount: r.refundAmountNgn ?? o.amount_ngn,
@@ -212,7 +212,7 @@ function DisputeDialog({
       setBusy(false);
       return toast.error(error?.message || "Could not open dispute");
     }
-    await supabase.from("escrow_orders").update({ status: "disputed" }).eq("id", order.id);
+    await supabase.from("escrow").update({ status: "disputed" }).eq("id", order.id);
     if (evidence.trim()) {
       await supabase.from("escrow_dispute_evidence").insert({
         dispute_id: (dispute as { id: string }).id,
