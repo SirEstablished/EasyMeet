@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { supabase, formatNgn } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/providers";
-import type { EscrowDispute, EscrowOrder } from "@/lib/escrow";
+import { escrowFromJoinedOrder, type EscrowDispute, type EscrowOrder } from "@/lib/escrow";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -55,10 +55,12 @@ function AdminDisputesPage() {
     const ids = list.map((d) => d.id);
     const orderIds = list.map((d) => d.order_id);
     const [{ data: orders }, { data: ev }] = await Promise.all([
-      supabase.from("escrow").select("*").in("id", orderIds),
+      supabase.from("orders").select("*, escrow!inner(*)").in("escrow.id", orderIds),
       supabase.from("escrow_dispute_evidence").select("*").in("dispute_id", ids),
     ]);
-    const oMap = new Map((orders as EscrowOrder[] | null ?? []).map((o) => [o.id, o]));
+    const oMap = new Map(
+      ((orders ?? []).map(escrowFromJoinedOrder).filter(Boolean) as EscrowOrder[]).map((o) => [o.id, o]),
+    );
     setDisputes(
       list.map((d) => ({
         ...d,
