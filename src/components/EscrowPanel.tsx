@@ -65,9 +65,8 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole }: Pr
         .maybeSingle(),
       supabase
         .from("orders")
-        .select("*, escrow(*)")
+        .select("*, escrow!inner(*)")
         .eq("escrow.conversation_id", conversationId)
-        .not("escrow", "is", null)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
