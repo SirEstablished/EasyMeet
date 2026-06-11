@@ -1,7 +1,6 @@
--- Replace `escrow_orders` with a single `escrow` table linked to `orders`.
+-- Create the current escrow table linked to orders.
 ALTER TABLE IF EXISTS public.escrow_disputes
   DROP CONSTRAINT IF EXISTS escrow_disputes_order_id_fkey;
-DROP TABLE IF EXISTS public.escrow_orders CASCADE;
 
 CREATE TABLE IF NOT EXISTS public.escrow (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

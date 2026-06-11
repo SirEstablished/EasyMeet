@@ -62,6 +62,34 @@ export interface EscrowDispute {
   created_at: string;
 }
 
+type EscrowJoinedOrderRow = {
+  id?: string;
+  customer_id?: string;
+  provider_id?: string;
+  service_title?: string;
+  amount?: number;
+  payment_ref?: string | null;
+  created_at?: string;
+  escrow?: Partial<EscrowOrder> | Partial<EscrowOrder>[] | null;
+};
+
+export function escrowFromJoinedOrder(row: unknown): EscrowOrder | null {
+  const orderRow = row as EscrowJoinedOrderRow | null;
+  const escrowRow = Array.isArray(orderRow?.escrow) ? orderRow.escrow[0] : orderRow?.escrow;
+  if (!orderRow || !escrowRow?.id) return null;
+
+  return {
+    ...escrowRow,
+    order_id: escrowRow.order_id ?? orderRow.id ?? null,
+    customer_id: escrowRow.customer_id ?? orderRow.customer_id ?? "",
+    professional_id: escrowRow.professional_id ?? orderRow.provider_id ?? "",
+    title: escrowRow.title ?? orderRow.service_title ?? "Order",
+    amount_ngn: Number(escrowRow.amount_ngn ?? orderRow.amount ?? 0),
+    payment_ref: escrowRow.payment_ref ?? orderRow.payment_ref ?? null,
+    created_at: escrowRow.created_at ?? orderRow.created_at ?? "",
+  } as EscrowOrder;
+}
+
 export function computeCommission(amount: number) {
   const commission = Math.round(amount * ESCROW_COMMISSION_PCT * 100) / 100;
   const payout = Math.round((amount - commission) * 100) / 100;

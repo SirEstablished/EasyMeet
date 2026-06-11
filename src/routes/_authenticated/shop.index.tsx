@@ -19,6 +19,7 @@ import { getOrCreateConversation } from "@/lib/conversations";
 import { cn } from "@/lib/utils";
 import { useLiveData } from "@/hooks/use-live-data";
 import { StarRating } from "@/components/StarRating";
+import { computeCommission } from "@/lib/escrow";
 
 export const Route = createFileRoute("/_authenticated/shop/")({
   component: ShopPage,
@@ -243,7 +244,8 @@ function PurchaseModal({ product, onClose }: { product: Product | null; onClose:
         toast.error(verify.message || "Payment could not be verified");
         return;
       }
-      const { error: orderError } = await supabase.from("orders").insert({
+      const { commission, payout } = computeCommission(product.price);
+      const { data: orderRow, error: orderError } = await supabase.from("orders").insert({
         customer_id: user.id,
         provider_id: product.seller_id,
         product_id: product.id,
@@ -251,16 +253,38 @@ function PurchaseModal({ product, onClose }: { product: Product | null; onClose:
         kind: "product",
         service_title: product.title,
         amount: product.price,
-        commission_amount: Math.round(product.price * 0.03 * 100) / 100,
+        commission_amount: commission,
         currency: "NGN",
         notes: null,
         payment_ref: res.reference,
         payment_status: "paid",
         status: "confirmed",
-      });
-      if (orderError) {
+      }).select("id").single();
+      if (orderError || !orderRow) {
         console.error("Order insert failed after payment:", orderError, "ref:", res.reference);
         toast.error("Payment received but order record failed. Please contact support.");
+        return;
+      }
+
+      const { error: escrowError } = await supabase.from("escrow").insert({
+        order_id: (orderRow as { id: string }).id,
+        kind: "product",
+        customer_id: user.id,
+        professional_id: product.seller_id,
+        product_id: product.id,
+        quantity: 1,
+        title: product.title,
+        amount_ngn: product.price,
+        commission_amount: commission,
+        payout_amount: payout,
+        status: "holding",
+        payment_ref: res.reference,
+        paystack_reference: res.reference,
+        paid_at: new Date().toISOString(),
+      });
+      if (escrowError) {
+        console.error("Escrow insert failed after payment:", escrowError, "ref:", res.reference);
+        toast.error("Payment received but escrow record failed. Please contact support.");
         return;
       }
 
@@ -270,9 +294,9 @@ function PurchaseModal({ product, onClose }: { product: Product | null; onClose:
         recipient_id: product.seller_id,
         sender_id: user.id,
         type: "new_order",
-        title: "New order",
-        message: `You received a new order for "${product.title}".`,
-        body: `You received a new order for "${product.title}".`,
+        title: "Payment held in escrow",
+        message: `Payment of ${formatNgn(product.price)} for "${product.title}" is held in escrow.`,
+        body: `Payment of ${formatNgn(product.price)} for "${product.title}" is held in escrow.`,
         read: false,
       } as any);
       if (notifyError) console.warn("Seller notification failed:", notifyError);
