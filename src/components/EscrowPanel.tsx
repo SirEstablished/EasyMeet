@@ -4,6 +4,7 @@ import {
   type EscrowOrder,
   type ServiceAgreement,
   computeCommission,
+  escrowFromJoinedOrder,
   escrowStage,
   snapshotChatToEvidence,
 } from "@/lib/escrow";
@@ -63,15 +64,16 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole }: Pr
         .limit(1)
         .maybeSingle(),
       supabase
-        .from("escrow")
-        .select("*")
-        .eq("conversation_id", conversationId)
+        .from("orders")
+        .select("*, escrow(*)")
+        .eq("escrow.conversation_id", conversationId)
+        .not("escrow", "is", null)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
     ]);
     setAgreement((ag as ServiceAgreement) ?? null);
-    setOrder((od as EscrowOrder) ?? null);
+    setOrder(escrowFromJoinedOrder(od));
     setLoading(false);
   };
 
