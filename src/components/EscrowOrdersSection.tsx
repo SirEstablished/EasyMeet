@@ -3,6 +3,7 @@ import { supabase, formatNgn } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/providers";
 import {
   type EscrowOrder,
+  escrowFromJoinedOrder,
   snapshotChatToEvidence,
 } from "@/lib/escrow";
 import { Button } from "@/components/ui/button";
@@ -41,11 +42,11 @@ export function EscrowOrdersSection() {
   const load = useCallback(async () => {
     if (!user) return;
     const { data } = await supabase
-      .from("escrow")
-      .select("*")
-      .or(`customer_id.eq.${user.id},professional_id.eq.${user.id}`)
+      .from("orders")
+      .select("*, escrow!inner(*)")
+      .or(`customer_id.eq.${user.id},provider_id.eq.${user.id}`)
       .order("created_at", { ascending: false });
-    setOrders((data as EscrowOrder[]) ?? []);
+    setOrders(((data ?? []).map(escrowFromJoinedOrder).filter(Boolean) as EscrowOrder[]) ?? []);
     setLoading(false);
   }, [user]);
 
