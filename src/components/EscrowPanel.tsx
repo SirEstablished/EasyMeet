@@ -180,56 +180,18 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole }: Pr
         toast.error(v.message || "Payment not verified");
         return;
       }
-      const { commission, payout } = computeCommission(agreement.price);
-      // 1) Insert into orders first to get the order id
-      const { data: orderRow, error: orderErr } = await supabase.from("orders").insert({
-        customer_id: meId,
-        provider_id: agreement.sender_id,
-        product_id: null,
-        service_id: null,
-        kind: "service",
-        service_title: agreement.job_title,
-        amount: agreement.price,
-        commission_amount: commission,
-        currency: "NGN",
-        notes: agreement.job_description ?? null,
-        payment_ref: res.reference,
-        payment_status: "paid",
-        status: "pending",
-      } as never).select("id").single();
-      if (orderErr || !orderRow) {
-        console.error("orders insert failed", orderErr);
-        toast.error(
-          orderErr?.message
-            ? `Payment received but order record failed: ${orderErr.message}`
-            : "Payment received but order record failed. Contact support.",
-        );
-        return;
-      }
-
-      // 2) Insert into escrow with link to the order
-      const { data: insertedEscrow, error } = await supabase
-        .from("escrow")
-        .insert({
-          order_id: (orderRow as { id: string }).id,
-          kind: "service",
-          customer_id: meId,
-          professional_id: agreement.sender_id,
-          conversation_id: conversationId,
-          agreement_id: agreement.id,
-          title: agreement.job_title,
-          amount_ngn: agreement.price,
-          commission_amount: commission,
-          payout_amount: payout,
-          status: "holding",
-          payment_ref: res.reference,
-          paystack_reference: res.reference,
-          paid_at: new Date().toISOString(),
-        })
-        .select("*")
-        .single();
+      // Single RPC call atomically creates the order + escrow row and notifies
+      // the provider. The RPC handles 3% commission + payout calculation.
+      const { data: insertedEscrow, error } = await supabase.rpc("create_escrow_payment", {
+        p_conversation_id: conversationId,
+        p_agreement_id: agreement.id,
+        p_customer_id: meId,
+        p_provider_id: agreement.sender_id,
+        p_amount: agreement.price,
+        p_payment_ref: res.reference,
+      });
       if (error || !insertedEscrow) {
-        console.error("escrow insert failed", error);
+        console.error("create_escrow_payment failed", error);
         toast.error(
           error?.message
             ? `Payment received but escrow record failed: ${error.message}`
@@ -238,20 +200,8 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole }: Pr
         return;
       }
       // Optimistically reflect new state so the Pay button hides immediately
+      // and Mark Complete / Open Dispute appear without waiting for refetch.
       setOrder(insertedEscrow as EscrowOrder);
-
-      // Notify professional
-      const { error: notifyErr } = await supabase.from("notifications").insert({
-        user_id: agreement.sender_id,
-        recipient_id: agreement.sender_id,
-        sender_id: meId,
-        type: "escrow_payment_received",
-        title: "Payment held in escrow",
-        message: `Payment of ${formatNgn(agreement.price)} for "${agreement.job_title}" is held in escrow. You can start the work.`,
-        body: `Payment of ${formatNgn(agreement.price)} for "${agreement.job_title}" is held in escrow. You can start the work.`,
-        read: false,
-      } as never);
-      if (notifyErr) console.warn("professional notification failed", notifyErr);
 
       await supabase.from("messages").insert({
         conversation_id: conversationId,
