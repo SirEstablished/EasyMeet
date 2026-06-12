@@ -98,6 +98,57 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole }: Pr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId]);
 
+  // Resolve who is the provider (seller) in this conversation.
+  useEffect(() => {
+    if (!other) return;
+    // Customers can NEVER be the service provider.
+    if (meRole === "customer") {
+      setIAmProvider(false);
+      return;
+    }
+    if (other.role === "customer") {
+      setIAmProvider(true);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data: msgs } = await supabase
+        .from("messages")
+        .select("sender_id, body")
+        .eq("conversation_id", conversationId)
+        .order("created_at", { ascending: true })
+        .limit(60);
+      if (cancelled) return;
+      if (!msgs || msgs.length < 2) {
+        setAskRoleOpen(true);
+        return;
+      }
+      try {
+        const result = await detectEscrowRoles({
+          data: {
+            messages: msgs.map((m) => ({
+              sender_id: m.sender_id as string,
+              body: (m.body as string) ?? "",
+            })),
+            meId,
+            otherId: other.id,
+          },
+        });
+        if (cancelled) return;
+        if (result.providerId && result.confidence >= 0.6) {
+          setIAmProvider(result.providerId === meId);
+        } else {
+          setAskRoleOpen(true);
+        }
+      } catch {
+        if (!cancelled) setAskRoleOpen(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [conversationId, meId, meRole, other]);
+
   const stage = escrowStage(order, agreement);
 
   const acceptAgreement = async () => {
