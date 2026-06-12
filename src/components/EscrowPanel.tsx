@@ -3,7 +3,6 @@ import { supabase, formatNgn, type Profile } from "@/integrations/supabase/clien
 import {
   type EscrowOrder,
   type ServiceAgreement,
-  computeCommission,
   escrowFromJoinedOrder,
   escrowStage,
   snapshotChatToEvidence,
@@ -21,9 +20,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, Shield, FileText, CheckCircle2, AlertTriangle, CreditCard } from "lucide-react";
+import { Loader2, Shield, FileText, CheckCircle2, AlertTriangle, CreditCard, Sparkles } from "lucide-react";
 import { payWithPaystack } from "@/lib/paystack";
 import { verifyPaystackTransaction } from "@/lib/paystack.functions";
+import { detectEscrowRoles, suggestAgreement } from "@/lib/escrow-ai.functions";
 
 interface Props {
   conversationId: string;
@@ -50,9 +50,9 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole }: Pr
   const [disputeOpen, setDisputeOpen] = useState(false);
   const [paying, setPaying] = useState(false);
   const [busy, setBusy] = useState(false);
-
-  const isProfessional = meRole === "professional" || meRole === "business";
-  const otherIsCustomer = other?.role === "customer";
+  // iAmProvider: true = I send agreements, false = I accept. null = not resolved yet.
+  const [iAmProvider, setIAmProvider] = useState<boolean | null>(null);
+  const [askRoleOpen, setAskRoleOpen] = useState(false);
 
   const load = async () => {
     const [{ data: ag }, { data: od }] = await Promise.all([
