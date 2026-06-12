@@ -3,7 +3,6 @@ import { supabase, formatNgn, type Profile } from "@/integrations/supabase/clien
 import {
   type EscrowOrder,
   type ServiceAgreement,
-  computeCommission,
   escrowFromJoinedOrder,
   escrowStage,
   snapshotChatToEvidence,
@@ -21,9 +20,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, Shield, FileText, CheckCircle2, AlertTriangle, CreditCard } from "lucide-react";
+import { Loader2, Shield, FileText, CheckCircle2, AlertTriangle, CreditCard, Sparkles } from "lucide-react";
 import { payWithPaystack } from "@/lib/paystack";
 import { verifyPaystackTransaction } from "@/lib/paystack.functions";
+import { detectEscrowRoles, suggestAgreement } from "@/lib/escrow-ai.functions";
 
 interface Props {
   conversationId: string;
@@ -50,9 +50,9 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole }: Pr
   const [disputeOpen, setDisputeOpen] = useState(false);
   const [paying, setPaying] = useState(false);
   const [busy, setBusy] = useState(false);
-
-  const isProfessional = meRole === "professional" || meRole === "business";
-  const otherIsCustomer = other?.role === "customer";
+  // iAmProvider: true = I send agreements, false = I accept. null = not resolved yet.
+  const [iAmProvider, setIAmProvider] = useState<boolean | null>(null);
+  const [askRoleOpen, setAskRoleOpen] = useState(false);
 
   const load = async () => {
     const [{ data: ag }, { data: od }] = await Promise.all([
@@ -98,6 +98,57 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole }: Pr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId]);
 
+  // Resolve who is the provider (seller) in this conversation.
+  useEffect(() => {
+    if (!other) return;
+    // Customers can NEVER be the service provider.
+    if (meRole === "customer") {
+      setIAmProvider(false);
+      return;
+    }
+    if (other.role === "customer") {
+      setIAmProvider(true);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data: msgs } = await supabase
+        .from("messages")
+        .select("sender_id, body")
+        .eq("conversation_id", conversationId)
+        .order("created_at", { ascending: true })
+        .limit(60);
+      if (cancelled) return;
+      if (!msgs || msgs.length < 2) {
+        setAskRoleOpen(true);
+        return;
+      }
+      try {
+        const result = await detectEscrowRoles({
+          data: {
+            messages: msgs.map((m) => ({
+              sender_id: m.sender_id as string,
+              body: (m.body as string) ?? "",
+            })),
+            meId,
+            otherId: other.id,
+          },
+        });
+        if (cancelled) return;
+        if (result.providerId && result.confidence >= 0.6) {
+          setIAmProvider(result.providerId === meId);
+        } else {
+          setAskRoleOpen(true);
+        }
+      } catch {
+        if (!cancelled) setAskRoleOpen(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [conversationId, meId, meRole, other]);
+
   const stage = escrowStage(order, agreement);
 
   const acceptAgreement = async () => {
@@ -129,56 +180,18 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole }: Pr
         toast.error(v.message || "Payment not verified");
         return;
       }
-      const { commission, payout } = computeCommission(agreement.price);
-      // 1) Insert into orders first to get the order id
-      const { data: orderRow, error: orderErr } = await supabase.from("orders").insert({
-        customer_id: meId,
-        provider_id: agreement.sender_id,
-        product_id: null,
-        service_id: null,
-        kind: "service",
-        service_title: agreement.job_title,
-        amount: agreement.price,
-        commission_amount: commission,
-        currency: "NGN",
-        notes: agreement.job_description ?? null,
-        payment_ref: res.reference,
-        payment_status: "paid",
-        status: "pending",
-      } as never).select("id").single();
-      if (orderErr || !orderRow) {
-        console.error("orders insert failed", orderErr);
-        toast.error(
-          orderErr?.message
-            ? `Payment received but order record failed: ${orderErr.message}`
-            : "Payment received but order record failed. Contact support.",
-        );
-        return;
-      }
-
-      // 2) Insert into escrow with link to the order
-      const { data: insertedEscrow, error } = await supabase
-        .from("escrow")
-        .insert({
-          order_id: (orderRow as { id: string }).id,
-          kind: "service",
-          customer_id: meId,
-          professional_id: agreement.sender_id,
-          conversation_id: conversationId,
-          agreement_id: agreement.id,
-          title: agreement.job_title,
-          amount_ngn: agreement.price,
-          commission_amount: commission,
-          payout_amount: payout,
-          status: "holding",
-          payment_ref: res.reference,
-          paystack_reference: res.reference,
-          paid_at: new Date().toISOString(),
-        })
-        .select("*")
-        .single();
+      // Single RPC call atomically creates the order + escrow row and notifies
+      // the provider. The RPC handles 3% commission + payout calculation.
+      const { data: insertedEscrow, error } = await supabase.rpc("create_escrow_payment", {
+        p_conversation_id: conversationId,
+        p_agreement_id: agreement.id,
+        p_customer_id: meId,
+        p_provider_id: agreement.sender_id,
+        p_amount: agreement.price,
+        p_payment_ref: res.reference,
+      });
       if (error || !insertedEscrow) {
-        console.error("escrow insert failed", error);
+        console.error("create_escrow_payment failed", error);
         toast.error(
           error?.message
             ? `Payment received but escrow record failed: ${error.message}`
@@ -187,20 +200,8 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole }: Pr
         return;
       }
       // Optimistically reflect new state so the Pay button hides immediately
+      // and Mark Complete / Open Dispute appear without waiting for refetch.
       setOrder(insertedEscrow as EscrowOrder);
-
-      // Notify professional
-      const { error: notifyErr } = await supabase.from("notifications").insert({
-        user_id: agreement.sender_id,
-        recipient_id: agreement.sender_id,
-        sender_id: meId,
-        type: "escrow_payment_received",
-        title: "Payment held in escrow",
-        message: `Payment of ${formatNgn(agreement.price)} for "${agreement.job_title}" is held in escrow. You can start the work.`,
-        body: `Payment of ${formatNgn(agreement.price)} for "${agreement.job_title}" is held in escrow. You can start the work.`,
-        read: false,
-      } as never);
-      if (notifyErr) console.warn("professional notification failed", notifyErr);
 
       await supabase.from("messages").insert({
         conversation_id: conversationId,
@@ -269,22 +270,22 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole }: Pr
       )}
 
       <div className="flex flex-wrap gap-2">
-        {/* Stage 2 — professional sends agreement */}
-        {isProfessional && otherIsCustomer && !order && (!agreement || agreement.status === "rejected" || agreement.status === "cancelled") && (
+        {/* Stage 2 — provider sends agreement (AI-detected role) */}
+        {iAmProvider === true && !order && (!agreement || agreement.status === "rejected" || agreement.status === "cancelled") && (
           <Button size="sm" onClick={() => setSendOpen(true)} className="bg-gradient-brand">
-            <FileText className="h-4 w-4 mr-1" /> Send Agreement
+            <Sparkles className="h-3.5 w-3.5 mr-1" /> Send Agreement
           </Button>
         )}
 
-        {/* Stage 2 — customer accepts */}
-        {!isProfessional && agreement?.status === "pending" && !order && (
+        {/* Stage 2 — buyer accepts */}
+        {iAmProvider === false && agreement?.status === "pending" && !order && (
           <Button size="sm" onClick={acceptAgreement} disabled={busy} className="bg-gradient-brand">
             <CheckCircle2 className="h-4 w-4 mr-1" /> Accept Agreement
           </Button>
         )}
 
         {/* Stage 3 — pay into escrow */}
-        {!isProfessional && agreement?.status === "accepted" && !order && (
+        {iAmProvider === false && agreement?.status === "accepted" && !order && (
           <Button size="sm" onClick={payEscrow} disabled={paying} className="bg-gradient-brand">
             {paying ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <CreditCard className="h-4 w-4 mr-1" />}
             Pay into Escrow ({formatNgn(agreement.price)})
@@ -330,6 +331,17 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole }: Pr
           onSent={load}
         />
       )}
+      {askRoleOpen && other && (
+        <AskRoleDialog
+          open={askRoleOpen}
+          onOpenChange={setAskRoleOpen}
+          otherName={other.full_name ?? other.username ?? "the other person"}
+          onChoose={(role) => {
+            setIAmProvider(role === "provider");
+            setAskRoleOpen(false);
+          }}
+        />
+      )}
       {disputeOpen && order && (
         <OpenDisputeDialog
           open={disputeOpen}
@@ -364,6 +376,45 @@ function SendAgreementDialog({
   const [price, setPrice] = useState("");
   const [terms, setTerms] = useState("");
   const [busy, setBusy] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
+
+  // Auto-fill the agreement form from the conversation on open.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    (async () => {
+      setSuggesting(true);
+      try {
+        const { data: msgs } = await supabase
+          .from("messages")
+          .select("sender_id, body")
+          .eq("conversation_id", conversationId)
+          .order("created_at", { ascending: true })
+          .limit(60);
+        if (cancelled || !msgs || msgs.length === 0) return;
+        const suggestion = await suggestAgreement({
+          data: {
+            messages: msgs.map((m) => ({
+              sender_id: m.sender_id as string,
+              body: (m.body as string) ?? "",
+            })),
+          },
+        });
+        if (cancelled) return;
+        setTitle((cur) => cur || suggestion.title);
+        setDescription((cur) => cur || suggestion.description);
+        setPrice((cur) => cur || (suggestion.price ? String(suggestion.price) : ""));
+        setTerms((cur) => cur || suggestion.terms);
+      } catch {
+        // best-effort; ignore
+      } finally {
+        if (!cancelled) setSuggesting(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, conversationId]);
 
   const submit = async () => {
     const jobTitle = title.trim();
@@ -403,7 +454,14 @@ function SendAgreementDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Send Service Agreement</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            Send Service Agreement
+            {suggesting && (
+              <span className="text-xs font-normal text-muted-foreground flex items-center gap-1">
+                <Sparkles className="h-3 w-3" /> AI drafting…
+              </span>
+            )}
+          </DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <div>
@@ -427,6 +485,39 @@ function SendAgreementDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={submit} disabled={busy} className="bg-gradient-brand">
             {busy && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}Send
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AskRoleDialog({
+  open,
+  onOpenChange,
+  otherName,
+  onChoose,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  otherName: string;
+  onChoose: (role: "provider" | "buyer") => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Your role in this deal</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">
+          Are you the service provider/seller or the buyer in this conversation with {otherName}?
+        </p>
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={() => onChoose("buyer")}>
+            I'm the buyer
+          </Button>
+          <Button className="bg-gradient-brand" onClick={() => onChoose("provider")}>
+            I'm the service provider
           </Button>
         </DialogFooter>
       </DialogContent>
