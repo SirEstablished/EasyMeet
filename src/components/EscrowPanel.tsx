@@ -269,22 +269,22 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole }: Pr
       )}
 
       <div className="flex flex-wrap gap-2">
-        {/* Stage 2 — professional sends agreement */}
-        {isProfessional && otherIsCustomer && !order && (!agreement || agreement.status === "rejected" || agreement.status === "cancelled") && (
+        {/* Stage 2 — provider sends agreement (AI-detected role) */}
+        {iAmProvider === true && !order && (!agreement || agreement.status === "rejected" || agreement.status === "cancelled") && (
           <Button size="sm" onClick={() => setSendOpen(true)} className="bg-gradient-brand">
-            <FileText className="h-4 w-4 mr-1" /> Send Agreement
+            <Sparkles className="h-3.5 w-3.5 mr-1" /> Send Agreement
           </Button>
         )}
 
-        {/* Stage 2 — customer accepts */}
-        {!isProfessional && agreement?.status === "pending" && !order && (
+        {/* Stage 2 — buyer accepts */}
+        {iAmProvider === false && agreement?.status === "pending" && !order && (
           <Button size="sm" onClick={acceptAgreement} disabled={busy} className="bg-gradient-brand">
             <CheckCircle2 className="h-4 w-4 mr-1" /> Accept Agreement
           </Button>
         )}
 
         {/* Stage 3 — pay into escrow */}
-        {!isProfessional && agreement?.status === "accepted" && !order && (
+        {iAmProvider === false && agreement?.status === "accepted" && !order && (
           <Button size="sm" onClick={payEscrow} disabled={paying} className="bg-gradient-brand">
             {paying ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <CreditCard className="h-4 w-4 mr-1" />}
             Pay into Escrow ({formatNgn(agreement.price)})
