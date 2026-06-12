@@ -331,6 +331,17 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole }: Pr
           onSent={load}
         />
       )}
+      {askRoleOpen && other && (
+        <AskRoleDialog
+          open={askRoleOpen}
+          onOpenChange={setAskRoleOpen}
+          otherName={other.full_name ?? other.username ?? "the other person"}
+          onChoose={(role) => {
+            setIAmProvider(role === "provider");
+            setAskRoleOpen(false);
+          }}
+        />
+      )}
       {disputeOpen && order && (
         <OpenDisputeDialog
           open={disputeOpen}
@@ -365,6 +376,45 @@ function SendAgreementDialog({
   const [price, setPrice] = useState("");
   const [terms, setTerms] = useState("");
   const [busy, setBusy] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
+
+  // Auto-fill the agreement form from the conversation on open.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    (async () => {
+      setSuggesting(true);
+      try {
+        const { data: msgs } = await supabase
+          .from("messages")
+          .select("sender_id, body")
+          .eq("conversation_id", conversationId)
+          .order("created_at", { ascending: true })
+          .limit(60);
+        if (cancelled || !msgs || msgs.length === 0) return;
+        const suggestion = await suggestAgreement({
+          data: {
+            messages: msgs.map((m) => ({
+              sender_id: m.sender_id as string,
+              body: (m.body as string) ?? "",
+            })),
+          },
+        });
+        if (cancelled) return;
+        setTitle((cur) => cur || suggestion.title);
+        setDescription((cur) => cur || suggestion.description);
+        setPrice((cur) => cur || (suggestion.price ? String(suggestion.price) : ""));
+        setTerms((cur) => cur || suggestion.terms);
+      } catch {
+        // best-effort; ignore
+      } finally {
+        if (!cancelled) setSuggesting(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, conversationId]);
 
   const submit = async () => {
     const jobTitle = title.trim();
@@ -404,7 +454,14 @@ function SendAgreementDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Send Service Agreement</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            Send Service Agreement
+            {suggesting && (
+              <span className="text-xs font-normal text-muted-foreground flex items-center gap-1">
+                <Sparkles className="h-3 w-3" /> AI drafting…
+              </span>
+            )}
+          </DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <div>
@@ -428,6 +485,39 @@ function SendAgreementDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={submit} disabled={busy} className="bg-gradient-brand">
             {busy && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}Send
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AskRoleDialog({
+  open,
+  onOpenChange,
+  otherName,
+  onChoose,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  otherName: string;
+  onChoose: (role: "provider" | "buyer") => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Your role in this deal</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">
+          Are you the service provider/seller or the buyer in this conversation with {otherName}?
+        </p>
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={() => onChoose("buyer")}>
+            I'm the buyer
+          </Button>
+          <Button className="bg-gradient-brand" onClick={() => onChoose("provider")}>
+            I'm the service provider
           </Button>
         </DialogFooter>
       </DialogContent>
