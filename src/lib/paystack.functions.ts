@@ -3,7 +3,7 @@ import { z } from "zod";
 
 const InputSchema = z.object({
   reference: z.string().min(6).max(128).regex(/^[a-zA-Z0-9_\-]+$/),
-  expectedAmountNgn: z.number().int().positive().max(10_000_000),
+  expectedAmountNgn: z.number().positive().max(10_000_000),
 });
 
 export interface VerifyResult {
