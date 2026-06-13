@@ -6,7 +6,7 @@ const InputSchema = z.object({
     .string()
     .min(6)
     .max(128)
-    .regex(/^[a-zA-Z0-9_\-]+$/),
+    .regex(/^[a-zA-Z0-9_-]+$/),
   expectedAmountNgn: z.number().positive().max(10_000_000),
 });
 
@@ -72,7 +72,7 @@ const RefundSchema = z.object({
     .string()
     .min(6)
     .max(128)
-    .regex(/^[a-zA-Z0-9_\-]+$/),
+    .regex(/^[a-zA-Z0-9_-]+$/),
   amountNgn: z.number().positive().max(10_000_000).optional(),
 });
 
