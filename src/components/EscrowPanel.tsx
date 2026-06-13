@@ -180,9 +180,14 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole, refr
         amountNgn: agreement.price,
         metadata: { agreement_id: agreement.id, kind: "escrow_service" },
       });
-      const v = await verifyPaystackTransaction({
-        data: { reference: res.reference, expectedAmountNgn: agreement.price },
-      });
+      let v: Awaited<ReturnType<typeof verifyPaystackTransaction>>;
+      try {
+        v = await verifyPaystackTransaction({
+          data: { reference: res.reference, expectedAmountNgn: agreement.price },
+        });
+      } catch (error) {
+        throw new Error(error instanceof Error ? error.message : "Verification request failed");
+      }
       if (!v.ok) {
         toast.error(v.message || "Payment not verified");
         return;
