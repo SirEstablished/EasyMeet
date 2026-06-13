@@ -31,6 +31,7 @@ interface Props {
   myEmail: string;
   other: Profile | null | undefined;
   meRole: string | undefined;
+  refreshKey?: number;
 }
 
 const STAGES = [
@@ -42,7 +43,7 @@ const STAGES = [
   "Released",
 ];
 
-export function EscrowPanel({ conversationId, meId, myEmail, other, meRole }: Props) {
+export function EscrowPanel({ conversationId, meId, myEmail, other, meRole, refreshKey = 0 }: Props) {
   const [agreement, setAgreement] = useState<ServiceAgreement | null>(null);
   const [order, setOrder] = useState<EscrowOrder | null>(null);
   const [loading, setLoading] = useState(true);
@@ -53,6 +54,7 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole }: Pr
   // iAmProvider: true = I send agreements, false = I accept. null = not resolved yet.
   const [iAmProvider, setIAmProvider] = useState<boolean | null>(null);
   const [askRoleOpen, setAskRoleOpen] = useState(false);
+  const [completeOpen, setCompleteOpen] = useState(false);
 
   const load = async () => {
     const [{ data: ag }, { data: od }] = await Promise.all([
@@ -97,6 +99,11 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole }: Pr
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId]);
+
+  useEffect(() => {
+    if (refreshKey > 0) void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey]);
 
   // Resolve who is the provider (seller) in this conversation.
   useEffect(() => {
@@ -181,7 +188,7 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole }: Pr
         return;
       }
       // Single RPC call atomically creates the order + escrow row and notifies
-      // the provider. The RPC handles 3% commission + payout calculation.
+      // the provider. Commission remains zero until the customer completes the job.
       const { data: insertedEscrow, error } = await supabase.rpc("create_escrow_payment", {
         p_conversation_id: conversationId,
         p_agreement_id: agreement.id,
@@ -201,15 +208,17 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole }: Pr
       }
       // Optimistically reflect new state so the Pay button hides immediately
       // and Mark Complete / Open Dispute appear without waiting for refetch.
-      setOrder(insertedEscrow as EscrowOrder);
+      const optimisticOrder = Array.isArray(insertedEscrow) ? insertedEscrow[0] : insertedEscrow;
+      if (!optimisticOrder) throw new Error("Escrow payment was created without a record");
+      setOrder(optimisticOrder as EscrowOrder);
 
       await supabase.from("messages").insert({
         conversation_id: conversationId,
         sender_id: meId,
         body: `💳 Payment of ${formatNgn(agreement.price)} placed in escrow. Work can begin.`,
       });
-      toast.success("Funds held in escrow");
-      load();
+      toast.success("Payment held in escrow successfully");
+      void load();
     } catch (e) {
       if (e instanceof Error && e.message === "Payment cancelled") toast.message("Payment cancelled");
       else toast.error(e instanceof Error ? e.message : "Payment failed");
@@ -221,19 +230,28 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole }: Pr
   const markComplete = async () => {
     if (!order) return;
     setBusy(true);
-    const { error } = await supabase
-      .from("escrow")
-      .update({ status: "completed", released_at: new Date().toISOString() })
-      .eq("id", order.id);
-    setBusy(false);
-    if (error) return toast.error(error.message);
-    await supabase.from("messages").insert({
-      conversation_id: conversationId,
-      sender_id: meId,
-      body: `✅ Marked as complete. ${formatNgn(order.payout_amount)} released to professional (3% commission held by EasyMeet).`,
-    });
-    toast.success("Payment released");
-    load();
+    try {
+      const { data, error } = await supabase.rpc("complete_escrow_payment", {
+        p_escrow_id: order.id,
+      });
+      if (error || !data) throw new Error(error?.message || "Could not release payment");
+      const completed = (Array.isArray(data) ? data[0] : data) as EscrowOrder | undefined;
+      if (!completed) throw new Error("Completion did not return an escrow record");
+      setOrder(completed);
+      setCompleteOpen(false);
+      const { error: messageError } = await supabase.from("messages").insert({
+        conversation_id: conversationId,
+        sender_id: meId,
+        body: `✅ Marked as complete. ${formatNgn(completed.payout_amount)} released to professional (3% labor commission held by EasyMeet).`,
+      });
+      if (messageError) console.error("Completion message failed", messageError);
+      toast.success("Payment released");
+      void load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not release payment");
+    } finally {
+      setBusy(false);
+    }
   };
 
   if (loading) return null;
@@ -294,7 +312,7 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole }: Pr
 
         {/* Stage 5 — customer marks complete */}
         {order && order.customer_id === meId && (order.status === "holding" || order.status === "in_progress") && (
-          <Button size="sm" onClick={markComplete} disabled={busy} className="bg-gradient-brand">
+          <Button size="sm" onClick={() => setCompleteOpen(true)} disabled={busy} className="bg-gradient-brand">
             <CheckCircle2 className="h-4 w-4 mr-1" /> Mark as Complete & Release
           </Button>
         )}
@@ -352,6 +370,22 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole }: Pr
           onOpened={load}
         />
       )}
+      <Dialog open={completeOpen} onOpenChange={setCompleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Job Completion</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Are you sure this job has been completed to your satisfaction? Please note that EasyMeet will not be held responsible if you mark a job as complete without verifying the work first. Once confirmed, payment will be released to the professional immediately and cannot be reversed.
+          </p>
+          <DialogFooter className="gap-2">
+            <Button variant="secondary" onClick={() => setCompleteOpen(false)} disabled={busy}>Go Back</Button>
+            <Button onClick={markComplete} disabled={busy} className="bg-gradient-brand">
+              {busy && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}Yes, Release Payment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
