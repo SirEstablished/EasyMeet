@@ -37,6 +37,7 @@ export function EscrowOrdersSection() {
   const [loading, setLoading] = useState(true);
   const [disputing, setDisputing] = useState<EscrowOrder | null>(null);
   const [refundOpen, setRefundOpen] = useState(false);
+  const [completing, setCompleting] = useState<EscrowOrder | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -65,14 +66,44 @@ export function EscrowOrdersSection() {
 
   const markComplete = async (o: EscrowOrder) => {
     setBusyId(o.id);
-    const { error } = await supabase
-      .from("escrow")
-      .update({ status: "completed", released_at: new Date().toISOString() })
-      .eq("id", o.id);
-    setBusyId(null);
-    if (error) return toast.error(error.message);
-    toast.success("Marked complete — payment released to seller");
-    load();
+    try {
+      const laborAmount = o.labor_amount ?? Math.max(o.amount_ngn - (o.materials_amount ?? 0), 0);
+      const commission = Math.round(laborAmount * 0.03 * 100) / 100;
+      const payout = Math.round((o.amount_ngn - commission) * 100) / 100;
+      const { error } = await supabase
+        .from("escrow")
+        .update({
+          status: "completed",
+          commission_amount: commission,
+          payout_amount: payout,
+          released_at: new Date().toISOString(),
+        })
+        .eq("id", o.id)
+        .eq("customer_id", user?.id ?? "")
+        .in("status", ["holding", "in_progress"]);
+      if (error) throw error;
+      if (o.order_id) {
+        const { error: orderError } = await supabase
+          .from("orders")
+          .update({ status: "completed", commission_amount: commission })
+          .eq("id", o.order_id);
+        if (orderError) throw orderError;
+      }
+      setOrders((current) => current.map((item) => item.id === o.id ? {
+        ...item,
+        status: "completed",
+        commission_amount: commission,
+        payout_amount: payout,
+        released_at: new Date().toISOString(),
+      } : item));
+      setCompleting(null);
+      toast.success("Marked complete — payment released to seller");
+      void load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not release payment");
+    } finally {
+      setBusyId(null);
+    }
   };
 
   const startRefund = async (o: EscrowOrder) => {
@@ -132,7 +163,7 @@ export function EscrowOrdersSection() {
               <div className="mt-3 flex flex-wrap gap-2">
                 {isCustomer && (o.status === "holding" || o.status === "in_progress") && (
                   <>
-                    <Button size="sm" onClick={() => markComplete(o)} disabled={busyId === o.id} className="bg-gradient-brand">
+                    <Button size="sm" onClick={() => setCompleting(o)} disabled={busyId === o.id} className="bg-gradient-brand">
                       <CheckCircle2 className="h-4 w-4 mr-1" /> Mark as Complete
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => setDisputing(o)}>
@@ -180,6 +211,27 @@ export function EscrowOrdersSection() {
           </p>
           <DialogFooter>
             <Button onClick={() => setRefundOpen(false)}>OK</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={Boolean(completing)} onOpenChange={(open) => !open && setCompleting(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Job Completion</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Are you sure this job has been completed to your satisfaction? Please note that EasyMeet will not be held responsible if you mark a job as complete without verifying the work first. Once confirmed, payment will be released to the professional immediately and cannot be reversed.
+          </p>
+          <DialogFooter className="gap-2">
+            <Button variant="secondary" onClick={() => setCompleting(null)}>Go Back</Button>
+            <Button
+              onClick={() => completing && markComplete(completing)}
+              disabled={!completing || busyId === completing.id}
+              className="bg-gradient-brand"
+            >
+              {completing && busyId === completing.id && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+              Yes, Release Payment
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
