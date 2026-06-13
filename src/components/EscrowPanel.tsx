@@ -210,7 +210,25 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole, refr
       // and Mark Complete / Open Dispute appear without waiting for refetch.
       const optimisticOrder = Array.isArray(insertedEscrow) ? insertedEscrow[0] : insertedEscrow;
       if (!optimisticOrder) throw new Error("Escrow payment was created without a record");
-      setOrder(optimisticOrder as EscrowOrder);
+      const paidOrder = {
+        ...(optimisticOrder as EscrowOrder),
+        commission_amount: 0,
+        payout_amount: agreement.price,
+        status: "holding" as const,
+      };
+      setOrder(paidOrder);
+      const { error: escrowResetError } = await supabase
+        .from("escrow")
+        .update({ commission_amount: 0, payout_amount: agreement.price })
+        .eq("id", paidOrder.id);
+      if (escrowResetError) throw escrowResetError;
+      if (paidOrder.order_id) {
+        const { error: orderResetError } = await supabase
+          .from("orders")
+          .update({ commission_amount: 0 })
+          .eq("id", paidOrder.order_id);
+        if (orderResetError) throw orderResetError;
+      }
 
       await supabase.from("messages").insert({
         conversation_id: conversationId,
@@ -231,12 +249,32 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole, refr
     if (!order) return;
     setBusy(true);
     try {
-      const { data, error } = await supabase.rpc("complete_escrow_payment", {
-        p_escrow_id: order.id,
-      });
+      const laborAmount = order.labor_amount ?? Math.max(order.amount_ngn - (order.materials_amount ?? 0), 0);
+      const commission = Math.round(laborAmount * 0.03 * 100) / 100;
+      const payout = Math.round((order.amount_ngn - commission) * 100) / 100;
+      const completedAt = new Date().toISOString();
+      const { data, error } = await supabase
+        .from("escrow")
+        .update({
+          status: "completed",
+          commission_amount: commission,
+          payout_amount: payout,
+          released_at: completedAt,
+        })
+        .eq("id", order.id)
+        .eq("customer_id", meId)
+        .in("status", ["holding", "in_progress"])
+        .select("*")
+        .single();
       if (error || !data) throw new Error(error?.message || "Could not release payment");
-      const completed = (Array.isArray(data) ? data[0] : data) as EscrowOrder | undefined;
-      if (!completed) throw new Error("Completion did not return an escrow record");
+      if (order.order_id) {
+        const { error: orderError } = await supabase
+          .from("orders")
+          .update({ status: "completed", commission_amount: commission })
+          .eq("id", order.order_id);
+        if (orderError) throw orderError;
+      }
+      const completed = data as EscrowOrder;
       setOrder(completed);
       setCompleteOpen(false);
       const { error: messageError } = await supabase.from("messages").insert({
