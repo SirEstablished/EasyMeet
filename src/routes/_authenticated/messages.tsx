@@ -1,7 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
-import { supabase, type Conversation, type Message, type Profile } from "@/integrations/supabase/client";
+import {
+  supabase,
+  type Conversation,
+  type Message,
+  type Profile,
+} from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/providers";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
@@ -20,10 +25,19 @@ export const Route = createFileRoute("/_authenticated/messages")({
   component: MessagesPage,
 });
 
-type ConvoRow = Conversation & { other: Profile; last_message: Message | null; unread_count: number };
+type ConvoRow = Conversation & {
+  other: Profile;
+  last_message: Message | null;
+  unread_count: number;
+};
 
 function initials(s: string) {
-  return s.split(" ").map((x) => x[0]).slice(0, 2).join("").toUpperCase();
+  return s
+    .split(" ")
+    .map((x) => x[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
 }
 
 function formatTime(d: string) {
@@ -51,7 +65,10 @@ function MessagesPage() {
 
   const activeId = search.c ?? null;
   const initialMessage = search.m ?? "";
-  const activeConvo = useMemo(() => convos.find((c) => c.id === activeId) || null, [convos, activeId]);
+  const activeConvo = useMemo(
+    () => convos.find((c) => c.id === activeId) || null,
+    [convos, activeId],
+  );
 
   const loadConvos = async () => {
     if (!user) return;
@@ -82,13 +99,13 @@ function MessagesPage() {
         .eq("is_read", false)
         .neq("sender_id", user.id),
     ]);
-    const pMap = new Map((profiles as Profile[] || []).map((p) => [p.id, p]));
+    const pMap = new Map(((profiles as Profile[]) || []).map((p) => [p.id, p]));
     const lastMap = new Map<string, Message>();
-    for (const m of ((msgs as Message[]) || [])) {
+    for (const m of (msgs as Message[]) || []) {
       if (!lastMap.has(m.conversation_id)) lastMap.set(m.conversation_id, m);
     }
     const unreadMap = new Map<string, number>();
-    for (const r of ((unread as { conversation_id: string }[]) || [])) {
+    for (const r of (unread as { conversation_id: string }[]) || []) {
       unreadMap.set(r.conversation_id, (unreadMap.get(r.conversation_id) || 0) + 1);
     }
     const rows: ConvoRow[] = list.map((c) => {
@@ -109,15 +126,11 @@ function MessagesPage() {
     if (!user) return;
     const channel = supabase
       .channel("messages-list")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages" },
-        () => loadConvos(),
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, () =>
+        loadConvos(),
       )
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "conversations" },
-        () => loadConvos(),
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "conversations" }, () =>
+        loadConvos(),
       )
       .subscribe();
     return () => {
@@ -184,7 +197,8 @@ function MessagesPage() {
                   className={cn(
                     "group relative w-full text-left px-4 py-3 flex items-center gap-3 transition-all border-b border-border/30",
                     "hover:bg-primary/5 hover:border-l-2 hover:border-l-primary",
-                    activeId === c.id && "bg-gradient-to-r from-primary/20 to-transparent border-l-2 border-l-primary",
+                    activeId === c.id &&
+                      "bg-gradient-to-r from-primary/20 to-transparent border-l-2 border-l-primary",
                   )}
                 >
                   <span className="avatar-ring shrink-0">
@@ -203,7 +217,12 @@ function MessagesPage() {
                         size="sm"
                       />
                     </div>
-                    <p className={cn("text-xs truncate", unread ? "text-foreground" : "text-muted-foreground")}>
+                    <p
+                      className={cn(
+                        "text-xs truncate",
+                        unread ? "text-foreground" : "text-muted-foreground",
+                      )}
+                    >
                       {preview}
                     </p>
                   </div>
@@ -213,7 +232,9 @@ function MessagesPage() {
                         {formatTime(c.last_message_at)}
                       </span>
                     )}
-                    {unread && <span className="h-2.5 w-2.5 rounded-full bg-primary shadow-[0_0_10px_var(--primary)] animate-pulse" />}
+                    {unread && (
+                      <span className="h-2.5 w-2.5 rounded-full bg-primary shadow-[0_0_10px_var(--primary)] animate-pulse" />
+                    )}
                   </div>
                 </button>
               );
@@ -270,6 +291,7 @@ function Thread({
   const [text, setText] = useState(initialText ?? "");
   const [warn, setWarn] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const [escrowRefreshKey, setEscrowRefreshKey] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -328,6 +350,26 @@ function Thread({
           if (m.sender_id !== meId) markRead();
         },
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "service_agreements",
+          filter: `conversation_id=eq.${conversation.id}`,
+        },
+        () => setEscrowRefreshKey((key) => key + 1),
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "escrow",
+          filter: `conversation_id=eq.${conversation.id}`,
+        },
+        () => setEscrowRefreshKey((key) => key + 1),
+      )
       .subscribe();
 
     return () => {
@@ -364,7 +406,8 @@ function Thread({
   const name = other?.full_name || other?.username || "User";
 
   // group with date separators
-  const items: Array<{ type: "sep"; key: string; label: string } | { type: "msg"; msg: Message }> = [];
+  const items: Array<{ type: "sep"; key: string; label: string } | { type: "msg"; msg: Message }> =
+    [];
   let lastDay = "";
   for (const m of messages) {
     const d = new Date(m.created_at).toDateString();
@@ -402,7 +445,9 @@ function Thread({
                 size="sm"
               />
             </div>
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize glass-card text-primary">{other?.role}</span>
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize glass-card text-primary">
+              {other?.role}
+            </span>
           </div>
         </Link>
       </div>
@@ -427,9 +472,7 @@ function Thread({
       </div>
 
       <div className="border-t border-border p-3 glass-panel">
-        {warn && (
-          <div className="text-xs text-destructive mb-2 px-1">{warn}</div>
-        )}
+        {warn && <div className="text-xs text-destructive mb-2 px-1">{warn}</div>}
       </div>
       <EscrowPanel
         conversationId={conversation.id}
@@ -437,6 +480,7 @@ function Thread({
         myEmail={user?.email || `${meId}@easymeet.app`}
         other={conversation.other}
         meRole={profile?.role}
+        refreshKey={escrowRefreshKey}
       />
       <div className="border-t border-border p-3 glass-panel">
         <div className="flex items-center gap-2">
@@ -455,7 +499,11 @@ function Thread({
             placeholder="Type a message..."
             className="h-11 rounded-full input-glow border-border/60"
           />
-          <Button onClick={send} disabled={!text.trim() || sending} className="bg-gradient-brand glow-primary h-11 w-11 p-0 rounded-full">
+          <Button
+            onClick={send}
+            disabled={!text.trim() || sending}
+            className="bg-gradient-brand glow-primary h-11 w-11 p-0 rounded-full"
+          >
             <Send className="h-4 w-4" />
           </Button>
         </div>
