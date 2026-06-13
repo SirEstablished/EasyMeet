@@ -221,20 +221,21 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole, refr
         .from("escrow")
         .update({ commission_amount: 0, payout_amount: agreement.price })
         .eq("id", paidOrder.id);
-      if (escrowResetError) throw escrowResetError;
+      if (escrowResetError) console.error("Could not reset escrow commission", escrowResetError);
       if (paidOrder.order_id) {
         const { error: orderResetError } = await supabase
           .from("orders")
           .update({ commission_amount: 0 })
           .eq("id", paidOrder.order_id);
-        if (orderResetError) throw orderResetError;
+        if (orderResetError) console.error("Could not reset order commission", orderResetError);
       }
 
-      await supabase.from("messages").insert({
+      const { error: messageError } = await supabase.from("messages").insert({
         conversation_id: conversationId,
         sender_id: meId,
         body: `💳 Payment of ${formatNgn(agreement.price)} placed in escrow. Work can begin.`,
       });
+      if (messageError) console.error("Escrow payment message failed", messageError);
       toast.success("Payment held in escrow successfully");
       void load();
     } catch (e) {
