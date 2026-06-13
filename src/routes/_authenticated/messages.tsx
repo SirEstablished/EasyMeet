@@ -270,6 +270,7 @@ function Thread({
   const [text, setText] = useState(initialText ?? "");
   const [warn, setWarn] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const [escrowRefreshKey, setEscrowRefreshKey] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -327,6 +328,26 @@ function Thread({
           scrollToBottom();
           if (m.sender_id !== meId) markRead();
         },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "service_agreements",
+          filter: `conversation_id=eq.${conversation.id}`,
+        },
+        () => setEscrowRefreshKey((key) => key + 1),
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "escrow",
+          filter: `conversation_id=eq.${conversation.id}`,
+        },
+        () => setEscrowRefreshKey((key) => key + 1),
       )
       .subscribe();
 
@@ -437,6 +458,7 @@ function Thread({
         myEmail={user?.email || `${meId}@easymeet.app`}
         other={conversation.other}
         meRole={profile?.role}
+        refreshKey={escrowRefreshKey}
       />
       <div className="border-t border-border p-3 glass-panel">
         <div className="flex items-center gap-2">
