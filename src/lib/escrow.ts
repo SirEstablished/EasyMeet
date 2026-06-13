@@ -37,6 +37,8 @@ export interface EscrowOrder {
   quantity: number | null;
   title: string;
   amount_ngn: number;
+  labor_amount?: number | null;
+  materials_amount?: number | null;
   commission_amount: number;
   payout_amount: number;
   status: EscrowStatus;
