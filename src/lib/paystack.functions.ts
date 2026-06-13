@@ -2,7 +2,11 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 const InputSchema = z.object({
-  reference: z.string().min(6).max(128).regex(/^[a-zA-Z0-9_\-]+$/),
+  reference: z
+    .string()
+    .min(6)
+    .max(128)
+    .regex(/^[a-zA-Z0-9_\-]+$/),
   expectedAmountNgn: z.number().positive().max(10_000_000),
 });
 
@@ -64,7 +68,11 @@ export const verifyPaystackTransaction = createServerFn({ method: "POST" })
   });
 
 const RefundSchema = z.object({
-  reference: z.string().min(6).max(128).regex(/^[a-zA-Z0-9_\-]+$/),
+  reference: z
+    .string()
+    .min(6)
+    .max(128)
+    .regex(/^[a-zA-Z0-9_\-]+$/),
   amountNgn: z.number().positive().max(10_000_000).optional(),
 });
 
@@ -100,9 +108,11 @@ export const refundPaystackTransaction = createServerFn({ method: "POST" })
       console.error("Paystack refund network error", e);
       return { ok: false, message: "Refund unavailable" };
     }
-    const json = (await res.json().catch(() => null)) as
-      | { status?: boolean; message?: string; data?: { amount?: number; status?: string } }
-      | null;
+    const json = (await res.json().catch(() => null)) as {
+      status?: boolean;
+      message?: string;
+      data?: { amount?: number; status?: string };
+    } | null;
     if (!res.ok || !json?.status) {
       return { ok: false, message: json?.message || `Refund failed (${res.status})` };
     }

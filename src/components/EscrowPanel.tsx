@@ -20,7 +20,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, Shield, FileText, CheckCircle2, AlertTriangle, CreditCard, Sparkles } from "lucide-react";
+import {
+  Loader2,
+  Shield,
+  FileText,
+  CheckCircle2,
+  AlertTriangle,
+  CreditCard,
+  Sparkles,
+} from "lucide-react";
 import { payWithPaystack } from "@/lib/paystack";
 import { verifyPaystackTransaction } from "@/lib/paystack.functions";
 import { detectEscrowRoles, suggestAgreement } from "@/lib/escrow-ai.functions";
@@ -43,7 +51,14 @@ const STAGES = [
   "Released",
 ];
 
-export function EscrowPanel({ conversationId, meId, myEmail, other, meRole, refreshKey = 0 }: Props) {
+export function EscrowPanel({
+  conversationId,
+  meId,
+  myEmail,
+  other,
+  meRole,
+  refreshKey = 0,
+}: Props) {
   const [agreement, setAgreement] = useState<ServiceAgreement | null>(null);
   const [order, setOrder] = useState<EscrowOrder | null>(null);
   const [loading, setLoading] = useState(true);
@@ -85,12 +100,22 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole, refr
       .channel(`escrow-${conversationId}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "service_agreements", filter: `conversation_id=eq.${conversationId}` },
+        {
+          event: "*",
+          schema: "public",
+          table: "service_agreements",
+          filter: `conversation_id=eq.${conversationId}`,
+        },
         () => load(),
       )
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "escrow", filter: `conversation_id=eq.${conversationId}` },
+        {
+          event: "*",
+          schema: "public",
+          table: "escrow",
+          filter: `conversation_id=eq.${conversationId}`,
+        },
         () => load(),
       )
       .subscribe();
@@ -244,7 +269,8 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole, refr
       toast.success("Payment held in escrow successfully");
       void load();
     } catch (e) {
-      if (e instanceof Error && e.message === "Payment cancelled") toast.message("Payment cancelled");
+      if (e instanceof Error && e.message === "Payment cancelled")
+        toast.message("Payment cancelled");
       else toast.error(e instanceof Error ? e.message : "Payment failed");
     } finally {
       setPaying(false);
@@ -255,7 +281,8 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole, refr
     if (!order) return;
     setBusy(true);
     try {
-      const laborAmount = order.labor_amount ?? Math.max(order.amount_ngn - (order.materials_amount ?? 0), 0);
+      const laborAmount =
+        order.labor_amount ?? Math.max(order.amount_ngn - (order.materials_amount ?? 0), 0);
       const commission = Math.round(laborAmount * 0.03 * 100) / 100;
       const payout = Math.round((order.amount_ngn - commission) * 100) / 100;
       const completedAt = new Date().toISOString();
@@ -308,7 +335,9 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole, refr
           Escrow — Stage {stage}/6: {STAGES[stage - 1]}
         </span>
         {order && (
-          <Badge variant="outline" className="ml-auto text-[10px] capitalize">{order.status.replace("_", " ")}</Badge>
+          <Badge variant="outline" className="ml-auto text-[10px] capitalize">
+            {order.status.replace("_", " ")}
+          </Badge>
         )}
       </div>
 
@@ -319,25 +348,33 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole, refr
             <div className="flex-1 min-w-0">
               <div className="font-semibold text-sm">{agreement.job_title}</div>
               {agreement.job_description && (
-                <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">{agreement.job_description}</p>
+                <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">
+                  {agreement.job_description}
+                </p>
               )}
               {agreement.terms && (
-                <p className="text-[11px] text-muted-foreground mt-1 italic">Terms: {agreement.terms}</p>
+                <p className="text-[11px] text-muted-foreground mt-1 italic">
+                  Terms: {agreement.terms}
+                </p>
               )}
               <div className="mt-1 font-bold text-gradient-brand">{formatNgn(agreement.price)}</div>
             </div>
-            <Badge variant="secondary" className="capitalize text-[10px]">{agreement.status}</Badge>
+            <Badge variant="secondary" className="capitalize text-[10px]">
+              {agreement.status}
+            </Badge>
           </div>
         </div>
       )}
 
       <div className="flex flex-wrap gap-2">
         {/* Stage 2 — provider sends agreement (AI-detected role) */}
-        {iAmProvider === true && !order && (!agreement || agreement.status === "rejected" || agreement.status === "cancelled") && (
-          <Button size="sm" onClick={() => setSendOpen(true)} className="bg-gradient-brand">
-            <Sparkles className="h-3.5 w-3.5 mr-1" /> Send Agreement
-          </Button>
-        )}
+        {iAmProvider === true &&
+          !order &&
+          (!agreement || agreement.status === "rejected" || agreement.status === "cancelled") && (
+            <Button size="sm" onClick={() => setSendOpen(true)} className="bg-gradient-brand">
+              <Sparkles className="h-3.5 w-3.5 mr-1" /> Send Agreement
+            </Button>
+          )}
 
         {/* Stage 2 — buyer accepts */}
         {iAmProvider === false && agreement?.status === "pending" && !order && (
@@ -349,17 +386,28 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole, refr
         {/* Stage 3 — pay into escrow */}
         {iAmProvider === false && agreement?.status === "accepted" && !order && (
           <Button size="sm" onClick={payEscrow} disabled={paying} className="bg-gradient-brand">
-            {paying ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <CreditCard className="h-4 w-4 mr-1" />}
+            {paying ? (
+              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+            ) : (
+              <CreditCard className="h-4 w-4 mr-1" />
+            )}
             Pay into Escrow ({formatNgn(agreement.price)})
           </Button>
         )}
 
         {/* Stage 5 — customer marks complete */}
-        {order && order.customer_id === meId && (order.status === "holding" || order.status === "in_progress") && (
-          <Button size="sm" onClick={() => setCompleteOpen(true)} disabled={busy} className="bg-gradient-brand">
-            <CheckCircle2 className="h-4 w-4 mr-1" /> Mark as Complete & Release
-          </Button>
-        )}
+        {order &&
+          order.customer_id === meId &&
+          (order.status === "holding" || order.status === "in_progress") && (
+            <Button
+              size="sm"
+              onClick={() => setCompleteOpen(true)}
+              disabled={busy}
+              className="bg-gradient-brand"
+            >
+              <CheckCircle2 className="h-4 w-4 mr-1" /> Mark as Complete & Release
+            </Button>
+          )}
 
         {/* Dispute */}
         {order && (order.status === "holding" || order.status === "in_progress") && (
@@ -370,7 +418,8 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole, refr
 
         {order?.status === "completed" && (
           <span className="text-xs text-accent flex items-center gap-1">
-            <CheckCircle2 className="h-3.5 w-3.5" /> Released {formatNgn(order.payout_amount)} (commission {formatNgn(order.commission_amount)})
+            <CheckCircle2 className="h-3.5 w-3.5" /> Released {formatNgn(order.payout_amount)}{" "}
+            (commission {formatNgn(order.commission_amount)})
           </span>
         )}
 
@@ -420,10 +469,15 @@ export function EscrowPanel({ conversationId, meId, myEmail, other, meRole, refr
             <DialogTitle>Confirm Job Completion</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Are you sure this job has been completed to your satisfaction? Please note that EasyMeet will not be held responsible if you mark a job as complete without verifying the work first. Once confirmed, payment will be released to the professional immediately and cannot be reversed.
+            Are you sure this job has been completed to your satisfaction? Please note that EasyMeet
+            will not be held responsible if you mark a job as complete without verifying the work
+            first. Once confirmed, payment will be released to the professional immediately and
+            cannot be reversed.
           </p>
           <DialogFooter className="gap-2">
-            <Button variant="secondary" onClick={() => setCompleteOpen(false)} disabled={busy}>Go Back</Button>
+            <Button variant="secondary" onClick={() => setCompleteOpen(false)} disabled={busy}>
+              Go Back
+            </Button>
             <Button onClick={markComplete} disabled={busy} className="bg-gradient-brand">
               {busy && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}Yes, Release Payment
             </Button>
@@ -543,24 +597,55 @@ function SendAgreementDialog({
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <Label>Job title <span className="text-destructive">*</span></Label>
-            <Input required value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} />
+            <Label>
+              Job title <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              required
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              maxLength={120}
+            />
           </div>
           <div>
-            <Label>Job description <span className="text-destructive">*</span></Label>
-            <Textarea required value={description} onChange={(e) => setDescription(e.target.value)} maxLength={2000} rows={3} />
+            <Label>
+              Job description <span className="text-destructive">*</span>
+            </Label>
+            <Textarea
+              required
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              maxLength={2000}
+              rows={3}
+            />
           </div>
           <div>
-            <Label>Price (NGN) <span className="text-destructive">*</span></Label>
-            <Input required type="number" min="1" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} />
+            <Label>
+              Price (NGN) <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              required
+              type="number"
+              min="1"
+              step="0.01"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+            />
           </div>
           <div>
             <Label>Terms (optional)</Label>
-            <Textarea value={terms} onChange={(e) => setTerms(e.target.value)} maxLength={1000} rows={2} />
+            <Textarea
+              value={terms}
+              onChange={(e) => setTerms(e.target.value)}
+              maxLength={1000}
+              rows={2}
+            />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
           <Button onClick={submit} disabled={busy} className="bg-gradient-brand">
             {busy && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}Send
           </Button>
@@ -660,17 +745,36 @@ function OpenDisputeDialog({
         <div className="space-y-3">
           <div>
             <Label>Reason</Label>
-            <Textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3} maxLength={1000} placeholder="Explain what went wrong" />
+            <Textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows={3}
+              maxLength={1000}
+              placeholder="Explain what went wrong"
+            />
           </div>
           <div>
             <Label>Evidence (optional — paste links or notes)</Label>
-            <Textarea value={evidence} onChange={(e) => setEvidence(e.target.value)} rows={3} maxLength={2000} />
+            <Textarea
+              value={evidence}
+              onChange={(e) => setEvidence(e.target.value)}
+              rows={3}
+              maxLength={2000}
+            />
           </div>
-          <p className="text-[11px] text-muted-foreground">Chat history will be attached automatically.</p>
+          <p className="text-[11px] text-muted-foreground">
+            Chat history will be attached automatically.
+          </p>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={submit} disabled={busy} className="bg-destructive text-destructive-foreground">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            onClick={submit}
+            disabled={busy}
+            className="bg-destructive text-destructive-foreground"
+          >
             {busy && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}Submit Dispute
           </Button>
         </DialogFooter>

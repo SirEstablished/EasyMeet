@@ -1,11 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase, formatNgn } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/providers";
-import {
-  type EscrowOrder,
-  escrowFromJoinedOrder,
-  snapshotChatToEvidence,
-} from "@/lib/escrow";
+import { type EscrowOrder, escrowFromJoinedOrder, snapshotChatToEvidence } from "@/lib/escrow";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -89,13 +85,19 @@ export function EscrowOrdersSection() {
           .eq("id", o.order_id);
         if (orderError) throw orderError;
       }
-      setOrders((current) => current.map((item) => item.id === o.id ? {
-        ...item,
-        status: "completed",
-        commission_amount: commission,
-        payout_amount: payout,
-        released_at: new Date().toISOString(),
-      } : item));
+      setOrders((current) =>
+        current.map((item) =>
+          item.id === o.id
+            ? {
+                ...item,
+                status: "completed",
+                commission_amount: commission,
+                payout_amount: payout,
+                released_at: new Date().toISOString(),
+              }
+            : item,
+        ),
+      );
       setCompleting(null);
       toast.success("Marked complete — payment released to seller");
       void load();
@@ -142,10 +144,7 @@ export function EscrowOrdersSection() {
         {orders.map((o) => {
           const isCustomer = user?.id === o.customer_id;
           const refundEligible =
-            isCustomer &&
-            o.status === "cancelled" &&
-            !o.refund_status &&
-            !!o.paystack_reference;
+            isCustomer && o.status === "cancelled" && !o.refund_status && !!o.paystack_reference;
           return (
             <div key={o.id} className="rounded-2xl glass-card p-4">
               <div className="flex flex-wrap items-center gap-3">
@@ -156,14 +155,23 @@ export function EscrowOrdersSection() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="font-extrabold text-gradient-brand">{formatNgn(o.amount_ngn)}</div>
-                  <Badge variant="outline" className="text-[10px] capitalize">{STAGE_LABEL[o.status]}</Badge>
+                  <div className="font-extrabold text-gradient-brand">
+                    {formatNgn(o.amount_ngn)}
+                  </div>
+                  <Badge variant="outline" className="text-[10px] capitalize">
+                    {STAGE_LABEL[o.status]}
+                  </Badge>
                 </div>
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 {isCustomer && (o.status === "holding" || o.status === "in_progress") && (
                   <>
-                    <Button size="sm" onClick={() => setCompleting(o)} disabled={busyId === o.id} className="bg-gradient-brand">
+                    <Button
+                      size="sm"
+                      onClick={() => setCompleting(o)}
+                      disabled={busyId === o.id}
+                      className="bg-gradient-brand"
+                    >
                       <CheckCircle2 className="h-4 w-4 mr-1" /> Mark as Complete
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => setDisputing(o)}>
@@ -177,16 +185,30 @@ export function EscrowOrdersSection() {
                   </Button>
                 )}
                 {refundEligible && (
-                  <Button size="sm" variant="outline" onClick={() => startRefund(o)} disabled={busyId === o.id}>
-                    {busyId === o.id ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RefreshCcw className="h-4 w-4 mr-1" />}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => startRefund(o)}
+                    disabled={busyId === o.id}
+                  >
+                    {busyId === o.id ? (
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    ) : (
+                      <RefreshCcw className="h-4 w-4 mr-1" />
+                    )}
                     Request Refund
                   </Button>
                 )}
                 {o.status === "completed" && !isCustomer && (
-                  <span className="text-xs text-accent">Payout {formatNgn(o.payout_amount)} (commission {formatNgn(o.commission_amount)})</span>
+                  <span className="text-xs text-accent">
+                    Payout {formatNgn(o.payout_amount)} (commission {formatNgn(o.commission_amount)}
+                    )
+                  </span>
                 )}
                 {o.refund_status && (
-                  <span className="text-xs text-muted-foreground capitalize">Refund: {o.refund_status}</span>
+                  <span className="text-xs text-muted-foreground capitalize">
+                    Refund: {o.refund_status}
+                  </span>
                 )}
               </div>
             </div>
@@ -195,11 +217,7 @@ export function EscrowOrdersSection() {
       </div>
 
       {disputing && (
-        <DisputeDialog
-          order={disputing}
-          onClose={() => setDisputing(null)}
-          onOpened={load}
-        />
+        <DisputeDialog order={disputing} onClose={() => setDisputing(null)} onOpened={load} />
       )}
       <Dialog open={refundOpen} onOpenChange={setRefundOpen}>
         <DialogContent>
@@ -207,7 +225,8 @@ export function EscrowOrdersSection() {
             <DialogTitle>Refund processing</DialogTitle>
           </DialogHeader>
           <p className="text-sm">
-            Your refund is being processed. Please note that a small percentage will be deducted as per Paystack and EasyMeet policy. Refunds take 3-5 business days.
+            Your refund is being processed. Please note that a small percentage will be deducted as
+            per Paystack and EasyMeet policy. Refunds take 3-5 business days.
           </p>
           <DialogFooter>
             <Button onClick={() => setRefundOpen(false)}>OK</Button>
@@ -220,16 +239,23 @@ export function EscrowOrdersSection() {
             <DialogTitle>Confirm Job Completion</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Are you sure this job has been completed to your satisfaction? Please note that EasyMeet will not be held responsible if you mark a job as complete without verifying the work first. Once confirmed, payment will be released to the professional immediately and cannot be reversed.
+            Are you sure this job has been completed to your satisfaction? Please note that EasyMeet
+            will not be held responsible if you mark a job as complete without verifying the work
+            first. Once confirmed, payment will be released to the professional immediately and
+            cannot be reversed.
           </p>
           <DialogFooter className="gap-2">
-            <Button variant="secondary" onClick={() => setCompleting(null)}>Go Back</Button>
+            <Button variant="secondary" onClick={() => setCompleting(null)}>
+              Go Back
+            </Button>
             <Button
               onClick={() => completing && markComplete(completing)}
               disabled={!completing || busyId === completing.id}
               className="bg-gradient-brand"
             >
-              {completing && busyId === completing.id && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+              {completing && busyId === completing.id && (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              )}
               Yes, Release Payment
             </Button>
           </DialogFooter>
@@ -254,7 +280,8 @@ function DisputeDialog({
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
-    if (!user || reason.trim().length < 10) return toast.error("Please describe the issue (10+ chars)");
+    if (!user || reason.trim().length < 10)
+      return toast.error("Please describe the issue (10+ chars)");
     setBusy(true);
     const { data: dispute, error } = await supabase
       .from("escrow_disputes")
@@ -295,12 +322,23 @@ function DisputeDialog({
           </div>
           <div>
             <Label>Evidence (optional)</Label>
-            <Textarea value={evidence} onChange={(e) => setEvidence(e.target.value)} rows={3} placeholder="Paste links or notes" />
+            <Textarea
+              value={evidence}
+              onChange={(e) => setEvidence(e.target.value)}
+              rows={3}
+              placeholder="Paste links or notes"
+            />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={submit} disabled={busy} className="bg-destructive text-destructive-foreground">
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            onClick={submit}
+            disabled={busy}
+            className="bg-destructive text-destructive-foreground"
+          >
             {busy && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}Submit
           </Button>
         </DialogFooter>
