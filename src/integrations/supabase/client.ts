@@ -133,10 +133,6 @@ export interface Order {
   payment_ref: string | null;
   payment_status: PaymentStatus;
   status: OrderStatus;
-  escrow_status?: string | null;
-  escrow_stage?: string | null;
-  commission_amount?: number;
-  payout_amount?: number;
   created_at: string;
   customer?: Pick<Profile, "id" | "full_name" | "username" | "avatar_url"> | null;
   provider?: Pick<Profile, "id" | "full_name" | "username" | "avatar_url"> | null;
