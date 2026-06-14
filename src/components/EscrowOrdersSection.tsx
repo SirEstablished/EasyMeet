@@ -21,6 +21,7 @@ const STAGE_LABEL: Record<EscrowOrder["status"], string> = {
   pending_payment: "Awaiting payment",
   holding: "In escrow",
   in_progress: "In progress",
+  released: "Released",
   completed: "Completed",
   disputed: "Disputed",
   refunded: "Refunded",

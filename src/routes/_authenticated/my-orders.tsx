@@ -4,12 +4,12 @@ import { supabase, formatNgn, type Order } from "@/integrations/supabase/client"
 import { useAuth } from "@/lib/providers";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Loader2, Star, CheckCircle2, XCircle, Shield, AlertTriangle } from "lucide-react";
+import { Loader2, Star, CheckCircle2, XCircle, Shield } from "lucide-react";
 import { ReviewOrderDialog } from "@/components/ReviewOrderDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLiveData } from "@/hooks/use-live-data";
 import { toast } from "sonner";
-import { type EscrowOrder, escrowFromJoinedOrder } from "@/lib/escrow";
+import { type EscrowOrder } from "@/lib/escrow";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +37,12 @@ function MyOrdersPage() {
 
   const load = useCallback(async () => {
     if (!user) return;
+    try {
+      const { error: syncError } = await supabase.rpc("sync_my_order_escrow_states");
+      if (syncError) throw syncError;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not sync escrow orders");
+    }
     const [{ data: outData }, { data: inData }, { data: revData }] = await Promise.all([
       supabase
         .from("orders")
@@ -89,29 +95,10 @@ function MyOrdersPage() {
     if (!o.escrow || !user) return;
     setBusyId(o.id);
     try {
-      const escrow = o.escrow;
-      const laborAmount = escrow.labor_amount ?? Math.max(escrow.amount_ngn - (escrow.materials_amount ?? 0), 0);
-      const commission = laborAmount >= 5000 ? Math.round(laborAmount * 0.03 * 100) / 100 : 0;
-      const payout = Math.round((escrow.amount_ngn - commission) * 100) / 100;
-      
-      const { error } = await supabase
-        .from("escrow")
-        .update({
-          status: "completed",
-          commission_amount: commission,
-          payout_amount: payout,
-          released_at: new Date().toISOString(),
-        })
-        .eq("id", escrow.id)
-        .eq("customer_id", user.id)
-        .in("status", ["holding", "in_progress"]);
-      
+      const { error } = await supabase.rpc("release_escrow_payment", {
+        p_escrow_id: o.escrow.id,
+      });
       if (error) throw error;
-
-      await supabase
-        .from("orders")
-        .update({ status: "completed", commission_amount: commission  } as any)
-        .eq("id", o.id);
 
       toast.success("Marked complete — payment released to seller");
       setCompleting(null);
@@ -136,17 +123,6 @@ function MyOrdersPage() {
       {loading ? (
         <div className="flex items-center justify-center py-12 text-muted-foreground">
           <Loader2 className="h-5 w-5 animate-spin" />
-        </div>
-      ) : isCustomer ? (
-        <div className="mt-6">
-          <OrderList
-            orders={outgoing}
-            direction="outgoing"
-            reviewedProviders={reviewedProviders}
-            onReview={setReviewing}
-            onMarkComplete={setCompleting}
-            busyId={busyId}
-          />
         </div>
       ) : (
         <Tabs defaultValue="incoming" className="mt-6">
@@ -267,7 +243,11 @@ function OrderList({
         
         const isEscrow = !!o.escrow;
         const escrowStatus = o.escrow?.status;
-        const canMarkComplete = direction === "outgoing" && isEscrow && (escrowStatus === "holding" || escrowStatus === "in_progress");
+        const canMarkComplete =
+          direction === "outgoing" &&
+          isEscrow &&
+          escrowStatus === "holding" &&
+          o.escrow?.stage === "work_in_progress";
 
         return (
           <div key={o.id} className="rounded-2xl glass-card p-4 flex flex-wrap items-center gap-4 lift-hover hover:-translate-y-0.5 hover:border-primary/50">
@@ -282,7 +262,11 @@ function OrderList({
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
                 <div className="font-semibold truncate">{o.service_title}</div>
-                {isEscrow && <Shield className="h-3 w-3 text-primary flex-shrink-0" title="Escrow Protected" />}
+                {isEscrow && (
+                  <span title="Escrow Protected">
+                    <Shield className="h-3 w-3 text-primary flex-shrink-0" />
+                  </span>
+                )}
               </div>
               <div className="text-xs text-muted-foreground truncate">{name} · {new Date(o.created_at).toLocaleDateString()}</div>
               {o.payment_ref && (
@@ -291,8 +275,8 @@ function OrderList({
             </div>
             <div className="text-right">
               <div className="font-extrabold text-gradient-brand">{formatNgn(o.amount)}</div>
-              <span className={`status-pill status-${isEscrow ? (escrowStatus === 'completed' ? 'completed' : 'pending') : o.status} capitalize mt-1`}>
-                {isEscrow ? (escrowStatus === 'completed' ? 'escrow released' : escrowStatus?.replace('_', ' ')) : o.status}
+              <span className={`status-pill status-${isEscrow ? (escrowStatus === 'released' || escrowStatus === 'completed' ? 'completed' : 'pending') : o.status} capitalize mt-1`}>
+                {isEscrow ? (escrowStatus === 'released' || escrowStatus === 'completed' ? 'escrow released' : escrowStatus?.replace('_', ' ')) : o.status}
               </span>
             </div>
             
@@ -320,7 +304,7 @@ function OrderList({
               </div>
             )}
             
-            {direction === "outgoing" && (o.status === "completed" || escrowStatus === "completed") && (
+            {direction === "outgoing" && (o.status === "completed" || escrowStatus === "released" || escrowStatus === "completed") && (
               reviewedProviders.has(o.provider_id) ? (
                 <div className="basis-full text-xs text-accent font-medium">
                   ✓ Thanks for your review!
