@@ -47,20 +47,20 @@ function MyOrdersPage() {
     try {
       const [{ data: outData, error: outError }, inResult, { data: revData, error: revError }] =
         await Promise.all([
-        supabase
-          .from("orders")
-          .select("*, provider:provider_id(id, full_name, username, avatar_url), escrow(*)")
-          .eq("customer_id", user.id)
-          .order("created_at", { ascending: false }),
-        isCustomer
-          ? Promise.resolve({ data: [] as Order[] })
-          : supabase
-              .from("orders")
-              .select(
-                "*, customer:customer_id(id, full_name, username, avatar_url), provider:provider_id(id, full_name, username, avatar_url), escrow(*)",
-              )
-              .eq("provider_id", user.id)
-              .order("created_at", { ascending: false }),
+          supabase
+            .from("orders")
+            .select("*, provider:provider_id(id, full_name, username, avatar_url), escrow(*)")
+            .eq("customer_id", user.id)
+            .order("created_at", { ascending: false }),
+          isCustomer
+            ? Promise.resolve({ data: [] as Order[] })
+            : supabase
+                .from("orders")
+                .select(
+                  "*, customer:customer_id(id, full_name, username, avatar_url), provider:provider_id(id, full_name, username, avatar_url), escrow(*)",
+                )
+                .eq("provider_id", user.id)
+                .order("created_at", { ascending: false }),
           supabase.from("reviews").select("professional_id").eq("reviewer_id", user.id),
         ]);
       if (outError) throw outError;
@@ -221,9 +221,7 @@ function MyOrdersPage() {
           providerId={reviewing.provider_id}
           providerName={reviewing.provider?.full_name || reviewing.provider?.username || "Provider"}
           orderId={reviewing.id}
-          onSubmitted={() =>
-            setReviewedProviders((cur) => new Set(cur).add(reviewing.provider_id))
-          }
+          onSubmitted={() => setReviewedProviders((cur) => new Set(cur).add(reviewing.provider_id))}
         />
       )}
 
@@ -284,7 +282,10 @@ function OrderList({
         {direction === "outgoing" ? (
           <>
             No orders yet.{" "}
-            <Link to="/shop" className="text-primary font-medium">Browse the shop</Link> to find professionals.
+            <Link to="/shop" className="text-primary font-medium">
+              Browse the shop
+            </Link>{" "}
+            to find professionals.
           </>
         ) : (
           <>No incoming orders yet.</>
@@ -297,9 +298,17 @@ function OrderList({
       {orders.map((o) => {
         const other = direction === "outgoing" ? o.provider : o.customer;
         const otherId = direction === "outgoing" ? o.provider_id : o.customer_id;
-        const name = other?.full_name || other?.username || (direction === "outgoing" ? "Provider" : "Customer");
-        const initials = name.split(" ").map((s: string) => s[0]).slice(0, 2).join("").toUpperCase();
-        
+        const name =
+          other?.full_name ||
+          other?.username ||
+          (direction === "outgoing" ? "Provider" : "Customer");
+        const initials = name
+          .split(" ")
+          .map((s: string) => s[0])
+          .slice(0, 2)
+          .join("")
+          .toUpperCase();
+
         const isEscrow = !!o.escrow;
         const escrowStatus = o.escrow?.status;
         const canMarkComplete =
@@ -309,12 +318,17 @@ function OrderList({
           o.escrow?.stage === "work_in_progress";
 
         return (
-          <div key={o.id} className="rounded-2xl glass-card p-4 flex flex-wrap items-center gap-4 lift-hover hover:-translate-y-0.5 hover:border-primary/50">
+          <div
+            key={o.id}
+            className="rounded-2xl glass-card p-4 flex flex-wrap items-center gap-4 lift-hover hover:-translate-y-0.5 hover:border-primary/50"
+          >
             <Link to="/profile/$id" params={{ id: otherId }}>
               <span className="avatar-ring">
                 <Avatar className="h-12 w-12 border-2 border-background">
                   <AvatarImage src={other?.avatar_url ?? undefined} />
-                  <AvatarFallback className="bg-primary text-primary-foreground">{initials}</AvatarFallback>
+                  <AvatarFallback className="bg-primary text-primary-foreground">
+                    {initials}
+                  </AvatarFallback>
                 </Avatar>
               </span>
             </Link>
@@ -327,23 +341,33 @@ function OrderList({
                   </span>
                 )}
               </div>
-              <div className="text-xs text-muted-foreground truncate">{name} · {new Date(o.created_at).toLocaleDateString()}</div>
+              <div className="text-xs text-muted-foreground truncate">
+                {name} · {new Date(o.created_at).toLocaleDateString()}
+              </div>
               {o.payment_ref && (
-                <div className="text-[10px] text-muted-foreground truncate">Ref: {o.payment_ref}</div>
+                <div className="text-[10px] text-muted-foreground truncate">
+                  Ref: {o.payment_ref}
+                </div>
               )}
             </div>
             <div className="text-right">
               <div className="font-extrabold text-gradient-brand">{formatNgn(o.amount)}</div>
-              <span className={`status-pill status-${isEscrow ? (escrowStatus === 'released' || escrowStatus === 'completed' ? 'completed' : 'pending') : o.status} capitalize mt-1`}>
-                {isEscrow ? (escrowStatus === 'released' || escrowStatus === 'completed' ? 'escrow released' : escrowStatus?.replace('_', ' ')) : o.status}
+              <span
+                className={`status-pill status-${isEscrow ? (escrowStatus === "released" || escrowStatus === "completed" ? "completed" : "pending") : o.status} capitalize mt-1`}
+              >
+                {isEscrow
+                  ? escrowStatus === "released" || escrowStatus === "completed"
+                    ? "escrow released"
+                    : escrowStatus?.replace("_", " ")
+                  : o.status}
               </span>
             </div>
-            
+
             {canMarkComplete && (
               <div className="basis-full">
-                <Button 
-                  size="sm" 
-                  onClick={() => onMarkComplete(o)} 
+                <Button
+                  size="sm"
+                  onClick={() => onMarkComplete(o)}
                   disabled={busyId === o.id}
                   className="rounded-full bg-gradient-brand"
                 >
@@ -352,19 +376,35 @@ function OrderList({
               </div>
             )}
 
-            {direction === "incoming" && onUpdateStatus && !isEscrow && (o.status === "confirmed" || o.status === "pending") && (
-              <div className="basis-full flex flex-wrap items-center gap-2">
-                <Button size="sm" variant="outline" onClick={() => onUpdateStatus(o, "completed")} className="rounded-full">
-                  <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Mark Completed
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => onUpdateStatus(o, "cancelled")} className="text-destructive">
-                  <XCircle className="h-3.5 w-3.5 mr-1" /> Cancel
-                </Button>
-              </div>
-            )}
-            
-            {direction === "outgoing" && (o.status === "completed" || escrowStatus === "released" || escrowStatus === "completed") && (
-              reviewedProviders.has(o.provider_id) ? (
+            {direction === "incoming" &&
+              onUpdateStatus &&
+              !isEscrow &&
+              (o.status === "confirmed" || o.status === "pending") && (
+                <div className="basis-full flex flex-wrap items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onUpdateStatus(o, "completed")}
+                    className="rounded-full"
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Mark Completed
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => onUpdateStatus(o, "cancelled")}
+                    className="text-destructive"
+                  >
+                    <XCircle className="h-3.5 w-3.5 mr-1" /> Cancel
+                  </Button>
+                </div>
+              )}
+
+            {direction === "outgoing" &&
+              (o.status === "completed" ||
+                escrowStatus === "released" ||
+                escrowStatus === "completed") &&
+              (reviewedProviders.has(o.provider_id) ? (
                 <div className="basis-full text-xs text-accent font-medium">
                   ✓ Thanks for your review!
                 </div>
@@ -372,12 +412,14 @@ function OrderList({
                 <Button
                   size="sm"
                   className="basis-full sm:basis-auto rounded-full bg-gradient-brand glow-primary"
-                  onClick={(e) => { e.preventDefault(); onReview(o); }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onReview(o);
+                  }}
                 >
                   <Star className="h-3.5 w-3.5 mr-1" /> Leave a Review
                 </Button>
-              )
-            )}
+              ))}
           </div>
         );
       })}
