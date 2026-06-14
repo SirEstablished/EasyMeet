@@ -120,7 +120,7 @@ function MyOrdersPage() {
       const laborAmount = o.escrow.labor_amount ?? 0;
       const commission = laborAmount >= 5000 ? Math.round(laborAmount * 0.03 * 100) / 100 : 0;
       const payout = Math.round((o.escrow.amount_ngn - commission) * 100) / 100;
-      const { error: escrowError } = await supabase
+      const { data: releasedEscrow, error: escrowError } = await supabase
         .from("escrow")
         .update({
           status: "released",
@@ -135,7 +135,9 @@ function MyOrdersPage() {
         .eq("stage", "work_in_progress")
         .select("id")
         .maybeSingle();
-      if (escrowError) throw escrowError;
+      if (escrowError || !releasedEscrow) {
+        throw new Error(escrowError?.message || "Escrow is no longer ready for release");
+      }
       const { error: orderError } = await supabase
         .from("orders")
         .update({
