@@ -110,7 +110,7 @@ function MyOrdersPage() {
 
       await supabase
         .from("orders")
-        .update({ status: "completed", commission_amount: commission })
+        .update({ status: "completed", commission_amount: commission  } as any)
         .eq("id", o.id);
 
       toast.success("Marked complete — payment released to seller");

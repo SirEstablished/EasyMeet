@@ -226,6 +226,10 @@ export function EscrowPanel({
         p_provider_id: agreement.sender_id,
         p_amount: agreement.price,
         p_payment_ref: res.reference,
+        p_materials_amount: 0,
+        p_labor_amount: agreement.price,
+        p_contingency_amount: 0,
+        p_agreement_type: "service",
       });
       if (error || !insertedEscrow) {
         console.error("create_escrow_payment failed", error);
@@ -245,20 +249,9 @@ export function EscrowPanel({
         commission_amount: 0,
         payout_amount: agreement.price,
         status: "holding" as const,
+        stage: "work_in_progress" as const,
       };
       setOrder(paidOrder);
-      const { error: escrowResetError } = await supabase
-        .from("escrow")
-        .update({ commission_amount: 0, payout_amount: agreement.price })
-        .eq("id", paidOrder.id);
-      if (escrowResetError) console.error("Could not reset escrow commission", escrowResetError);
-      if (paidOrder.order_id) {
-        const { error: orderResetError } = await supabase
-          .from("orders")
-          .update({ commission_amount: 0 })
-          .eq("id", paidOrder.order_id);
-        if (orderResetError) console.error("Could not reset order commission", orderResetError);
-      }
 
       const { error: messageError } = await supabase.from("messages").insert({
         conversation_id: conversationId,
@@ -281,33 +274,12 @@ export function EscrowPanel({
     if (!order) return;
     setBusy(true);
     try {
-      const laborAmount =
-        order.labor_amount ?? Math.max(order.amount_ngn - (order.materials_amount ?? 0), 0);
-      const commission = laborAmount >= 5000 ? Math.round(laborAmount * 0.03 * 100) / 100 : 0;
-      const payout = Math.round((order.amount_ngn - commission) * 100) / 100;
-      const completedAt = new Date().toISOString();
-      const { data, error } = await supabase
-        .from("escrow")
-        .update({
-          status: "completed",
-          commission_amount: commission,
-          payout_amount: payout,
-          released_at: completedAt,
-        })
-        .eq("id", order.id)
-        .eq("customer_id", meId)
-        .in("status", ["holding", "in_progress"])
-        .select("*")
-        .single();
+      const { data, error } = await supabase.rpc("release_escrow_payment", {
+        p_escrow_id: order.id,
+      });
       if (error || !data) throw new Error(error?.message || "Could not release payment");
-      if (order.order_id) {
-        const { error: orderError } = await supabase
-          .from("orders")
-          .update({ status: "completed", commission_amount: commission })
-          .eq("id", order.order_id);
-        if (orderError) throw orderError;
-      }
-      const completed = data as EscrowOrder;
+      const completed = (Array.isArray(data) ? data[0] : data) as EscrowOrder | undefined;
+      if (!completed) throw new Error("Could not release payment");
       setOrder(completed);
       setCompleteOpen(false);
       const { error: messageError } = await supabase.from("messages").insert({
@@ -416,7 +388,7 @@ export function EscrowPanel({
           </Button>
         )}
 
-        {order?.status === "completed" && (
+        {(order?.status === "released" || order?.status === "completed") && (
           <span className="text-xs text-accent flex items-center gap-1">
             <CheckCircle2 className="h-3.5 w-3.5" /> Released {formatNgn(order.payout_amount)}{" "}
             (commission {formatNgn(order.commission_amount)})

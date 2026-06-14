@@ -20,6 +20,7 @@ export type EscrowStatus =
   | "pending_payment"
   | "holding"
   | "in_progress"
+  | "released"
   | "completed"
   | "disputed"
   | "refunded"
@@ -42,6 +43,9 @@ export interface EscrowOrder {
   commission_amount: number;
   payout_amount: number;
   status: EscrowStatus;
+  stage?: "pending_payment" | "work_in_progress" | "completed" | "disputed" | "refunded" | "cancelled";
+  contingency_amount?: number | null;
+  agreement_type?: string | null;
   payment_ref: string | null;
   paystack_reference: string | null;
   paid_at: string | null;
@@ -104,7 +108,7 @@ export function escrowStage(o: EscrowOrder | null, a: ServiceAgreement | null): 
   if (!o) return 1;
   if (o.status === "pending_payment") return 3;
   if (o.status === "holding" || o.status === "in_progress") return 4;
-  if (o.status === "completed" || o.status === "refunded") return 6;
+  if (o.status === "released" || o.status === "completed" || o.status === "refunded") return 6;
   if (o.status === "disputed") return 5;
   return 1;
 }
