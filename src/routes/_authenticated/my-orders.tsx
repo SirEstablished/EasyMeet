@@ -37,7 +37,8 @@ function MyOrdersPage() {
 
   const load = useCallback(async () => {
     if (!user) return;
-    const [{ data: outData }, { data: inData }, { data: revData }] = await Promise.all([
+    try {
+      const [{ data: outData, error: outError }, inResult, { data: revData, error: revError }] = await Promise.all([
       supabase
         .from("orders")
         .select("*, provider:provider_id(id, full_name, username, avatar_url), escrow(*)")
@@ -54,39 +55,47 @@ function MyOrdersPage() {
         .from("reviews")
         .select("professional_id")
         .eq("reviewer_id", user.id),
-    ]);
+      ]);
+      if (outError) throw outError;
+      if ("error" in inResult && inResult.error) throw inResult.error;
+      if (revError) throw revError;
+      const inData = inResult.data;
 
-    const mapOrders = (data: any[] | null) => 
-      (data ?? []).map(o => ({
-        ...o,
-        escrow: o.escrow && o.escrow.length > 0 ? o.escrow[0] : (o.escrow?.id ? o.escrow : null)
-      })) as OrderWithEscrow[];
+      const mapOrders = (data: any[] | null) =>
+        (data ?? []).map((o) => ({
+          ...o,
+          escrow: o.escrow && o.escrow.length > 0 ? o.escrow[0] : (o.escrow?.id ? o.escrow : null),
+        })) as OrderWithEscrow[];
 
-    const outgoingOrders = mapOrders(outData);
-    const incomingOrders = mapOrders(inData);
-    setOutgoing(outgoingOrders);
-    setIncoming(incomingOrders);
-    const escrowOrders = [...outgoingOrders, ...incomingOrders].filter((order) => order.escrow);
-    await Promise.all(
-      escrowOrders.map(async (order) => {
+      const outgoingOrders = mapOrders(outData);
+      const incomingOrders = mapOrders(inData);
+      setOutgoing(outgoingOrders);
+      setIncoming(incomingOrders);
+      const escrowOrders = [...outgoingOrders, ...incomingOrders].filter((order) => {
         const escrow = order.escrow;
-        if (!escrow) return;
-        const { error } = await supabase
-          .from("orders")
-          .update({
-            escrow_status: escrow.status,
-            escrow_stage: escrow.stage,
-            commission_amount: escrow.commission_amount,
-            payout_amount: escrow.payout_amount,
-          })
-          .eq("id", order.id);
-        if (error) console.error("Could not sync order escrow state", error);
-      }),
-    );
-    setReviewedProviders(
-      new Set(((revData as { professional_id: string }[]) ?? []).map((r) => r.professional_id)),
-    );
-    setLoading(false);
+        return escrow &&
+          ((order as OrderWithEscrow & { escrow_status?: string }).escrow_status !== escrow.status ||
+            (order as OrderWithEscrow & { escrow_stage?: string }).escrow_stage !== escrow.stage);
+      });
+      await Promise.all(
+        escrowOrders.map(async (order) => {
+          const escrow = order.escrow;
+          if (!escrow) return;
+          const { error } = await supabase
+            .from("orders")
+            .update({ escrow_status: escrow.status, escrow_stage: escrow.stage })
+            .eq("id", order.id);
+          if (error) throw error;
+        }),
+      );
+      setReviewedProviders(
+        new Set(((revData as { professional_id: string }[]) ?? []).map((r) => r.professional_id)),
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not load orders");
+    } finally {
+      setLoading(false);
+    }
   }, [user, isCustomer]);
 
   useEffect(() => {
@@ -123,7 +132,9 @@ function MyOrdersPage() {
         .eq("id", o.escrow.id)
         .eq("customer_id", user.id)
         .eq("status", "holding")
-        .eq("stage", "work_in_progress");
+        .eq("stage", "work_in_progress")
+        .select("id")
+        .maybeSingle();
       if (escrowError) throw escrowError;
       const { error: orderError } = await supabase
         .from("orders")
