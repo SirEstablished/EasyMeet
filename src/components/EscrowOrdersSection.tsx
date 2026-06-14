@@ -21,6 +21,7 @@ const STAGE_LABEL: Record<EscrowOrder["status"], string> = {
   pending_payment: "Awaiting payment",
   holding: "In escrow",
   in_progress: "In progress",
+  released: "Released",
   completed: "Completed",
   disputed: "Disputed",
   refunded: "Refunded",
@@ -64,7 +65,7 @@ export function EscrowOrdersSection() {
     setBusyId(o.id);
     try {
       const laborAmount = o.labor_amount ?? Math.max(o.amount_ngn - (o.materials_amount ?? 0), 0);
-      const commission = Math.round(laborAmount * 0.03 * 100) / 100;
+      const commission = laborAmount >= 5000 ? Math.round(laborAmount * 0.03 * 100) / 100 : 0;
       const payout = Math.round((o.amount_ngn - commission) * 100) / 100;
       const { error } = await supabase
         .from("escrow")

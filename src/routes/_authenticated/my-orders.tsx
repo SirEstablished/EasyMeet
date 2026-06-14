@@ -4,39 +4,50 @@ import { supabase, formatNgn, type Order } from "@/integrations/supabase/client"
 import { useAuth } from "@/lib/providers";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Loader2, Star, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, Star, CheckCircle2, XCircle, Shield } from "lucide-react";
 import { ReviewOrderDialog } from "@/components/ReviewOrderDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLiveData } from "@/hooks/use-live-data";
 import { toast } from "sonner";
-import { EscrowOrdersSection } from "@/components/EscrowOrdersSection";
+import { type EscrowOrder } from "@/lib/escrow";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/_authenticated/my-orders")({
   component: MyOrdersPage,
 });
 
+type OrderWithEscrow = Order & { escrow?: EscrowOrder | null };
+
 function MyOrdersPage() {
   const { user, profile } = useAuth();
   const isCustomer = profile?.role === "customer";
-  const [outgoing, setOutgoing] = useState<Order[]>([]);
-  const [incoming, setIncoming] = useState<Order[]>([]);
+  const [outgoing, setOutgoing] = useState<OrderWithEscrow[]>([]);
+  const [incoming, setIncoming] = useState<OrderWithEscrow[]>([]);
   const [loading, setLoading] = useState(true);
   const [reviewedProviders, setReviewedProviders] = useState<Set<string>>(new Set());
   const [reviewing, setReviewing] = useState<Order | null>(null);
+  const [completing, setCompleting] = useState<OrderWithEscrow | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!user) return;
     const [{ data: outData }, { data: inData }, { data: revData }] = await Promise.all([
       supabase
         .from("orders")
-        .select("*, provider:provider_id(id, full_name, username, avatar_url)")
+        .select("*, provider:provider_id(id, full_name, username, avatar_url), escrow(*)")
         .eq("customer_id", user.id)
         .order("created_at", { ascending: false }),
       isCustomer
         ? Promise.resolve({ data: [] as Order[] })
         : supabase
             .from("orders")
-            .select("*, customer:customer_id(id, full_name, username, avatar_url), provider:provider_id(id, full_name, username, avatar_url)")
+            .select("*, customer:customer_id(id, full_name, username, avatar_url), provider:provider_id(id, full_name, username, avatar_url), escrow(*)")
             .eq("provider_id", user.id)
             .order("created_at", { ascending: false }),
       supabase
@@ -44,8 +55,34 @@ function MyOrdersPage() {
         .select("professional_id")
         .eq("reviewer_id", user.id),
     ]);
-    setOutgoing((outData as Order[]) ?? []);
-    setIncoming((inData as Order[]) ?? []);
+
+    const mapOrders = (data: any[] | null) => 
+      (data ?? []).map(o => ({
+        ...o,
+        escrow: o.escrow && o.escrow.length > 0 ? o.escrow[0] : (o.escrow?.id ? o.escrow : null)
+      })) as OrderWithEscrow[];
+
+    const outgoingOrders = mapOrders(outData);
+    const incomingOrders = mapOrders(inData);
+    setOutgoing(outgoingOrders);
+    setIncoming(incomingOrders);
+    const escrowOrders = [...outgoingOrders, ...incomingOrders].filter((order) => order.escrow);
+    await Promise.all(
+      escrowOrders.map(async (order) => {
+        const escrow = order.escrow;
+        if (!escrow) return;
+        const { error } = await supabase
+          .from("orders")
+          .update({
+            escrow_status: escrow.status,
+            escrow_stage: escrow.stage,
+            commission_amount: escrow.commission_amount,
+            payout_amount: escrow.payout_amount,
+          })
+          .eq("id", order.id);
+        if (error) console.error("Could not sync order escrow state", error);
+      }),
+    );
     setReviewedProviders(
       new Set(((revData as { professional_id: string }[]) ?? []).map((r) => r.professional_id)),
     );
@@ -58,13 +95,56 @@ function MyOrdersPage() {
     load();
   }, [user, load]);
 
-  useLiveData(["orders", "reviews"], load);
+  useLiveData(["orders", "reviews", "escrow"], load);
 
   const updateStatus = async (o: Order, status: Order["status"]) => {
     const { error } = await supabase.from("orders").update({ status }).eq("id", o.id);
     if (error) return toast.error(error.message);
     setIncoming((cur) => cur.map((x) => (x.id === o.id ? { ...x, status } : x)));
     toast.success(`Marked as ${status}`);
+  };
+
+  const markEscrowComplete = async (o: OrderWithEscrow) => {
+    if (!o.escrow || !user) return;
+    setBusyId(o.id);
+    try {
+      const laborAmount = o.escrow.labor_amount ?? 0;
+      const commission = laborAmount >= 5000 ? Math.round(laborAmount * 0.03 * 100) / 100 : 0;
+      const payout = Math.round((o.escrow.amount_ngn - commission) * 100) / 100;
+      const { error: escrowError } = await supabase
+        .from("escrow")
+        .update({
+          status: "released",
+          stage: "completed",
+          commission_amount: commission,
+          payout_amount: payout,
+          released_at: new Date().toISOString(),
+        })
+        .eq("id", o.escrow.id)
+        .eq("customer_id", user.id)
+        .eq("status", "holding")
+        .eq("stage", "work_in_progress");
+      if (escrowError) throw escrowError;
+      const { error: orderError } = await supabase
+        .from("orders")
+        .update({
+          status: "completed",
+          escrow_status: "released",
+          escrow_stage: "completed",
+          commission_amount: commission,
+          payout_amount: payout,
+        })
+        .eq("id", o.id);
+      if (orderError) throw orderError;
+
+      toast.success("Marked complete — payment released to seller");
+      setCompleting(null);
+      void load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not release payment");
+    } finally {
+      setBusyId(null);
+    }
   };
 
   const title = isCustomer ? "My Orders" : "Orders";
@@ -77,19 +157,10 @@ function MyOrdersPage() {
       <h1 className="text-3xl sm:text-4xl font-extrabold text-gradient-tri">{title}</h1>
       <p className="text-sm text-muted-foreground">{subtitle}</p>
 
-      <EscrowOrdersSection />
-
       {loading ? (
         <div className="flex items-center justify-center py-12 text-muted-foreground">
           <Loader2 className="h-5 w-5 animate-spin" />
         </div>
-      ) : isCustomer ? (
-        <OrderList
-          orders={outgoing}
-          direction="outgoing"
-          reviewedProviders={reviewedProviders}
-          onReview={setReviewing}
-        />
       ) : (
         <Tabs defaultValue="incoming" className="mt-6">
           <TabsList className="grid grid-cols-2 w-full sm:w-auto">
@@ -103,6 +174,8 @@ function MyOrdersPage() {
               reviewedProviders={reviewedProviders}
               onReview={setReviewing}
               onUpdateStatus={updateStatus}
+              onMarkComplete={setCompleting}
+              busyId={busyId}
             />
           </TabsContent>
           <TabsContent value="outgoing" className="mt-4">
@@ -111,6 +184,8 @@ function MyOrdersPage() {
               direction="outgoing"
               reviewedProviders={reviewedProviders}
               onReview={setReviewing}
+              onMarkComplete={setCompleting}
+              busyId={busyId}
             />
           </TabsContent>
         </Tabs>
@@ -128,6 +203,34 @@ function MyOrdersPage() {
           }
         />
       )}
+
+      <Dialog open={Boolean(completing)} onOpenChange={(open) => !open && setCompleting(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Job Completion</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Are you sure this job has been completed to your satisfaction? EasyMeet will not be held
+            responsible if you mark a job as complete without verifying the work first. Once
+            confirmed, payment will be released immediately and cannot be reversed.
+          </p>
+          <DialogFooter className="gap-2">
+            <Button variant="secondary" onClick={() => setCompleting(null)}>
+              Go Back
+            </Button>
+            <Button
+              onClick={() => completing && markEscrowComplete(completing)}
+              disabled={!completing || busyId === completing?.id}
+              className="bg-gradient-brand"
+            >
+              {completing && busyId === completing.id && (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              )}
+              Yes, Release Payment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -138,12 +241,16 @@ function OrderList({
   reviewedProviders,
   onReview,
   onUpdateStatus,
+  onMarkComplete,
+  busyId,
 }: {
-  orders: Order[];
+  orders: OrderWithEscrow[];
   direction: "incoming" | "outgoing";
   reviewedProviders: Set<string>;
   onReview: (o: Order) => void;
   onUpdateStatus?: (o: Order, status: Order["status"]) => void;
+  onMarkComplete: (o: OrderWithEscrow) => void;
+  busyId: string | null;
 }) {
   if (orders.length === 0) {
     return (
@@ -169,6 +276,15 @@ function OrderList({
         const otherId = direction === "outgoing" ? o.provider_id : o.customer_id;
         const name = other?.full_name || other?.username || (direction === "outgoing" ? "Provider" : "Customer");
         const initials = name.split(" ").map((s: string) => s[0]).slice(0, 2).join("").toUpperCase();
+        
+        const isEscrow = !!o.escrow;
+        const escrowStatus = o.escrow?.status;
+        const canMarkComplete =
+          direction === "outgoing" &&
+          isEscrow &&
+          escrowStatus === "holding" &&
+          o.escrow?.stage === "work_in_progress";
+
         return (
           <div key={o.id} className="rounded-2xl glass-card p-4 flex flex-wrap items-center gap-4 lift-hover hover:-translate-y-0.5 hover:border-primary/50">
             <Link to="/profile/$id" params={{ id: otherId }}>
@@ -180,7 +296,14 @@ function OrderList({
               </span>
             </Link>
             <div className="flex-1 min-w-0">
-              <div className="font-semibold truncate">{o.service_title}</div>
+              <div className="flex items-center gap-1.5">
+                <div className="font-semibold truncate">{o.service_title}</div>
+                {isEscrow && (
+                  <span title="Escrow Protected">
+                    <Shield className="h-3 w-3 text-primary flex-shrink-0" />
+                  </span>
+                )}
+              </div>
               <div className="text-xs text-muted-foreground truncate">{name} · {new Date(o.created_at).toLocaleDateString()}</div>
               {o.payment_ref && (
                 <div className="text-[10px] text-muted-foreground truncate">Ref: {o.payment_ref}</div>
@@ -188,9 +311,25 @@ function OrderList({
             </div>
             <div className="text-right">
               <div className="font-extrabold text-gradient-brand">{formatNgn(o.amount)}</div>
-              <span className={`status-pill status-${o.status} capitalize mt-1`}>{o.status}</span>
+              <span className={`status-pill status-${isEscrow ? (escrowStatus === 'released' || escrowStatus === 'completed' ? 'completed' : 'pending') : o.status} capitalize mt-1`}>
+                {isEscrow ? (escrowStatus === 'released' || escrowStatus === 'completed' ? 'escrow released' : escrowStatus?.replace('_', ' ')) : o.status}
+              </span>
             </div>
-            {direction === "incoming" && onUpdateStatus && (o.status === "confirmed" || o.status === "pending") && (
+            
+            {canMarkComplete && (
+              <div className="basis-full">
+                <Button 
+                  size="sm" 
+                  onClick={() => onMarkComplete(o)} 
+                  disabled={busyId === o.id}
+                  className="rounded-full bg-gradient-brand"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Mark as Complete
+                </Button>
+              </div>
+            )}
+
+            {direction === "incoming" && onUpdateStatus && !isEscrow && (o.status === "confirmed" || o.status === "pending") && (
               <div className="basis-full flex flex-wrap items-center gap-2">
                 <Button size="sm" variant="outline" onClick={() => onUpdateStatus(o, "completed")} className="rounded-full">
                   <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Mark Completed
@@ -200,7 +339,8 @@ function OrderList({
                 </Button>
               </div>
             )}
-            {direction === "outgoing" && o.status === "completed" && (
+            
+            {direction === "outgoing" && (o.status === "completed" || escrowStatus === "released" || escrowStatus === "completed") && (
               reviewedProviders.has(o.provider_id) ? (
                 <div className="basis-full text-xs text-accent font-medium">
                   ✓ Thanks for your review!
