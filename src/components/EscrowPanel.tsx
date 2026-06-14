@@ -225,7 +225,7 @@ export function EscrowPanel({
         p_customer_id: meId,
         p_provider_id: agreement.sender_id,
         p_amount: agreement.price,
-        p_payment_ref: res.reference,
+        p_payment_ref: v.reference,
         p_materials_amount: 0,
         p_labor_amount: agreement.price,
         p_contingency_amount: 0,
@@ -250,6 +250,8 @@ export function EscrowPanel({
         payout_amount: agreement.price,
         status: "holding" as const,
         stage: "work_in_progress" as const,
+        payment_ref: v.reference,
+        paystack_reference: v.reference,
       };
       setOrder(paidOrder);
 
@@ -292,7 +294,7 @@ export function EscrowPanel({
         .eq("status", "holding")
         .eq("stage", "work_in_progress")
         .select("*")
-        .single();
+        .maybeSingle();
       if (error || !data) throw new Error(error?.message || "Could not release payment");
       const completed = (Array.isArray(data) ? data[0] : data) as EscrowOrder | undefined;
       if (!completed) throw new Error("Could not release payment");
