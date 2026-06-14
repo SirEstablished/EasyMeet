@@ -313,7 +313,7 @@ export function EscrowPanel({
       const { error: messageError } = await supabase.from("messages").insert({
         conversation_id: conversationId,
         sender_id: meId,
-        body: `✅ Marked as complete. ${formatNgn(completed.payout_amount)} released to professional (3% labor commission held by EasyMeet).`,
+        body: `✅ Marked as complete. ${formatNgn(completed.payout_amount)} released to professional${completed.commission_amount > 0 ? " (3% labor commission held by EasyMeet)" : ""}.`,
       });
       if (messageError) console.error("Completion message failed", messageError);
       toast.success("Payment released");
