@@ -283,7 +283,7 @@ export function EscrowPanel({
     try {
       const laborAmount =
         order.labor_amount ?? Math.max(order.amount_ngn - (order.materials_amount ?? 0), 0);
-      const commission = Math.round(laborAmount * 0.03 * 100) / 100;
+      const commission = laborAmount >= 5000 ? Math.round(laborAmount * 0.03 * 100) / 100 : 0;
       const payout = Math.round((order.amount_ngn - commission) * 100) / 100;
       const completedAt = new Date().toISOString();
       const { data, error } = await supabase
