@@ -37,12 +37,6 @@ function MyOrdersPage() {
 
   const load = useCallback(async () => {
     if (!user) return;
-    try {
-      const { error: syncError } = await supabase.rpc("sync_my_order_escrow_states");
-      if (syncError) throw syncError;
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not sync escrow orders");
-    }
     const [{ data: outData }, { data: inData }, { data: revData }] = await Promise.all([
       supabase
         .from("orders")
@@ -68,8 +62,27 @@ function MyOrdersPage() {
         escrow: o.escrow && o.escrow.length > 0 ? o.escrow[0] : (o.escrow?.id ? o.escrow : null)
       })) as OrderWithEscrow[];
 
-    setOutgoing(mapOrders(outData));
-    setIncoming(mapOrders(inData));
+    const outgoingOrders = mapOrders(outData);
+    const incomingOrders = mapOrders(inData);
+    setOutgoing(outgoingOrders);
+    setIncoming(incomingOrders);
+    const escrowOrders = [...outgoingOrders, ...incomingOrders].filter((order) => order.escrow);
+    await Promise.all(
+      escrowOrders.map(async (order) => {
+        const escrow = order.escrow;
+        if (!escrow) return;
+        const { error } = await supabase
+          .from("orders")
+          .update({
+            escrow_status: escrow.status,
+            escrow_stage: escrow.stage,
+            commission_amount: escrow.commission_amount,
+            payout_amount: escrow.payout_amount,
+          })
+          .eq("id", order.id);
+        if (error) console.error("Could not sync order escrow state", error);
+      }),
+    );
     setReviewedProviders(
       new Set(((revData as { professional_id: string }[]) ?? []).map((r) => r.professional_id)),
     );
@@ -95,10 +108,34 @@ function MyOrdersPage() {
     if (!o.escrow || !user) return;
     setBusyId(o.id);
     try {
-      const { error } = await supabase.rpc("release_escrow_payment", {
-        p_escrow_id: o.escrow.id,
-      });
-      if (error) throw error;
+      const laborAmount = o.escrow.labor_amount ?? 0;
+      const commission = laborAmount >= 5000 ? Math.round(laborAmount * 0.03 * 100) / 100 : 0;
+      const payout = Math.round((o.escrow.amount_ngn - commission) * 100) / 100;
+      const { error: escrowError } = await supabase
+        .from("escrow")
+        .update({
+          status: "released",
+          stage: "completed",
+          commission_amount: commission,
+          payout_amount: payout,
+          released_at: new Date().toISOString(),
+        })
+        .eq("id", o.escrow.id)
+        .eq("customer_id", user.id)
+        .eq("status", "holding")
+        .eq("stage", "work_in_progress");
+      if (escrowError) throw escrowError;
+      const { error: orderError } = await supabase
+        .from("orders")
+        .update({
+          status: "completed",
+          escrow_status: "released",
+          escrow_stage: "completed",
+          commission_amount: commission,
+          payout_amount: payout,
+        })
+        .eq("id", o.id);
+      if (orderError) throw orderError;
 
       toast.success("Marked complete — payment released to seller");
       setCompleting(null);

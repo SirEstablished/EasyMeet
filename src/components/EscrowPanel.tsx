@@ -274,12 +274,41 @@ export function EscrowPanel({
     if (!order) return;
     setBusy(true);
     try {
-      const { data, error } = await supabase.rpc("release_escrow_payment", {
-        p_escrow_id: order.id,
-      });
+      const laborAmount = order.labor_amount ?? 0;
+      const commission = laborAmount >= 5000 ? Math.round(laborAmount * 0.03 * 100) / 100 : 0;
+      const payout = Math.round((order.amount_ngn - commission) * 100) / 100;
+      const releasedAt = new Date().toISOString();
+      const { data, error } = await supabase
+        .from("escrow")
+        .update({
+          status: "released",
+          stage: "completed",
+          commission_amount: commission,
+          payout_amount: payout,
+          released_at: releasedAt,
+        })
+        .eq("id", order.id)
+        .eq("customer_id", meId)
+        .eq("status", "holding")
+        .eq("stage", "work_in_progress")
+        .select("*")
+        .single();
       if (error || !data) throw new Error(error?.message || "Could not release payment");
       const completed = (Array.isArray(data) ? data[0] : data) as EscrowOrder | undefined;
       if (!completed) throw new Error("Could not release payment");
+      if (order.order_id) {
+        const { error: orderError } = await supabase
+          .from("orders")
+          .update({
+            status: "completed",
+            escrow_status: "released",
+            escrow_stage: "completed",
+            commission_amount: commission,
+            payout_amount: payout,
+          })
+          .eq("id", order.order_id);
+        if (orderError) throw orderError;
+      }
       setOrder(completed);
       setCompleteOpen(false);
       const { error: messageError } = await supabase.from("messages").insert({
