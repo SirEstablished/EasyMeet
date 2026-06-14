@@ -173,10 +173,9 @@ function MyOrdersPage() {
             <DialogTitle>Confirm Job Completion</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Are you sure this job has been completed to your satisfaction? Please note that EasyMeet
-            will not be held responsible if you mark a job as complete without verifying the work
-            first. Once confirmed, payment will be released to the professional immediately and
-            cannot be reversed.
+            Are you sure this job has been completed to your satisfaction? EasyMeet will not be held
+            responsible if you mark a job as complete without verifying the work first. Once
+            confirmed, payment will be released immediately and cannot be reversed.
           </p>
           <DialogFooter className="gap-2">
             <Button variant="secondary" onClick={() => setCompleting(null)}>
@@ -288,7 +287,7 @@ function OrderList({
                   disabled={busyId === o.id}
                   className="rounded-full bg-gradient-brand"
                 >
-                  <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Mark Completed
+                  <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Mark as Complete
                 </Button>
               </div>
             )}
