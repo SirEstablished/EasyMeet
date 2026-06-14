@@ -22,7 +22,10 @@ export const Route = createFileRoute("/_authenticated/my-orders")({
   component: MyOrdersPage,
 });
 
-type OrderWithEscrow = Order & { escrow?: EscrowOrder | null };
+type OrderWithEscrow = Order & {
+  escrow?: EscrowOrder | null;
+  customer?: Order["customer"];
+};
 type JoinedOrder = Order & {
   escrow?: EscrowOrder | EscrowOrder[] | null;
   customer?: Order["customer"];
@@ -42,11 +45,8 @@ function MyOrdersPage() {
   const load = useCallback(async () => {
     if (!user) return;
     try {
-      const [
-        { data: outData, error: outError },
-        inResult,
-        { data: revData, error: revError },
-      ] = await Promise.all([
+      const [{ data: outData, error: outError }, inResult, { data: revData, error: revError }] =
+        await Promise.all([
         supabase
           .from("orders")
           .select("*, provider:provider_id(id, full_name, username, avatar_url), escrow(*)")
@@ -61,8 +61,8 @@ function MyOrdersPage() {
               )
               .eq("provider_id", user.id)
               .order("created_at", { ascending: false }),
-        supabase.from("reviews").select("professional_id").eq("reviewer_id", user.id),
-      ]);
+          supabase.from("reviews").select("professional_id").eq("reviewer_id", user.id),
+        ]);
       if (outError) throw outError;
       if ("error" in inResult && inResult.error) throw inResult.error;
       if (revError) throw revError;
@@ -295,7 +295,7 @@ function OrderList({
   return (
     <div className="space-y-3">
       {orders.map((o) => {
-        const other = direction === "outgoing" ? o.provider : (o as any).customer;
+        const other = direction === "outgoing" ? o.provider : o.customer;
         const otherId = direction === "outgoing" ? o.provider_id : o.customer_id;
         const name = other?.full_name || other?.username || (direction === "outgoing" ? "Provider" : "Customer");
         const initials = name.split(" ").map((s: string) => s[0]).slice(0, 2).join("").toUpperCase();
