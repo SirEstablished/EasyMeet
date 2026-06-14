@@ -93,7 +93,7 @@ export function escrowFromJoinedOrder(row: unknown): EscrowOrder | null {
 }
 
 export function computeCommission(amount: number) {
-  const commission = Math.round(amount * ESCROW_COMMISSION_PCT * 100) / 100;
+  const commission = amount >= 5000 ? Math.round(amount * ESCROW_COMMISSION_PCT * 100) / 100 : 0;
   const payout = Math.round((amount - commission) * 100) / 100;
   return { commission, payout };
 }
