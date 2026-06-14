@@ -43,7 +43,13 @@ export interface EscrowOrder {
   commission_amount: number;
   payout_amount: number;
   status: EscrowStatus;
-  stage?: "pending_payment" | "work_in_progress" | "completed" | "disputed" | "refunded" | "cancelled";
+  stage?:
+    | "pending_payment"
+    | "work_in_progress"
+    | "completed"
+    | "disputed"
+    | "refunded"
+    | "cancelled";
   contingency_amount?: number | null;
   agreement_type?: string | null;
   payment_ref: string | null;

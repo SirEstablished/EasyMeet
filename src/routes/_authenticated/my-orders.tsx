@@ -23,6 +23,10 @@ export const Route = createFileRoute("/_authenticated/my-orders")({
 });
 
 type OrderWithEscrow = Order & { escrow?: EscrowOrder | null };
+type JoinedOrder = Order & {
+  escrow?: EscrowOrder | EscrowOrder[] | null;
+  customer?: Order["customer"];
+};
 
 function MyOrdersPage() {
   const { user, profile } = useAuth();
@@ -38,33 +42,36 @@ function MyOrdersPage() {
   const load = useCallback(async () => {
     if (!user) return;
     try {
-      const [{ data: outData, error: outError }, inResult, { data: revData, error: revError }] = await Promise.all([
-      supabase
-        .from("orders")
-        .select("*, provider:provider_id(id, full_name, username, avatar_url), escrow(*)")
-        .eq("customer_id", user.id)
-        .order("created_at", { ascending: false }),
-      isCustomer
-        ? Promise.resolve({ data: [] as Order[] })
-        : supabase
-            .from("orders")
-            .select("*, customer:customer_id(id, full_name, username, avatar_url), provider:provider_id(id, full_name, username, avatar_url), escrow(*)")
-            .eq("provider_id", user.id)
-            .order("created_at", { ascending: false }),
-      supabase
-        .from("reviews")
-        .select("professional_id")
-        .eq("reviewer_id", user.id),
+      const [
+        { data: outData, error: outError },
+        inResult,
+        { data: revData, error: revError },
+      ] = await Promise.all([
+        supabase
+          .from("orders")
+          .select("*, provider:provider_id(id, full_name, username, avatar_url), escrow(*)")
+          .eq("customer_id", user.id)
+          .order("created_at", { ascending: false }),
+        isCustomer
+          ? Promise.resolve({ data: [] as Order[] })
+          : supabase
+              .from("orders")
+              .select(
+                "*, customer:customer_id(id, full_name, username, avatar_url), provider:provider_id(id, full_name, username, avatar_url), escrow(*)",
+              )
+              .eq("provider_id", user.id)
+              .order("created_at", { ascending: false }),
+        supabase.from("reviews").select("professional_id").eq("reviewer_id", user.id),
       ]);
       if (outError) throw outError;
       if ("error" in inResult && inResult.error) throw inResult.error;
       if (revError) throw revError;
       const inData = inResult.data;
 
-      const mapOrders = (data: any[] | null) =>
+      const mapOrders = (data: JoinedOrder[] | null) =>
         (data ?? []).map((o) => ({
           ...o,
-          escrow: o.escrow && o.escrow.length > 0 ? o.escrow[0] : (o.escrow?.id ? o.escrow : null),
+          escrow: Array.isArray(o.escrow) ? (o.escrow[0] ?? null) : (o.escrow ?? null),
         })) as OrderWithEscrow[];
 
       const outgoingOrders = mapOrders(outData);
@@ -73,9 +80,12 @@ function MyOrdersPage() {
       setIncoming(incomingOrders);
       const escrowOrders = [...outgoingOrders, ...incomingOrders].filter((order) => {
         const escrow = order.escrow;
-        return escrow &&
-          ((order as OrderWithEscrow & { escrow_status?: string }).escrow_status !== escrow.status ||
-            (order as OrderWithEscrow & { escrow_stage?: string }).escrow_stage !== escrow.stage);
+        return (
+          escrow &&
+          ((order as OrderWithEscrow & { escrow_status?: string }).escrow_status !==
+            escrow.status ||
+            (order as OrderWithEscrow & { escrow_stage?: string }).escrow_stage !== escrow.stage)
+        );
       });
       await Promise.all(
         escrowOrders.map(async (order) => {
