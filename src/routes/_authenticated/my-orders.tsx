@@ -409,10 +409,7 @@ function OrderList({
                 </div>
               )}
 
-            {direction === "outgoing" &&
-              (o.status === "completed" ||
-                escrowStatus === "released" ||
-                escrowStatus === "completed") &&
+            {showLeaveReview &&
               (reviewedProviders.has(o.provider_id) ? (
                 <div className="basis-full text-xs text-accent font-medium">
                   ✓ Thanks for your review!
