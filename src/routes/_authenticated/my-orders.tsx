@@ -49,16 +49,14 @@ function MyOrdersPage() {
         await Promise.all([
           supabase
             .from("orders")
-            .select("*, provider:provider_id(id, full_name, username, avatar_url), escrow(*)")
+            .select("*")
             .eq("customer_id", user.id)
             .order("created_at", { ascending: false }),
           isCustomer
             ? Promise.resolve({ data: [] as Order[] })
             : supabase
                 .from("orders")
-                .select(
-                  "*, customer:customer_id(id, full_name, username, avatar_url), provider:provider_id(id, full_name, username, avatar_url), escrow(*)",
-                )
+                .select("*")
                 .eq("provider_id", user.id)
                 .order("created_at", { ascending: false }),
           supabase.from("reviews").select("professional_id").eq("reviewer_id", user.id),
@@ -68,22 +66,49 @@ function MyOrdersPage() {
       if (revError) throw revError;
       const inData = inResult.data;
 
-      const mapOrders = (data: JoinedOrder[] | null) =>
-        (data ?? []).map((o) => ({
-          ...o,
-          escrow: Array.isArray(o.escrow) ? (o.escrow[0] ?? null) : (o.escrow ?? null),
-        })) as OrderWithEscrow[];
+      const outOrderIds = (outData ?? []).map((o) => o.id);
+      const inOrderIds = (inData ?? []).map((o) => o.id);
+      const allOrderIds = [...new Set([...outOrderIds, ...inOrderIds])];
+      const allProviderIds = [
+        ...new Set([...(outData ?? []).map((o) => o.provider_id), ...(inData ?? []).map((o) => o.provider_id)]),
+      ];
+      const allCustomerIds = [
+        ...new Set([...(outData ?? []).map((o) => o.customer_id), ...(inData ?? []).map((o) => o.customer_id)]),
+      ];
 
-      const outgoingOrders = mapOrders(outData);
-      const incomingOrders = mapOrders(inData);
+      const [{ data: providers }, { data: customers }, { data: escrowData }] = await Promise.all([
+        allProviderIds.length > 0
+          ? supabase.from("profiles").select("id, full_name, username, avatar_url").in("id", allProviderIds)
+          : Promise.resolve({ data: [] }),
+        allCustomerIds.length > 0
+          ? supabase.from("profiles").select("id, full_name, username, avatar_url").in("id", allCustomerIds)
+          : Promise.resolve({ data: [] }),
+        allOrderIds.length > 0
+          ? supabase.from("escrow").select("*").in("order_id", allOrderIds)
+          : Promise.resolve({ data: [] }),
+      ]);
+
+      const providerMap = new Map((providers ?? []).map((p: any) => [p.id, p]));
+      const customerMap = new Map((customers ?? []).map((c: any) => [c.id, c]));
+      const escrowMap = new Map((escrowData ?? []).map((e: any) => [e.order_id, e]));
+
+      const enrich = (o: Order): OrderWithEscrow => ({
+        ...o,
+        provider: providerMap.get(o.provider_id) ?? null,
+        customer: customerMap.get(o.customer_id) ?? null,
+        escrow: escrowMap.get(o.id) ?? null,
+      });
+
+      const outgoingOrders = (outData ?? []).map(enrich);
+      const incomingOrders = (inData ?? []).map(enrich);
       setOutgoing(outgoingOrders);
       setIncoming(incomingOrders);
+
       const escrowOrders = [...outgoingOrders, ...incomingOrders].filter((order) => {
         const escrow = order.escrow;
         return (
           escrow &&
-          ((order as OrderWithEscrow & { escrow_status?: string }).escrow_status !==
-            escrow.status ||
+          ((order as OrderWithEscrow & { escrow_status?: string }).escrow_status !== escrow.status ||
             (order as OrderWithEscrow & { escrow_stage?: string }).escrow_stage !== escrow.stage)
         );
       });
