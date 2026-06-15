@@ -185,22 +185,26 @@ function MyOrdersPage() {
           <Loader2 className="h-5 w-5 animate-spin" />
         </div>
       ) : (
-        <Tabs defaultValue="incoming" className="mt-6">
-          <TabsList className="grid grid-cols-2 w-full sm:w-auto">
-            <TabsTrigger value="incoming">Incoming ({incoming.length})</TabsTrigger>
+        <Tabs defaultValue={isCustomer ? "outgoing" : "incoming"} className="mt-6">
+          <TabsList className={`grid w-full sm:w-auto ${isCustomer ? "grid-cols-1" : "grid-cols-2"}`}>
+            {!isCustomer && (
+              <TabsTrigger value="incoming">Incoming ({incoming.length})</TabsTrigger>
+            )}
             <TabsTrigger value="outgoing">My Purchases ({outgoing.length})</TabsTrigger>
           </TabsList>
-          <TabsContent value="incoming" className="mt-4">
-            <OrderList
-              orders={incoming}
-              direction="incoming"
-              reviewedProviders={reviewedProviders}
-              onReview={setReviewing}
-              onUpdateStatus={updateStatus}
-              onMarkComplete={setCompleting}
-              busyId={busyId}
-            />
-          </TabsContent>
+          {!isCustomer && (
+            <TabsContent value="incoming" className="mt-4">
+              <OrderList
+                orders={incoming}
+                direction="incoming"
+                reviewedProviders={reviewedProviders}
+                onReview={setReviewing}
+                onUpdateStatus={updateStatus}
+                onMarkComplete={setCompleting}
+                busyId={busyId}
+              />
+            </TabsContent>
+          )}
           <TabsContent value="outgoing" className="mt-4">
             <OrderList
               orders={outgoing}
@@ -316,6 +320,11 @@ function OrderList({
           isEscrow &&
           escrowStatus === "holding" &&
           o.escrow?.stage === "work_in_progress";
+
+        const showLeaveReview =
+          direction === "outgoing" &&
+          !canMarkComplete &&
+          (o.status === "completed" || escrowStatus === "released");
 
         return (
           <div
