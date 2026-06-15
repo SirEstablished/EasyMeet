@@ -26,10 +26,6 @@ type OrderWithEscrow = Order & {
   escrow?: EscrowOrder | null;
   customer?: Order["customer"];
 };
-type JoinedOrder = Order & {
-  escrow?: EscrowOrder | EscrowOrder[] | null;
-  customer?: Order["customer"];
-};
 
 function MyOrdersPage() {
   const { user, profile } = useAuth();
