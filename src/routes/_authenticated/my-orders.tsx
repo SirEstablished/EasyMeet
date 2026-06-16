@@ -33,7 +33,7 @@ function MyOrdersPage() {
   const [outgoing, setOutgoing] = useState<OrderWithEscrow[]>([]);
   const [incoming, setIncoming] = useState<OrderWithEscrow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [reviewedProviders, setReviewedProviders] = useState<Set<string>>(new Set());
+  const [reviewedOrders, setReviewedOrders] = useState<Set<string>>(new Set());
   const [reviewing, setReviewing] = useState<Order | null>(null);
   const [completing, setCompleting] = useState<OrderWithEscrow | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -41,8 +41,12 @@ function MyOrdersPage() {
   const load = useCallback(async () => {
     if (!user) return;
     try {
-      const [{ data: outData, error: outError }, inResult, { data: revData, error: revError }] =
-        await Promise.all([
+      const [
+        { data: outData, error: outError },
+        inResult,
+        { data: revData, error: revError },
+        { data: prodRevData, error: prodRevError },
+      ] = await Promise.all([
           supabase
             .from("orders")
             .select("*")
@@ -55,11 +59,13 @@ function MyOrdersPage() {
                 .select("*")
                 .eq("provider_id", user.id)
                 .order("created_at", { ascending: false }),
-          supabase.from("reviews").select("professional_id").eq("reviewer_id", user.id),
+          supabase.from("reviews").select("order_id").eq("reviewer_id", user.id),
+          supabase.from("product_reviews").select("product_id").eq("reviewer_id", user.id),
         ]);
       if (outError) throw outError;
       if ("error" in inResult && inResult.error) throw inResult.error;
       if (revError) throw revError;
+      if (prodRevError) throw prodRevError;
       const inData = inResult.data;
 
       const outOrderIds = (outData ?? []).map((o) => o.id);
@@ -119,9 +125,22 @@ function MyOrdersPage() {
           if (error) throw error;
         }),
       );
-      setReviewedProviders(
-        new Set(((revData as { professional_id: string }[]) ?? []).map((r) => r.professional_id)),
+      const reviewedOrderIds = new Set<string>(
+        ((revData as { order_id: string | null }[]) ?? [])
+          .map((r) => r.order_id)
+          .filter((id): id is string => !!id),
       );
+      const reviewedProductIds = new Set<string>(
+        ((prodRevData as { product_id: string | null }[]) ?? [])
+          .map((r) => r.product_id)
+          .filter((id): id is string => !!id),
+      );
+      for (const o of outgoingOrders) {
+        if (o.product_id && reviewedProductIds.has(o.product_id)) {
+          reviewedOrderIds.add(o.id);
+        }
+      }
+      setReviewedOrders(reviewedOrderIds);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not load orders");
     } finally {
@@ -204,11 +223,12 @@ function MyOrdersPage() {
               <OrderList
                 orders={incoming}
                 direction="incoming"
-                reviewedProviders={reviewedProviders}
+                reviewedOrders={reviewedOrders}
                 onReview={setReviewing}
                 onUpdateStatus={updateStatus}
                 onMarkComplete={setCompleting}
                 busyId={busyId}
+                currentUserId={user?.id ?? null}
               />
             </TabsContent>
           )}
@@ -216,10 +236,11 @@ function MyOrdersPage() {
             <OrderList
               orders={outgoing}
               direction="outgoing"
-              reviewedProviders={reviewedProviders}
+              reviewedOrders={reviewedOrders}
               onReview={setReviewing}
               onMarkComplete={setCompleting}
               busyId={busyId}
+              currentUserId={user?.id ?? null}
             />
           </TabsContent>
         </Tabs>
@@ -232,7 +253,7 @@ function MyOrdersPage() {
           providerId={reviewing.provider_id}
           providerName={reviewing.provider?.full_name || reviewing.provider?.username || "Provider"}
           orderId={reviewing.id}
-          onSubmitted={() => setReviewedProviders((cur) => new Set(cur).add(reviewing.provider_id))}
+          onSubmitted={() => setReviewedOrders((cur) => new Set(cur).add(reviewing.id))}
         />
       )}
 
@@ -270,19 +291,21 @@ function MyOrdersPage() {
 function OrderList({
   orders,
   direction,
-  reviewedProviders,
+  reviewedOrders,
   onReview,
   onUpdateStatus,
   onMarkComplete,
   busyId,
+  currentUserId,
 }: {
   orders: OrderWithEscrow[];
   direction: "incoming" | "outgoing";
-  reviewedProviders: Set<string>;
+  reviewedOrders: Set<string>;
   onReview: (o: Order) => void;
   onUpdateStatus?: (o: Order, status: Order["status"]) => void;
   onMarkComplete: (o: OrderWithEscrow) => void;
   busyId: string | null;
+  currentUserId: string | null;
 }) {
   if (orders.length === 0) {
     return (
@@ -324,6 +347,8 @@ function OrderList({
         const escrowStatus = o.escrow?.status;
         const canMarkComplete =
           direction === "outgoing" &&
+          !!currentUserId &&
+          o.customer_id === currentUserId &&
           isEscrow &&
           escrowStatus === "holding" &&
           o.escrow?.stage === "work_in_progress";
@@ -417,7 +442,7 @@ function OrderList({
               )}
 
             {showLeaveReview &&
-              (reviewedProviders.has(o.provider_id) ? (
+              (reviewedOrders.has(o.id) ? (
                 <div className="basis-full text-xs text-accent font-medium">
                   ✓ Thanks for your review!
                 </div>
