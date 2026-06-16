@@ -148,42 +148,28 @@ function MyOrdersPage() {
     if (!o.escrow || !user) return;
     setBusyId(o.id);
     try {
-      const laborAmount = o.escrow.labor_amount ?? 0;
-      const commission = laborAmount >= 5000 ? Math.round(laborAmount * 0.03 * 100) / 100 : 0;
-      const payout = Math.round((o.escrow.amount_ngn - commission) * 100) / 100;
-      const { data: releasedEscrow, error: escrowError } = await supabase
-        .from("escrow")
-        .update({
-          status: "released",
-          stage: "completed",
-          commission_amount: commission,
-          payout_amount: payout,
-          released_at: new Date().toISOString(),
-        })
-        .eq("id", o.escrow.id)
-        .eq("customer_id", user.id)
-        .eq("status", "holding")
-        .eq("stage", "work_in_progress")
-        .select("id")
-        .maybeSingle();
-      if (escrowError || !releasedEscrow) {
-        throw new Error(escrowError?.message || "Escrow is no longer ready for release");
-      }
-      const { error: orderError } = await supabase
-        .from("orders")
-        .update({
-          status: "completed",
-          escrow_status: "released",
-          escrow_stage: "completed",
-          commission_amount: commission,
-          payout_amount: payout,
-        })
-        .eq("id", o.id);
-      if (orderError) throw orderError;
+      const { error: rpcError } = await supabase.rpc("release_escrow_payment" as never, {
+        p_escrow_id: o.escrow.id,
+        p_order_id: o.id,
+      } as never);
+      if (rpcError) throw rpcError;
 
-      toast.success("Marked complete — payment released to seller");
+      const patchOrder = (x: OrderWithEscrow): OrderWithEscrow =>
+        x.id === o.id
+          ? {
+              ...x,
+              status: "completed",
+              escrow_status: "released",
+              escrow_stage: "completed",
+              escrow: x.escrow
+                ? { ...x.escrow, status: "released", stage: "completed" }
+                : x.escrow,
+            }
+          : x;
+      setOutgoing((cur) => cur.map(patchOrder));
+      setIncoming((cur) => cur.map(patchOrder));
       setCompleting(null);
-      void load();
+      toast.success("Payment released successfully! 🎉");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not release payment");
     } finally {
