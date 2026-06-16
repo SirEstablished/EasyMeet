@@ -191,7 +191,7 @@ function ProductDetailPage() {
         notes: null,
         payment_ref: res.reference,
         payment_status: "paid",
-        status: "pending",
+        status: "confirmed",
       };
       const { data: orderRow, error: orderError } = await supabase
         .from("orders")
@@ -234,8 +234,10 @@ function ProductDetailPage() {
         read: false,
       } as any);
       if (notifyError) console.warn("Seller notification failed:", notifyError);
-      toast.success("Purchase successful 🎉");
-      navigate({ to: "/my-orders" });
+      toast.success("Purchase successful! 🎉");
+      setTimeout(() => {
+        navigate({ to: "/my-orders" });
+      }, 2000);
     } catch (e) {
       if (e instanceof Error && e.message === "Payment cancelled") toast.message("Payment cancelled");
       else toast.error(e instanceof Error ? e.message : "Payment failed");
