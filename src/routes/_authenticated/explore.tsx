@@ -113,7 +113,7 @@ function Explore() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search by name, username or service…"
-          className="search-pill"
+          className="search-pill pl-10"
         />
       </div>
 
