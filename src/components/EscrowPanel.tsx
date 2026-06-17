@@ -226,10 +226,6 @@ export function EscrowPanel({
         p_provider_id: agreement.sender_id,
         p_amount: agreement.price,
         p_payment_ref: v.reference,
-        p_materials_amount: 0,
-        p_labor_amount: agreement.price,
-        p_contingency_amount: 0,
-        p_agreement_type: "service",
       });
       if (error || !insertedEscrow) {
         console.error("create_escrow_payment failed", error);
