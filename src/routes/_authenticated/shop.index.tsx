@@ -317,13 +317,11 @@ function PurchaseModal({ product, onClose }: { product: Product | null; onClose:
         downloadUrl = data?.signedUrl ?? null;
       }
 
-      toast.success("Purchase successful 🎉");
-      if (product.product_type === "digital" && downloadUrl) {
-        setDone({ sellerId: product.seller_id, sellerName, downloadUrl });
-      } else {
+      toast.success("Purchase successful! 🎉");
+      setTimeout(() => {
         onClose();
         navigate({ to: "/my-orders" });
-      }
+      }, 2000);
     } catch (e) {
       if (e instanceof Error && e.message === "Payment cancelled") {
         toast.message("Payment cancelled");
