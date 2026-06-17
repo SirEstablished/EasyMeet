@@ -276,47 +276,36 @@ export function EscrowPanel({
     if (!order) return;
     setBusy(true);
     try {
-      const laborAmount = order.labor_amount ?? 0;
-      const commission = laborAmount >= 5000 ? Math.round(laborAmount * 0.03 * 100) / 100 : 0;
-      const payout = Math.round((order.amount_ngn - commission) * 100) / 100;
-      const releasedAt = new Date().toISOString();
-      const { data, error } = await supabase
-        .from("escrow")
-        .update({
-          status: "released",
-          stage: "completed",
-          commission_amount: commission,
-          payout_amount: payout,
-          released_at: releasedAt,
-        })
-        .eq("id", order.id)
-        .eq("customer_id", meId)
-        .eq("status", "holding")
-        .eq("stage", "work_in_progress")
-        .select("*")
-        .maybeSingle();
-      if (error || !data) throw new Error(error?.message || "Could not release payment");
-      const completed = (Array.isArray(data) ? data[0] : data) as EscrowOrder | undefined;
-      if (!completed) throw new Error("Could not release payment");
-      if (order.order_id) {
-        const { error: orderError } = await supabase
-          .from("orders")
-          .update({
-            status: "completed",
-            escrow_status: "released",
-            escrow_stage: "completed",
-            commission_amount: commission,
-            payout_amount: payout,
-          })
-          .eq("id", order.order_id);
-        if (orderError) throw orderError;
-      }
+      if (!order.order_id) throw new Error("Missing order reference for this escrow");
+      // Server-side RPC computes commission and payout atomically to prevent
+      // client tampering with platform fees.
+      const { data: rpcResult, error: rpcError } = await supabase.rpc(
+        "release_escrow_payment",
+        { p_escrow_id: order.id, p_order_id: order.order_id },
+      );
+      if (rpcError) throw new Error(rpcError.message || "Could not release payment");
+      const result = (rpcResult ?? {}) as {
+        ok?: boolean;
+        commission?: number;
+        payout?: number;
+        already_released?: boolean;
+      };
+      const commission = Number(result.commission ?? 0);
+      const payout = Number(result.payout ?? order.amount_ngn - commission);
+      const completed: EscrowOrder = {
+        ...order,
+        status: "released",
+        stage: "completed",
+        commission_amount: commission,
+        payout_amount: payout,
+        released_at: new Date().toISOString(),
+      };
       setOrder(completed);
       setCompleteOpen(false);
       const { error: messageError } = await supabase.from("messages").insert({
         conversation_id: conversationId,
         sender_id: meId,
-        body: `✅ Marked as complete. ${formatNgn(completed.payout_amount)} released to professional${completed.commission_amount > 0 ? " (3% labor commission held by EasyMeet)" : ""}.`,
+        body: `✅ Marked as complete. ${formatNgn(payout)} released to professional${commission > 0 ? " (3% labor commission held by EasyMeet)" : ""}.`,
       });
       if (messageError) console.error("Completion message failed", messageError);
       toast.success("Payment released");
