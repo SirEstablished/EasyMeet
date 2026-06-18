@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase, formatNgn, type Profile } from "@/integrations/supabase/client";
 import {
   type EscrowOrder,
@@ -70,6 +70,11 @@ export function EscrowPanel({
   const [iAmProvider, setIAmProvider] = useState<boolean | null>(null);
   const [askRoleOpen, setAskRoleOpen] = useState(false);
   const [completeOpen, setCompleteOpen] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
+  const [hidden, setHidden] = useState(false);
+  const [roleRefreshKey, setRoleRefreshKey] = useState(0);
+  const dismissedOrderIdRef = useRef<string | null>(null);
+  const dismissedAgreementIdRef = useRef<string | null>(null);
 
   const load = async () => {
     const [{ data: ag }, { data: od }] = await Promise.all([
@@ -88,8 +93,10 @@ export function EscrowPanel({
         .limit(1)
         .maybeSingle(),
     ]);
-    setAgreement((ag as ServiceAgreement) ?? null);
-    setOrder(escrowFromJoinedOrder(od));
+    const agObj = (ag as ServiceAgreement) ?? null;
+    const odObj = escrowFromJoinedOrder(od);
+    setAgreement(agObj && agObj.id === dismissedAgreementIdRef.current ? null : agObj);
+    setOrder(odObj && odObj.id === dismissedOrderIdRef.current ? null : odObj);
     setLoading(false);
   };
 
@@ -179,7 +186,31 @@ export function EscrowPanel({
     return () => {
       cancelled = true;
     };
-  }, [conversationId, meId, meRole, other]);
+  }, [conversationId, meId, meRole, other, roleRefreshKey]);
+
+  // Stage 6 → show completion summary for 5s, then hide the panel entirely.
+  useEffect(() => {
+    if (!order) return;
+    if (order.status !== "released" && order.status !== "completed") return;
+    setShowSummary(true);
+    setHidden(false);
+    const t = setTimeout(() => {
+      setShowSummary(false);
+      setHidden(true);
+    }, 5000);
+    return () => clearTimeout(t);
+  }, [order?.id, order?.status]);
+
+  const startNewDeal = () => {
+    if (order) dismissedOrderIdRef.current = order.id;
+    if (agreement) dismissedAgreementIdRef.current = agreement.id;
+    setOrder(null);
+    setAgreement(null);
+    setShowSummary(false);
+    setHidden(false);
+    setIAmProvider(null);
+    setRoleRefreshKey((k) => k + 1);
+  };
 
   const stage = escrowStage(order, agreement);
 
@@ -314,6 +345,43 @@ export function EscrowPanel({
   };
 
   if (loading) return null;
+
+  if (hidden) {
+    return (
+      <div className="border-t border-border bg-card/60 backdrop-blur p-3 flex justify-center">
+        <Button size="sm" onClick={startNewDeal} className="bg-gradient-brand">
+          <Sparkles className="h-3.5 w-3.5 mr-1" /> Start New Deal
+        </Button>
+      </div>
+    );
+  }
+
+  if (showSummary && order) {
+    return (
+      <div className="border-t border-border bg-card/60 backdrop-blur p-3">
+        <div className="rounded-lg border border-accent/40 bg-accent/5 p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <CheckCircle2 className="h-5 w-5 text-accent" />
+            <span className="font-bold text-sm">Deal Complete!</span>
+          </div>
+          <div className="space-y-1 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Amount paid</span>
+              <span className="font-semibold">{formatNgn(order.amount_ngn)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">EasyMeet commission</span>
+              <span className="font-semibold">{formatNgn(order.commission_amount)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Professional received</span>
+              <span className="font-semibold text-accent">{formatNgn(order.payout_amount)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="border-t border-border bg-card/60 backdrop-blur p-3">
