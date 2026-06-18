@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const MessageSchema = z.object({
   sender_id: z.string(),
@@ -69,8 +70,12 @@ export interface RoleDetection {
 }
 
 export const detectEscrowRoles = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => DetectInput.parse(d))
-  .handler(async ({ data }): Promise<RoleDetection> => {
+  .handler(async ({ data, context }): Promise<RoleDetection> => {
+    if (context.userId !== data.meId) {
+      return { providerId: null, buyerId: null, confidence: 0 };
+    }
     if (data.messages.length === 0) {
       return { providerId: null, buyerId: null, confidence: 0 };
     }
@@ -100,6 +105,7 @@ export interface AgreementSuggestion {
 }
 
 export const suggestAgreement = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => SuggestInput.parse(d))
   .handler(async ({ data }): Promise<AgreementSuggestion> => {
     const empty: AgreementSuggestion = { title: "", description: "", price: null, terms: "" };
