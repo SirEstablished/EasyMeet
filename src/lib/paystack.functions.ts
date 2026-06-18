@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const InputSchema = z.object({
   reference: z
@@ -23,6 +24,7 @@ export interface VerifyResult {
  * amount matches the expected NGN amount.
  */
 export const verifyPaystackTransaction = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => InputSchema.parse(data))
   .handler(async ({ data }): Promise<VerifyResult> => {
     const secret = process.env.PAYSTACK_SECRET_KEY;
@@ -88,8 +90,25 @@ export interface RefundResult {
  * If amountNgn is omitted the entire transaction is refunded.
  */
 export const refundPaystackTransaction = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => RefundSchema.parse(data))
-  .handler(async ({ data }): Promise<RefundResult> => {
+  .handler(async ({ data, context }): Promise<RefundResult> => {
+    // Authorize: only admins OR the customer who owns the escrow for this payment ref
+    const { supabase, userId } = context;
+    const { data: isAdmin } = await supabase.rpc("has_role", {
+      _user_id: userId,
+      _role: "admin",
+    });
+    if (!isAdmin) {
+      const { data: escrowRow } = await supabase
+        .from("escrow")
+        .select("customer_id")
+        .eq("payment_ref", data.reference)
+        .maybeSingle();
+      if (!escrowRow || escrowRow.customer_id !== userId) {
+        return { ok: false, message: "Not authorized to refund this payment" };
+      }
+    }
     const secret = process.env.PAYSTACK_SECRET_KEY;
     if (!secret) return { ok: false, message: "Server not configured" };
     const body: Record<string, unknown> = { transaction: data.reference };
