@@ -95,12 +95,14 @@ export const refundPaystackTransaction = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<RefundResult> => {
     // Authorize: only admins OR the customer who owns the escrow for this payment ref
     const { supabase, userId } = context;
-    const { data: isAdmin } = await supabase.rpc("has_role", {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sb = supabase as any;
+    const { data: isAdmin } = await sb.rpc("has_role", {
       _user_id: userId,
       _role: "admin",
     });
     if (!isAdmin) {
-      const { data: escrowRow } = await supabase
+      const { data: escrowRow } = await sb
         .from("escrow")
         .select("customer_id")
         .eq("payment_ref", data.reference)
