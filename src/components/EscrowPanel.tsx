@@ -77,27 +77,37 @@ export function EscrowPanel({
   const dismissedAgreementIdRef = useRef<string | null>(null);
 
   const load = async () => {
-    const [{ data: ag }, { data: od }] = await Promise.all([
-      supabase
-        .from("service_agreements")
-        .select("*")
-        .eq("conversation_id", conversationId)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-      supabase
-        .from("orders")
-        .select("*, escrow!inner(*)")
-        .eq("escrow.conversation_id", conversationId)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-    ]);
-    const agObj = (ag as ServiceAgreement) ?? null;
-    const odObj = escrowFromJoinedOrder(od);
-    setAgreement(agObj && agObj.id === dismissedAgreementIdRef.current ? null : agObj);
-    setOrder(odObj && odObj.id === dismissedOrderIdRef.current ? null : odObj);
-    setLoading(false);
+    try {
+      const [{ data: ag }, { data: od }] = await Promise.all([
+        supabase
+          .from("service_agreements")
+          .select("*")
+          .eq("conversation_id", conversationId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("orders")
+          .select("*, escrow!inner(*)")
+          .eq("escrow.conversation_id", conversationId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
+      const agObj = (ag as ServiceAgreement) ?? null;
+      const odObj = escrowFromJoinedOrder(od);
+      setAgreement(agObj && agObj.id === dismissedAgreementIdRef.current ? null : agObj);
+      setOrder((prev) => {
+        const next = odObj && odObj.id === dismissedOrderIdRef.current ? null : odObj;
+        // Keep the optimistic order if the DB read returned nothing yet (realtime race)
+        if (!next && prev) return prev;
+        return next;
+      });
+    } catch (e) {
+      console.error("EscrowPanel load failed", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
