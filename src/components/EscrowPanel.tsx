@@ -275,10 +275,14 @@ export function EscrowPanel({
       // Single RPC call atomically creates the order + escrow row and notifies
       // the provider. Commission remains zero until the customer completes the job.
       console.log("create_escrow_payment params", escrowRpcParams);
-      const { data: insertedEscrow, error } = await supabase.rpc(
-        "create_escrow_payment",
-        escrowRpcParams,
-      );
+      const { data: insertedEscrow, error } = await supabase.rpc("create_escrow_payment", {
+        p_conversation_id,
+        p_agreement_id,
+        p_customer_id,
+        p_provider_id,
+        p_amount,
+        p_payment_ref,
+      });
       console.log("create_escrow_payment result", { data: insertedEscrow, error });
       if (error || !insertedEscrow) {
         console.error("create_escrow_payment failed", error);
