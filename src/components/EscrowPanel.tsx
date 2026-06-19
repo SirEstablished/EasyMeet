@@ -269,14 +269,14 @@ export function EscrowPanel({
       }
       // Optimistically reflect new state so the Pay button hides immediately
       // and Mark Complete / Open Dispute appear without waiting for refetch.
-      const optimisticOrder = Array.isArray(insertedEscrow) ? insertedEscrow[0] : insertedEscrow;
-      if (!optimisticOrder) throw new Error("Escrow payment was created without a record");
-      const paidOrder = {
-        ...(optimisticOrder as EscrowOrder),
+      const raw = Array.isArray(insertedEscrow) ? insertedEscrow[0] : insertedEscrow;
+      const base = (raw ?? {}) as Partial<EscrowOrder> & Record<string, unknown>;
+      const paidOrder: EscrowOrder = {
+        ...(base as EscrowOrder),
         commission_amount: 0,
         payout_amount: agreement.price,
-        status: "holding" as const,
-        stage: "work_in_progress" as const,
+        status: "holding",
+        stage: "work_in_progress",
         payment_ref: v.reference,
         paystack_reference: v.reference,
       };
