@@ -258,16 +258,32 @@ export function EscrowPanel({
         toast.error(v.message || "Payment not verified");
         return;
       }
+      const p_conversation_id = conversationId;
+      const p_agreement_id = agreement.id;
+      const p_customer_id = meId;
+      const p_provider_id = agreement.sender_id;
+      const p_amount = agreement.price;
+      const p_payment_ref = v.reference;
+      const escrowRpcParams = {
+        p_conversation_id,
+        p_agreement_id,
+        p_customer_id,
+        p_provider_id,
+        p_amount,
+        p_payment_ref,
+      };
       // Single RPC call atomically creates the order + escrow row and notifies
       // the provider. Commission remains zero until the customer completes the job.
+      console.log("create_escrow_payment params", escrowRpcParams);
       const { data: insertedEscrow, error } = await supabase.rpc("create_escrow_payment", {
-        p_conversation_id: conversationId,
-        p_agreement_id: agreement.id,
-        p_customer_id: meId,
-        p_provider_id: agreement.sender_id,
-        p_amount: agreement.price,
-        p_payment_ref: v.reference,
+        p_conversation_id,
+        p_agreement_id,
+        p_customer_id,
+        p_provider_id,
+        p_amount,
+        p_payment_ref,
       });
+      console.log("create_escrow_payment result", { data: insertedEscrow, error });
       if (error || !insertedEscrow) {
         console.error("create_escrow_payment failed", error);
         toast.error(
@@ -290,6 +306,8 @@ export function EscrowPanel({
         payment_ref: v.reference,
         paystack_reference: v.reference,
       };
+      setShowSummary(false);
+      setHidden(false);
       setOrder(paidOrder);
 
       const { error: messageError } = await supabase.from("messages").insert({
