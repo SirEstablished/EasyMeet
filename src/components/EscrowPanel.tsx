@@ -77,27 +77,37 @@ export function EscrowPanel({
   const dismissedAgreementIdRef = useRef<string | null>(null);
 
   const load = async () => {
-    const [{ data: ag }, { data: od }] = await Promise.all([
-      supabase
-        .from("service_agreements")
-        .select("*")
-        .eq("conversation_id", conversationId)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-      supabase
-        .from("orders")
-        .select("*, escrow!inner(*)")
-        .eq("escrow.conversation_id", conversationId)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-    ]);
-    const agObj = (ag as ServiceAgreement) ?? null;
-    const odObj = escrowFromJoinedOrder(od);
-    setAgreement(agObj && agObj.id === dismissedAgreementIdRef.current ? null : agObj);
-    setOrder(odObj && odObj.id === dismissedOrderIdRef.current ? null : odObj);
-    setLoading(false);
+    try {
+      const [{ data: ag }, { data: od }] = await Promise.all([
+        supabase
+          .from("service_agreements")
+          .select("*")
+          .eq("conversation_id", conversationId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("orders")
+          .select("*, escrow!inner(*)")
+          .eq("escrow.conversation_id", conversationId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
+      const agObj = (ag as ServiceAgreement) ?? null;
+      const odObj = escrowFromJoinedOrder(od);
+      setAgreement(agObj && agObj.id === dismissedAgreementIdRef.current ? null : agObj);
+      setOrder((prev) => {
+        const next = odObj && odObj.id === dismissedOrderIdRef.current ? null : odObj;
+        // Keep the optimistic order if the DB read returned nothing yet (realtime race)
+        if (!next && prev) return prev;
+        return next;
+      });
+    } catch (e) {
+      console.error("EscrowPanel load failed", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -269,14 +279,14 @@ export function EscrowPanel({
       }
       // Optimistically reflect new state so the Pay button hides immediately
       // and Mark Complete / Open Dispute appear without waiting for refetch.
-      const optimisticOrder = Array.isArray(insertedEscrow) ? insertedEscrow[0] : insertedEscrow;
-      if (!optimisticOrder) throw new Error("Escrow payment was created without a record");
-      const paidOrder = {
-        ...(optimisticOrder as EscrowOrder),
+      const raw = Array.isArray(insertedEscrow) ? insertedEscrow[0] : insertedEscrow;
+      const base = (raw ?? {}) as Partial<EscrowOrder> & Record<string, unknown>;
+      const paidOrder: EscrowOrder = {
+        ...(base as EscrowOrder),
         commission_amount: 0,
         payout_amount: agreement.price,
-        status: "holding" as const,
-        stage: "work_in_progress" as const,
+        status: "holding",
+        stage: "work_in_progress",
         payment_ref: v.reference,
         paystack_reference: v.reference,
       };
