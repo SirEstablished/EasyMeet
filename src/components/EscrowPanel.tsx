@@ -95,7 +95,24 @@ export function EscrowPanel({
           .maybeSingle(),
       ]);
       const agObj = (ag as ServiceAgreement) ?? null;
-      const odObj = escrowFromJoinedOrder(od);
+      let odObj = escrowFromJoinedOrder(od);
+
+      // If the latest escrow is finished and a NEW agreement was created
+      // afterwards, ignore the old escrow — we're in a fresh deal flow.
+      if (
+        odObj &&
+        (odObj.status === "released" || odObj.status === "completed") &&
+        agObj
+      ) {
+        const escrowEndedAt = odObj.released_at ?? odObj.created_at;
+        if (
+          escrowEndedAt &&
+          new Date(agObj.created_at).getTime() > new Date(escrowEndedAt).getTime()
+        ) {
+          odObj = null;
+        }
+      }
+
       setAgreement(agObj && agObj.id === dismissedAgreementIdRef.current ? null : agObj);
       setOrder((prev) => {
         const next = odObj && odObj.id === dismissedOrderIdRef.current ? null : odObj;
@@ -202,12 +219,23 @@ export function EscrowPanel({
   useEffect(() => {
     if (!order) return;
     if (order.status !== "released" && order.status !== "completed") return;
+    // Use released_at as the persistent reference so the summary doesn't
+    // show again after a page refresh — if >30s elapsed, jump straight to
+    // the "Start New Deal" button.
+    const releasedAt = order.released_at ? new Date(order.released_at).getTime() : Date.now();
+    const elapsed = Date.now() - releasedAt;
+    if (elapsed > 30_000) {
+      setShowSummary(false);
+      setHidden(true);
+      return;
+    }
     setShowSummary(true);
     setHidden(false);
+    const remaining = Math.max(0, 5000 - elapsed);
     const t = setTimeout(() => {
       setShowSummary(false);
       setHidden(true);
-    }, 5000);
+    }, remaining);
     return () => clearTimeout(t);
   }, [order?.id, order?.status]);
 
