@@ -264,17 +264,29 @@ export function EscrowPanel({
       const p_provider_id = agreement.sender_id;
       const p_amount = agreement.price;
       const p_payment_ref = v.reference;
-      const escrowRpcParams = {
+      console.log("[escrow] create_escrow_payment params:", {
         p_conversation_id,
         p_agreement_id,
         p_customer_id,
         p_provider_id,
         p_amount,
         p_payment_ref,
-      };
-      // Single RPC call atomically creates the order + escrow row and notifies
-      // the provider. Commission remains zero until the customer completes the job.
-      console.log("create_escrow_payment params", escrowRpcParams);
+      });
+      const missing = Object.entries({
+        p_conversation_id,
+        p_agreement_id,
+        p_customer_id,
+        p_provider_id,
+        p_amount,
+        p_payment_ref,
+      })
+        .filter(([, val]) => val === null || val === undefined || val === "")
+        .map(([k]) => k);
+      if (missing.length) {
+        console.error("[escrow] missing RPC params", missing);
+        toast.error(`Payment saved but escrow failed: missing ${missing.join(", ")}`);
+        return;
+      }
       const { data: insertedEscrow, error } = await supabase.rpc("create_escrow_payment", {
         p_conversation_id,
         p_agreement_id,
@@ -283,14 +295,10 @@ export function EscrowPanel({
         p_amount,
         p_payment_ref,
       });
-      console.log("create_escrow_payment result", { data: insertedEscrow, error });
-      if (error || !insertedEscrow) {
-        console.error("create_escrow_payment failed", error);
-        toast.error(
-          error?.message
-            ? `Payment received but escrow record failed: ${error.message}`
-            : "Payment received but escrow record failed. Contact support.",
-        );
+      console.log("[escrow] create_escrow_payment result:", { data: insertedEscrow, error });
+      if (error) {
+        console.error("[escrow] create_escrow_payment failed", error);
+        toast.error("Payment saved but escrow failed: " + error.message);
         return;
       }
       // Optimistically reflect new state so the Pay button hides immediately
