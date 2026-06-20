@@ -286,16 +286,11 @@ export function EscrowPanel({
         amountNgn: paymentAgreement.price,
         metadata: { agreement_id: paymentAgreement.id, kind: "escrow_service" },
       });
-      const latestAgreement = await getLatestAcceptedAgreement();
-      if (!latestAgreement) {
-        toast.error("Payment completed, but no accepted agreement was found");
-        return;
-      }
       const p_conversation_id = conversationId;
-      const p_agreement_id = latestAgreement.id;
+      const p_agreement_id = paymentAgreement.id;
       const p_customer_id = meId;
-      const p_provider_id = latestAgreement.sender_id;
-      const p_amount = latestAgreement.price;
+      const p_provider_id = paymentAgreement.sender_id;
+      const p_amount = paymentAgreement.price;
       const p_payment_ref = reference.reference;
       console.log("[escrow] create_escrow_payment params:", {
         p_conversation_id,
@@ -341,7 +336,7 @@ export function EscrowPanel({
       const paidOrder: EscrowOrder = {
         ...(base as EscrowOrder),
         commission_amount: 0,
-        payout_amount: latestAgreement.price,
+        payout_amount: paymentAgreement.price,
         status: "holding",
         stage: "work_in_progress",
         payment_ref: reference.reference,
@@ -349,13 +344,13 @@ export function EscrowPanel({
       };
       setShowSummary(false);
       setHidden(false);
-      setAgreement(latestAgreement);
+      setAgreement(paymentAgreement);
       setOrder(paidOrder);
 
       const { error: messageError } = await supabase.from("messages").insert({
         conversation_id: conversationId,
         sender_id: meId,
-        body: `💳 Payment of ${formatNgn(latestAgreement.price)} placed in escrow. Work can begin.`,
+        body: `💳 Payment of ${formatNgn(paymentAgreement.price)} placed in escrow. Work can begin.`,
       });
       if (messageError) console.error("Escrow payment message failed", messageError);
       toast.success("Payment held in escrow successfully");
