@@ -30,7 +30,6 @@ import {
   Sparkles,
 } from "lucide-react";
 import { payWithPaystack } from "@/lib/paystack";
-import { verifyPaystackTransaction } from "@/lib/paystack.functions";
 import { detectEscrowRoles, suggestAgreement } from "@/lib/escrow-ai.functions";
 
 interface Props {
@@ -265,33 +264,43 @@ export function EscrowPanel({
     load();
   };
 
+  const getLatestAcceptedAgreement = async () => {
+    const { data, error } = await supabase
+      .from("service_agreements")
+      .select("*")
+      .eq("conversation_id", conversationId)
+      .eq("status", "accepted")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return (data as ServiceAgreement) ?? null;
+  };
+
   const payEscrow = async () => {
-    if (!agreement) return;
     setPaying(true);
     try {
-      const res = await payWithPaystack({
-        email: myEmail,
-        amountNgn: agreement.price,
-        metadata: { agreement_id: agreement.id, kind: "escrow_service" },
-      });
-      let v: Awaited<ReturnType<typeof verifyPaystackTransaction>>;
-      try {
-        v = await verifyPaystackTransaction({
-          data: { reference: res.reference, expectedAmountNgn: agreement.price },
-        });
-      } catch (error) {
-        throw new Error(error instanceof Error ? error.message : "Verification request failed");
+      const paymentAgreement = await getLatestAcceptedAgreement();
+      if (!paymentAgreement) {
+        toast.error("No accepted agreement found for this conversation");
+        return;
       }
-      if (!v.ok) {
-        toast.error(v.message || "Payment not verified");
+      const reference = await payWithPaystack({
+        email: myEmail,
+        amountNgn: paymentAgreement.price,
+        metadata: { agreement_id: paymentAgreement.id, kind: "escrow_service" },
+      });
+      const latestAgreement = await getLatestAcceptedAgreement();
+      if (!latestAgreement) {
+        toast.error("Payment completed, but no accepted agreement was found");
         return;
       }
       const p_conversation_id = conversationId;
-      const p_agreement_id = agreement.id;
+      const p_agreement_id = latestAgreement.id;
       const p_customer_id = meId;
-      const p_provider_id = agreement.sender_id;
-      const p_amount = agreement.price;
-      const p_payment_ref = v.reference;
+      const p_provider_id = latestAgreement.sender_id;
+      const p_amount = latestAgreement.price;
+      const p_payment_ref = reference.reference;
       console.log("[escrow] create_escrow_payment params:", {
         p_conversation_id,
         p_agreement_id,
@@ -336,20 +345,21 @@ export function EscrowPanel({
       const paidOrder: EscrowOrder = {
         ...(base as EscrowOrder),
         commission_amount: 0,
-        payout_amount: agreement.price,
+        payout_amount: latestAgreement.price,
         status: "holding",
         stage: "work_in_progress",
-        payment_ref: v.reference,
-        paystack_reference: v.reference,
+        payment_ref: reference.reference,
+        paystack_reference: reference.reference,
       };
       setShowSummary(false);
       setHidden(false);
+      setAgreement(latestAgreement);
       setOrder(paidOrder);
 
       const { error: messageError } = await supabase.from("messages").insert({
         conversation_id: conversationId,
         sender_id: meId,
-        body: `💳 Payment of ${formatNgn(agreement.price)} placed in escrow. Work can begin.`,
+        body: `💳 Payment of ${formatNgn(latestAgreement.price)} placed in escrow. Work can begin.`,
       });
       if (messageError) console.error("Escrow payment message failed", messageError);
       toast.success("Payment held in escrow successfully");
