@@ -98,11 +98,7 @@ export function EscrowPanel({
 
       // If the latest escrow is finished and a NEW agreement was created
       // afterwards, ignore the old escrow — we're in a fresh deal flow.
-      if (
-        odObj &&
-        (odObj.status === "released" || odObj.status === "completed") &&
-        agObj
-      ) {
+      if (odObj && (odObj.status === "released" || odObj.status === "completed") && agObj) {
         const escrowEndedAt = odObj.released_at ?? odObj.created_at;
         if (
           escrowEndedAt &&
@@ -380,10 +376,10 @@ export function EscrowPanel({
       if (!order.order_id) throw new Error("Missing order reference for this escrow");
       // Server-side RPC computes commission and payout atomically to prevent
       // client tampering with platform fees.
-      const { data: rpcResult, error: rpcError } = await supabase.rpc(
-        "release_escrow_payment",
-        { p_escrow_id: order.id, p_order_id: order.order_id },
-      );
+      const { data: rpcResult, error: rpcError } = await supabase.rpc("release_escrow_payment", {
+        p_escrow_id: order.id,
+        p_order_id: order.order_id,
+      });
       if (rpcError) throw new Error(rpcError.message || "Could not release payment");
       const result = (rpcResult ?? {}) as {
         ok?: boolean;
