@@ -28,6 +28,7 @@ import {
   AlertTriangle,
   CreditCard,
   Sparkles,
+  XCircle,
 } from "lucide-react";
 import { payWithPaystack } from "@/lib/paystack";
 import { detectEscrowRoles, suggestAgreement } from "@/lib/escrow-ai.functions";
@@ -69,6 +70,7 @@ export function EscrowPanel({
   const [iAmProvider, setIAmProvider] = useState<boolean | null>(null);
   const [askRoleOpen, setAskRoleOpen] = useState(false);
   const [completeOpen, setCompleteOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [roleRefreshKey, setRoleRefreshKey] = useState(0);
@@ -244,6 +246,86 @@ export function EscrowPanel({
     setIAmProvider(null);
     setRoleRefreshKey((k) => k + 1);
   };
+
+  const cancelDeal = async (reason: string) => {
+    const trimmed = reason.trim();
+    setBusy(true);
+    try {
+      const nowIso = new Date().toISOString();
+      if (order) {
+        // Post-payment: open a dispute and flag escrow as disputed.
+        const { error: escrowErr } = await supabase
+          .from("escrow")
+          .update({
+            status: "disputed",
+            cancelled_by: meId,
+            cancelled_at: nowIso,
+            cancellation_reason: trimmed || null,
+          })
+          .eq("id", order.id);
+        if (escrowErr) throw new Error(escrowErr.message);
+        const { data: dispute } = await supabase
+          .from("escrow_disputes")
+          .insert({
+            order_id: order.id,
+            opened_by: meId,
+            reason: trimmed || "Deal cancelled by party after payment",
+          })
+          .select("id")
+          .single();
+        if (dispute && conversationId) {
+          await snapshotChatToEvidence((dispute as { id: string }).id, conversationId, meId);
+        }
+        // Best-effort admin notification — table may not exist in all envs.
+        try {
+          await supabase.from("notifications").insert({
+            user_id: null,
+            type: "escrow_dispute_opened",
+            title: "Escrow cancellation → dispute",
+            body: `Order ${order.id} cancelled by ${meId}. Reason: ${trimmed || "—"}`,
+            metadata: { order_id: order.id, escrow_id: order.id, cancelled_by: meId },
+          });
+        } catch {
+          /* notifications table optional */
+        }
+        await supabase.from("messages").insert({
+          conversation_id: conversationId,
+          sender_id: meId,
+          body: `⚠️ A dispute has been opened due to cancellation. EasyMeet admin will review within 24-48 hours.`,
+        });
+        setOrder({ ...order, status: "disputed" });
+        toast.success("Dispute opened");
+      } else {
+        // Pre-payment: cancel the agreement (if any) and end the deal.
+        if (agreement) {
+          await supabase
+            .from("service_agreements")
+            .update({ status: "cancelled" })
+            .eq("id", agreement.id);
+        }
+        await supabase.from("messages").insert({
+          conversation_id: conversationId,
+          sender_id: meId,
+          body: `❌ This deal has been cancelled.`,
+        });
+        toast.success("Deal cancelled");
+        startNewDeal();
+      }
+      setCancelOpen(false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not cancel deal");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const canCancel =
+    !!(agreement || order) &&
+    (!order ||
+      order.status === "pending_payment" ||
+      order.status === "holding" ||
+      order.status === "in_progress");
+  const cancelAfterPayment = !!order;
 
   const stage = escrowStage(order, agreement);
 
@@ -552,6 +634,17 @@ export function EscrowPanel({
         {order?.status === "refunded" && (
           <span className="text-xs text-muted-foreground">Refunded to customer.</span>
         )}
+
+        {canCancel && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setCancelOpen(true)}
+            className="border-destructive/40 text-destructive hover:bg-destructive/10"
+          >
+            <XCircle className="h-4 w-4 mr-1" /> Cancel Deal
+          </Button>
+        )}
       </div>
 
       {sendOpen && other && (
@@ -605,6 +698,13 @@ export function EscrowPanel({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <CancelDealDialog
+        open={cancelOpen}
+        onOpenChange={setCancelOpen}
+        afterPayment={cancelAfterPayment}
+        busy={busy}
+        onConfirm={cancelDeal}
+      />
     </div>
   );
 }
@@ -897,6 +997,62 @@ function OpenDisputeDialog({
             className="bg-destructive text-destructive-foreground"
           >
             {busy && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}Submit Dispute
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CancelDealDialog({
+  open,
+  onOpenChange,
+  afterPayment,
+  busy,
+  onConfirm,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  afterPayment: boolean;
+  busy: boolean;
+  onConfirm: (reason: string) => void;
+}) {
+  const [reason, setReason] = useState("");
+  useEffect(() => {
+    if (!open) setReason("");
+  }, [open]);
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{afterPayment ? "Cancel & Open Dispute?" : "Cancel this deal?"}</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">
+          {afterPayment
+            ? "Cancelling after payment will automatically open a dispute. EasyMeet admin will review and process your refund minus Paystack fees. Are you sure?"
+            : "Are you sure you want to cancel this deal? This will end the agreement and both parties will need to start over."}
+        </p>
+        <div>
+          <Label>Reason {afterPayment ? "" : "(optional)"}</Label>
+          <Textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            rows={3}
+            maxLength={1000}
+            placeholder="Briefly explain why"
+          />
+        </div>
+        <DialogFooter className="gap-2">
+          <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={busy}>
+            Go Back
+          </Button>
+          <Button
+            onClick={() => onConfirm(reason)}
+            disabled={busy || (afterPayment && reason.trim().length < 3)}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            {busy && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+            {afterPayment ? "Yes, Open Dispute" : "Yes, Cancel Deal"}
           </Button>
         </DialogFooter>
       </DialogContent>
