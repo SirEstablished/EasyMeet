@@ -323,6 +323,7 @@ export function EscrowPanel({
       order.status === "holding" ||
       order.status === "in_progress");
   const cancelAfterPayment = !!order;
+  const isCancelled = order?.status === "cancelled";
 
   const stage = escrowStage(order, agreement);
 
@@ -541,7 +542,7 @@ export function EscrowPanel({
         )}
       </div>
 
-      {agreement && (
+      {agreement && !isCancelled && (
         <div className="rounded-lg border border-border/60 p-3 mb-2 bg-background/40">
           <div className="flex items-start gap-2">
             <FileText className="h-4 w-4 text-primary mt-0.5" />
@@ -567,8 +568,20 @@ export function EscrowPanel({
       )}
 
       <div className="flex flex-wrap gap-2">
+        {isCancelled && (
+          <>
+            <span className="text-xs text-destructive flex items-center gap-1">
+              <XCircle className="h-3.5 w-3.5" /> This deal has been cancelled.
+            </span>
+            <Button size="sm" onClick={startNewDeal} className="bg-gradient-brand ml-auto">
+              <Sparkles className="h-3.5 w-3.5 mr-1" /> Start New Deal
+            </Button>
+          </>
+        )}
+
         {/* Stage 2 — provider sends agreement (AI-detected role) */}
-        {iAmProvider === true &&
+        {!isCancelled &&
+          iAmProvider === true &&
           !order &&
           (!agreement || agreement.status === "rejected" || agreement.status === "cancelled") && (
             <Button size="sm" onClick={() => setSendOpen(true)} className="bg-gradient-brand">
@@ -577,14 +590,14 @@ export function EscrowPanel({
           )}
 
         {/* Stage 2 — buyer accepts */}
-        {iAmProvider === false && agreement?.status === "pending" && !order && (
+        {!isCancelled && iAmProvider === false && agreement?.status === "pending" && !order && (
           <Button size="sm" onClick={acceptAgreement} disabled={busy} className="bg-gradient-brand">
             <CheckCircle2 className="h-4 w-4 mr-1" /> Accept Agreement
           </Button>
         )}
 
         {/* Stage 3 — pay into escrow */}
-        {iAmProvider === false && agreement?.status === "accepted" && !order && (
+        {!isCancelled && iAmProvider === false && agreement?.status === "accepted" && !order && (
           <Button size="sm" onClick={payEscrow} disabled={paying} className="bg-gradient-brand">
             {paying ? (
               <Loader2 className="h-4 w-4 mr-1 animate-spin" />
@@ -596,7 +609,8 @@ export function EscrowPanel({
         )}
 
         {/* Stage 5 — customer marks complete */}
-        {order &&
+        {!isCancelled &&
+          order &&
           order.customer_id === meId &&
           order.status === "holding" &&
           order.stage === "work_in_progress" && (
@@ -611,7 +625,7 @@ export function EscrowPanel({
           )}
 
         {/* Dispute */}
-        {order && (order.status === "holding" || order.status === "in_progress") && (
+        {!isCancelled && order && (order.status === "holding" || order.status === "in_progress") && (
           <Button size="sm" variant="outline" onClick={() => setDisputeOpen(true)}>
             <AlertTriangle className="h-4 w-4 mr-1" /> Open Dispute
           </Button>
@@ -632,7 +646,7 @@ export function EscrowPanel({
           <span className="text-xs text-muted-foreground">Refunded to customer.</span>
         )}
 
-        {canCancel && (
+        {!isCancelled && canCancel && (
           <Button
             size="sm"
             variant="outline"
