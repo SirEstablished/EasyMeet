@@ -634,6 +634,17 @@ export function EscrowPanel({
         {order?.status === "refunded" && (
           <span className="text-xs text-muted-foreground">Refunded to customer.</span>
         )}
+
+        {canCancel && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setCancelOpen(true)}
+            className="border-destructive/40 text-destructive hover:bg-destructive/10"
+          >
+            <XCircle className="h-4 w-4 mr-1" /> Cancel Deal
+          </Button>
+        )}
       </div>
 
       {sendOpen && other && (
@@ -687,6 +698,13 @@ export function EscrowPanel({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <CancelDealDialog
+        open={cancelOpen}
+        onOpenChange={setCancelOpen}
+        afterPayment={cancelAfterPayment}
+        busy={busy}
+        onConfirm={cancelDeal}
+      />
     </div>
   );
 }
