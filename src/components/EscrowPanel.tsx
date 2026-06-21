@@ -247,6 +247,86 @@ export function EscrowPanel({
     setRoleRefreshKey((k) => k + 1);
   };
 
+  const cancelDeal = async (reason: string) => {
+    const trimmed = reason.trim();
+    setBusy(true);
+    try {
+      const nowIso = new Date().toISOString();
+      if (order) {
+        // Post-payment: open a dispute and flag escrow as disputed.
+        const { error: escrowErr } = await supabase
+          .from("escrow")
+          .update({
+            status: "disputed",
+            cancelled_by: meId,
+            cancelled_at: nowIso,
+            cancellation_reason: trimmed || null,
+          })
+          .eq("id", order.id);
+        if (escrowErr) throw new Error(escrowErr.message);
+        const { data: dispute } = await supabase
+          .from("escrow_disputes")
+          .insert({
+            order_id: order.id,
+            opened_by: meId,
+            reason: trimmed || "Deal cancelled by party after payment",
+          })
+          .select("id")
+          .single();
+        if (dispute && conversationId) {
+          await snapshotChatToEvidence((dispute as { id: string }).id, conversationId, meId);
+        }
+        // Best-effort admin notification — table may not exist in all envs.
+        try {
+          await supabase.from("notifications").insert({
+            user_id: null,
+            type: "escrow_dispute_opened",
+            title: "Escrow cancellation → dispute",
+            body: `Order ${order.id} cancelled by ${meId}. Reason: ${trimmed || "—"}`,
+            metadata: { order_id: order.id, escrow_id: order.id, cancelled_by: meId },
+          });
+        } catch {
+          /* notifications table optional */
+        }
+        await supabase.from("messages").insert({
+          conversation_id: conversationId,
+          sender_id: meId,
+          body: `⚠️ A dispute has been opened due to cancellation. EasyMeet admin will review within 24-48 hours.`,
+        });
+        setOrder({ ...order, status: "disputed" });
+        toast.success("Dispute opened");
+      } else {
+        // Pre-payment: cancel the agreement (if any) and end the deal.
+        if (agreement) {
+          await supabase
+            .from("service_agreements")
+            .update({ status: "cancelled" })
+            .eq("id", agreement.id);
+        }
+        await supabase.from("messages").insert({
+          conversation_id: conversationId,
+          sender_id: meId,
+          body: `❌ This deal has been cancelled.`,
+        });
+        toast.success("Deal cancelled");
+        startNewDeal();
+      }
+      setCancelOpen(false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not cancel deal");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const canCancel =
+    !!(agreement || order) &&
+    (!order ||
+      order.status === "pending_payment" ||
+      order.status === "holding" ||
+      order.status === "in_progress");
+  const cancelAfterPayment = !!order;
+
   const stage = escrowStage(order, agreement);
 
   const acceptAgreement = async () => {
