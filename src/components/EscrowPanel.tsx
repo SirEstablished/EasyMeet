@@ -1003,3 +1003,59 @@ function OpenDisputeDialog({
     </Dialog>
   );
 }
+
+function CancelDealDialog({
+  open,
+  onOpenChange,
+  afterPayment,
+  busy,
+  onConfirm,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  afterPayment: boolean;
+  busy: boolean;
+  onConfirm: (reason: string) => void;
+}) {
+  const [reason, setReason] = useState("");
+  useEffect(() => {
+    if (!open) setReason("");
+  }, [open]);
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{afterPayment ? "Cancel & Open Dispute?" : "Cancel this deal?"}</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">
+          {afterPayment
+            ? "Cancelling after payment will automatically open a dispute. EasyMeet admin will review and process your refund minus Paystack fees. Are you sure?"
+            : "Are you sure you want to cancel this deal? This will end the agreement and both parties will need to start over."}
+        </p>
+        <div>
+          <Label>Reason {afterPayment ? "" : "(optional)"}</Label>
+          <Textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            rows={3}
+            maxLength={1000}
+            placeholder="Briefly explain why"
+          />
+        </div>
+        <DialogFooter className="gap-2">
+          <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={busy}>
+            Go Back
+          </Button>
+          <Button
+            onClick={() => onConfirm(reason)}
+            disabled={busy || (afterPayment && reason.trim().length < 3)}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            {busy && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+            {afterPayment ? "Yes, Open Dispute" : "Yes, Cancel Deal"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
