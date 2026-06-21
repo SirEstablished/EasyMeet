@@ -98,9 +98,15 @@ export function EscrowPanel({
       const agObj = (ag as ServiceAgreement) ?? null;
       let odObj = escrowFromJoinedOrder(od);
 
-      // If the latest escrow is finished and a NEW agreement was created
-      // afterwards, ignore the old escrow — we're in a fresh deal flow.
-      if (odObj && (odObj.status === "released" || odObj.status === "completed") && agObj) {
+      // If the latest escrow is finished/cancelled and a NEW agreement was
+      // created afterwards, ignore the old escrow — we're in a fresh deal flow.
+      if (
+        odObj &&
+        (odObj.status === "released" ||
+          odObj.status === "completed" ||
+          odObj.status === "cancelled") &&
+        agObj
+      ) {
         const escrowEndedAt = odObj.released_at ?? odObj.created_at;
         if (
           escrowEndedAt &&
@@ -252,49 +258,40 @@ export function EscrowPanel({
     setBusy(true);
     try {
       const nowIso = new Date().toISOString();
+      // Resolve cancelling party's display name for the auto chat message.
+      let myName = "a participant";
+      try {
+        const { data: me } = await supabase
+          .from("profiles")
+          .select("full_name, username")
+          .eq("id", meId)
+          .maybeSingle();
+        const m = me as { full_name?: string | null; username?: string | null } | null;
+        myName = m?.full_name || m?.username || myName;
+      } catch {
+        /* best-effort */
+      }
+      const cancelBody = `❌ This deal has been cancelled by ${myName}.`;
       if (order) {
-        // Post-payment: open a dispute and flag escrow as disputed.
+        // Cancel escrow on both sides — status flips to 'cancelled' and
+        // Realtime broadcasts to the other party instantly.
         const { error: escrowErr } = await supabase
           .from("escrow")
           .update({
-            status: "disputed",
+            status: "cancelled",
             cancelled_by: meId,
             cancelled_at: nowIso,
             cancellation_reason: trimmed || null,
           })
           .eq("id", order.id);
         if (escrowErr) throw new Error(escrowErr.message);
-        const { data: dispute } = await supabase
-          .from("escrow_disputes")
-          .insert({
-            order_id: order.id,
-            opened_by: meId,
-            reason: trimmed || "Deal cancelled by party after payment",
-          })
-          .select("id")
-          .single();
-        if (dispute && conversationId) {
-          await snapshotChatToEvidence((dispute as { id: string }).id, conversationId, meId);
-        }
-        // Best-effort admin notification — table may not exist in all envs.
-        try {
-          await supabase.from("notifications").insert({
-            user_id: null,
-            type: "escrow_dispute_opened",
-            title: "Escrow cancellation → dispute",
-            body: `Order ${order.id} cancelled by ${meId}. Reason: ${trimmed || "—"}`,
-            metadata: { order_id: order.id, escrow_id: order.id, cancelled_by: meId },
-          });
-        } catch {
-          /* notifications table optional */
-        }
         await supabase.from("messages").insert({
           conversation_id: conversationId,
           sender_id: meId,
-          body: `⚠️ A dispute has been opened due to cancellation. EasyMeet admin will review within 24-48 hours.`,
+          body: cancelBody,
         });
-        setOrder({ ...order, status: "disputed" });
-        toast.success("Dispute opened");
+        setOrder({ ...order, status: "cancelled" });
+        toast.success("Deal cancelled");
       } else {
         // Pre-payment: cancel the agreement (if any) and end the deal.
         if (agreement) {
@@ -306,7 +303,7 @@ export function EscrowPanel({
         await supabase.from("messages").insert({
           conversation_id: conversationId,
           sender_id: meId,
-          body: `❌ This deal has been cancelled.`,
+          body: cancelBody,
         });
         toast.success("Deal cancelled");
         startNewDeal();
