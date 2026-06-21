@@ -28,6 +28,7 @@ import {
   AlertTriangle,
   CreditCard,
   Sparkles,
+  XCircle,
 } from "lucide-react";
 import { payWithPaystack } from "@/lib/paystack";
 import { detectEscrowRoles, suggestAgreement } from "@/lib/escrow-ai.functions";
@@ -69,6 +70,7 @@ export function EscrowPanel({
   const [iAmProvider, setIAmProvider] = useState<boolean | null>(null);
   const [askRoleOpen, setAskRoleOpen] = useState(false);
   const [completeOpen, setCompleteOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [roleRefreshKey, setRoleRefreshKey] = useState(0);
