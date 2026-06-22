@@ -79,7 +79,7 @@ export function EscrowPanel({
 
   const load = async () => {
     try {
-      const [{ data: ag }, { data: od }] = await Promise.all([
+      const [{ data: ag }, { data: od }, { data: latestEscrow }] = await Promise.all([
         supabase
           .from("service_agreements")
           .select("*")
@@ -94,9 +94,36 @@ export function EscrowPanel({
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle(),
+        supabase
+          .from("escrow")
+          .select("*")
+          .eq("conversation_id", conversationId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
       ]);
       const agObj = (ag as ServiceAgreement) ?? null;
       let odObj = escrowFromJoinedOrder(od);
+
+      // Direct escrow check: if the latest escrow row is cancelled, treat
+      // it as a cancelled order even if the orders join failed or returned
+      // stale data. This ensures both parties see the cancelled state on
+      // page load without relying on realtime.
+      const escrowRaw = latestEscrow as Record<string, unknown> | null;
+      if (escrowRaw?.status === "cancelled") {
+        odObj = {
+          ...(escrowRaw as unknown as EscrowOrder),
+          order_id: (escrowRaw.order_id as string | null) ?? null,
+          customer_id: (escrowRaw.customer_id as string) ?? "",
+          professional_id: (escrowRaw.professional_id as string) ?? "",
+          title: (escrowRaw.title as string) ?? "Order",
+          amount_ngn: Number(escrowRaw.amount_ngn ?? 0),
+          payment_ref: (escrowRaw.payment_ref as string | null) ?? null,
+          created_at: (escrowRaw.created_at as string) ?? "",
+          status: "cancelled",
+          stage: "cancelled",
+        };
+      }
 
       // If the latest escrow is finished/cancelled and a NEW agreement was
       // created afterwards, ignore the old escrow — we're in a fresh deal flow.
@@ -571,7 +598,7 @@ export function EscrowPanel({
         {isCancelled && (
           <>
             <span className="text-xs text-destructive flex items-center gap-1">
-              <XCircle className="h-3.5 w-3.5" /> This deal has been cancelled.
+              <XCircle className="h-3.5 w-3.5" /> ❌ This deal was cancelled
             </span>
             <Button size="sm" onClick={startNewDeal} className="bg-gradient-brand ml-auto">
               <Sparkles className="h-3.5 w-3.5 mr-1" /> Start New Deal
