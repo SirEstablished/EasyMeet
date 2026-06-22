@@ -598,7 +598,7 @@ export function EscrowPanel({
         {isCancelled && (
           <>
             <span className="text-xs text-destructive flex items-center gap-1">
-              <XCircle className="h-3.5 w-3.5" /> This deal has been cancelled.
+              <XCircle className="h-3.5 w-3.5" /> ❌ This deal was cancelled
             </span>
             <Button size="sm" onClick={startNewDeal} className="bg-gradient-brand ml-auto">
               <Sparkles className="h-3.5 w-3.5 mr-1" /> Start New Deal
