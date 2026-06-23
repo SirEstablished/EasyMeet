@@ -110,7 +110,12 @@ export function EscrowPanel({
       // stale data. This ensures both parties see the cancelled state on
       // page load without relying on realtime.
       const escrowRaw = latestEscrow as Record<string, unknown> | null;
-      if (escrowRaw?.status === "cancelled") {
+      // If the orders join didn't return a row (e.g. the provider can't read
+      // the orders table, or there's a transient race), but a latest escrow
+      // row exists in the DB, synthesize the order object from the escrow row
+      // so BOTH parties see the same active/terminal state and can act on it
+      // (cancel, mark complete, dispute, etc.).
+      if (!odObj && escrowRaw?.id) {
         odObj = {
           ...(escrowRaw as unknown as EscrowOrder),
           order_id: (escrowRaw.order_id as string | null) ?? null,
@@ -120,9 +125,10 @@ export function EscrowPanel({
           amount_ngn: Number(escrowRaw.amount_ngn ?? 0),
           payment_ref: (escrowRaw.payment_ref as string | null) ?? null,
           created_at: (escrowRaw.created_at as string) ?? "",
-          status: "cancelled",
-          stage: "cancelled",
-        };
+        } as EscrowOrder;
+      } else if (escrowRaw?.status === "cancelled" && odObj) {
+        // Force the cancelled status onto the joined order if the join is stale.
+        odObj = { ...odObj, status: "cancelled", stage: "cancelled" };
       }
 
       // If the latest escrow is finished/cancelled and a NEW agreement was
@@ -343,8 +349,13 @@ export function EscrowPanel({
     }
   };
 
+  // Either party (customer OR provider) on the escrow can cancel.
+  const isPartyOnOrder = order
+    ? meId === order.customer_id || meId === order.professional_id
+    : true;
   const canCancel =
     !!(agreement || order) &&
+    isPartyOnOrder &&
     (!order ||
       order.status === "pending_payment" ||
       order.status === "holding" ||
