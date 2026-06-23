@@ -215,6 +215,7 @@ export function EscrowPanel({
 
   // Resolve who is the provider (seller) in this conversation.
   useEffect(() => {
+    if (loading) return;
     if (!other) return;
     if (order?.status === "cancelled" || latestEscrowIsCancelled()) {
       setAskRoleOpen(false);
@@ -274,7 +275,7 @@ export function EscrowPanel({
     return () => {
       cancelled = true;
     };
-  }, [conversationId, meId, meRole, other, roleRefreshKey]);
+  }, [conversationId, loading, meId, meRole, order?.status, other, roleRefreshKey]);
 
   // Stage 6 → show completion summary for 5s, then hide the panel entirely.
   useEffect(() => {
@@ -731,7 +732,7 @@ export function EscrowPanel({
           onSent={load}
         />
       )}
-      {askRoleOpen && other && (
+      {askRoleOpen && other && !isCancelled && (
         <AskRoleDialog
           open={askRoleOpen}
           onOpenChange={setAskRoleOpen}
