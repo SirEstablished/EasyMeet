@@ -126,6 +126,7 @@ export function EscrowPanel({
   const dismissedOrderIdRef = useRef<string | null>(null);
   const dismissedAgreementIdRef = useRef<string | null>(null);
   const latestEscrowStatusRef = useRef<EscrowOrder["status"] | null>(null);
+  const latestEscrowIsCancelled = () => latestEscrowStatusRef.current === "cancelled";
 
   const load = async () => {
     try {
@@ -215,7 +216,7 @@ export function EscrowPanel({
   // Resolve who is the provider (seller) in this conversation.
   useEffect(() => {
     if (!other) return;
-    if (order?.status === "cancelled" || latestEscrowStatusRef.current === "cancelled") {
+    if (order?.status === "cancelled" || latestEscrowIsCancelled()) {
       setAskRoleOpen(false);
       return;
     }
@@ -237,10 +238,10 @@ export function EscrowPanel({
         .order("created_at", { ascending: true })
         .limit(60);
       if (cancelled) return;
-        if (latestEscrowStatusRef.current === "cancelled") {
-          setAskRoleOpen(false);
-          return;
-        }
+      if (latestEscrowIsCancelled()) {
+        setAskRoleOpen(false);
+        return;
+      }
       if (!msgs || msgs.length < 2) {
         setAskRoleOpen(true);
         return;
@@ -257,7 +258,7 @@ export function EscrowPanel({
           },
         });
         if (cancelled) return;
-        if (latestEscrowStatusRef.current === "cancelled") {
+        if (latestEscrowIsCancelled()) {
           setAskRoleOpen(false);
           return;
         }
