@@ -3,7 +3,6 @@ import { supabase, formatNgn, type Profile } from "@/integrations/supabase/clien
 import {
   type EscrowOrder,
   type ServiceAgreement,
-  escrowFromJoinedOrder,
   escrowStage,
   snapshotChatToEvidence,
 } from "@/lib/escrow";
@@ -51,6 +50,56 @@ const STAGES = [
   "Released",
 ];
 
+function escrowFromLatestRow(row: Record<string, unknown> | null): EscrowOrder | null {
+  if (!row?.id) return null;
+
+  const status = (row.status as EscrowOrder["status"] | undefined) ?? "pending_payment";
+  const stage =
+    (row.stage as EscrowOrder["stage"] | undefined) ??
+    (status === "holding" || status === "in_progress"
+      ? "work_in_progress"
+      : status === "released" || status === "completed"
+        ? "completed"
+        : status === "cancelled"
+          ? "cancelled"
+          : status === "disputed"
+            ? "disputed"
+            : status === "refunded"
+              ? "refunded"
+              : "pending_payment");
+
+  const amount = Number(row.amount_ngn ?? row.amount ?? 0);
+  const commission = Number(row.commission_amount ?? 0);
+
+  return {
+    ...(row as unknown as EscrowOrder),
+    id: row.id as string,
+    order_id: (row.order_id as string | null) ?? null,
+    kind: ((row.kind as EscrowOrder["kind"] | undefined) ?? "service") as EscrowOrder["kind"],
+    customer_id: (row.customer_id as string | undefined) ?? "",
+    professional_id:
+      (row.professional_id as string | undefined) ?? (row.provider_id as string | undefined) ?? "",
+    conversation_id: (row.conversation_id as string | null) ?? null,
+    agreement_id: (row.agreement_id as string | null) ?? null,
+    product_id: (row.product_id as string | null) ?? null,
+    quantity: (row.quantity as number | null) ?? null,
+    title: (row.title as string | undefined) ?? (row.service_title as string | undefined) ?? "Order",
+    amount_ngn: amount,
+    commission_amount: commission,
+    payout_amount: Number(row.payout_amount ?? amount - commission),
+    status,
+    stage,
+    payment_ref: (row.payment_ref as string | null) ?? null,
+    paystack_reference: (row.paystack_reference as string | null) ?? null,
+    paid_at: (row.paid_at as string | null) ?? null,
+    released_at: (row.released_at as string | null) ?? null,
+    refunded_at: (row.refunded_at as string | null) ?? null,
+    refund_status: (row.refund_status as EscrowOrder["refund_status"]) ?? null,
+    refund_amount: (row.refund_amount as number | null) ?? null,
+    created_at: (row.created_at as string | undefined) ?? "",
+  };
+}
+
 export function EscrowPanel({
   conversationId,
   meId,
@@ -74,23 +123,19 @@ export function EscrowPanel({
   const [showSummary, setShowSummary] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [roleRefreshKey, setRoleRefreshKey] = useState(0);
+  const [loadedConversationId, setLoadedConversationId] = useState<string | null>(null);
   const dismissedOrderIdRef = useRef<string | null>(null);
   const dismissedAgreementIdRef = useRef<string | null>(null);
+  const latestEscrowStatusRef = useRef<EscrowOrder["status"] | null>(null);
+  const latestEscrowIsCancelled = () => latestEscrowStatusRef.current === "cancelled";
 
   const load = async () => {
     try {
-      const [{ data: ag }, { data: od }, { data: latestEscrow }] = await Promise.all([
+      const [{ data: ag }, { data: latestEscrow }] = await Promise.all([
         supabase
           .from("service_agreements")
           .select("*")
           .eq("conversation_id", conversationId)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-        supabase
-          .from("orders")
-          .select("*, escrow!inner(*)")
-          .eq("escrow.conversation_id", conversationId)
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle(),
@@ -103,57 +148,27 @@ export function EscrowPanel({
           .maybeSingle(),
       ]);
       const agObj = (ag as ServiceAgreement) ?? null;
-      let odObj = escrowFromJoinedOrder(od);
-
-      // Direct escrow check: if the latest escrow row is cancelled, treat
-      // it as a cancelled order even if the orders join failed or returned
-      // stale data. This ensures both parties see the cancelled state on
-      // page load without relying on realtime.
       const escrowRaw = latestEscrow as Record<string, unknown> | null;
-      // If the orders join didn't return a row (e.g. the provider can't read
-      // the orders table, or there's a transient race), but a latest escrow
-      // row exists in the DB, synthesize the order object from the escrow row
-      // so BOTH parties see the same active/terminal state and can act on it
-      // (cancel, mark complete, dispute, etc.).
-      if (!odObj && escrowRaw?.id) {
-        odObj = {
-          ...(escrowRaw as unknown as EscrowOrder),
-          order_id: (escrowRaw.order_id as string | null) ?? null,
-          customer_id: (escrowRaw.customer_id as string) ?? "",
-          professional_id: (escrowRaw.professional_id as string) ?? "",
-          title: (escrowRaw.title as string) ?? "Order",
-          amount_ngn: Number(escrowRaw.amount_ngn ?? 0),
-          payment_ref: (escrowRaw.payment_ref as string | null) ?? null,
-          created_at: (escrowRaw.created_at as string) ?? "",
-        } as EscrowOrder;
-      } else if (escrowRaw?.status === "cancelled" && odObj) {
-        // Force the cancelled status onto the joined order if the join is stale.
-        odObj = { ...odObj, status: "cancelled", stage: "cancelled" };
-      }
+      const odObj = escrowFromLatestRow(escrowRaw);
+      latestEscrowStatusRef.current = odObj?.status ?? null;
+      setLoadedConversationId(conversationId);
 
-      // If the latest escrow is finished/cancelled and a NEW agreement was
-      // created afterwards, ignore the old escrow — we're in a fresh deal flow.
-      if (
-        odObj &&
-        (odObj.status === "released" ||
-          odObj.status === "completed" ||
-          odObj.status === "cancelled") &&
-        agObj
-      ) {
-        const escrowEndedAt = odObj.released_at ?? odObj.created_at;
-        if (
-          escrowEndedAt &&
-          new Date(agObj.created_at).getTime() > new Date(escrowEndedAt).getTime()
-        ) {
-          odObj = null;
-        }
+      if (odObj?.status === "cancelled") {
+        setAskRoleOpen(false);
+        setSendOpen(false);
+        setDisputeOpen(false);
+        setCompleteOpen(false);
+        setCancelOpen(false);
+        setShowSummary(false);
+        setHidden(false);
       }
 
       setAgreement(agObj && agObj.id === dismissedAgreementIdRef.current ? null : agObj);
       setOrder((prev) => {
         const next = odObj && odObj.id === dismissedOrderIdRef.current ? null : odObj;
-        // Keep the optimistic order if the DB read returned nothing yet (realtime race)
-        if (!next && prev) return prev;
+        // Only keep an optimistic payment row before the database has returned
+        // that same latest escrow. Never fall back to an older escrow record.
+        if (!next && prev && paying) return prev;
         return next;
       });
     } catch (e) {
@@ -165,6 +180,7 @@ export function EscrowPanel({
 
   useEffect(() => {
     setLoading(true);
+    setLoadedConversationId(null);
     load();
     const ch = supabase
       .channel(`escrow-${conversationId}`)
@@ -202,7 +218,13 @@ export function EscrowPanel({
 
   // Resolve who is the provider (seller) in this conversation.
   useEffect(() => {
+    if (loading) return;
+    if (loadedConversationId !== conversationId) return;
     if (!other) return;
+    if (order?.status === "cancelled" || latestEscrowIsCancelled()) {
+      setAskRoleOpen(false);
+      return;
+    }
     // Customers can NEVER be the service provider.
     if (meRole === "customer") {
       setIAmProvider(false);
@@ -221,6 +243,10 @@ export function EscrowPanel({
         .order("created_at", { ascending: true })
         .limit(60);
       if (cancelled) return;
+      if (latestEscrowIsCancelled()) {
+        setAskRoleOpen(false);
+        return;
+      }
       if (!msgs || msgs.length < 2) {
         setAskRoleOpen(true);
         return;
@@ -237,19 +263,23 @@ export function EscrowPanel({
           },
         });
         if (cancelled) return;
+        if (latestEscrowIsCancelled()) {
+          setAskRoleOpen(false);
+          return;
+        }
         if (result.providerId && result.confidence >= 0.6) {
           setIAmProvider(result.providerId === meId);
         } else {
           setAskRoleOpen(true);
         }
       } catch {
-        if (!cancelled) setAskRoleOpen(true);
+        if (!cancelled && !latestEscrowIsCancelled()) setAskRoleOpen(true);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [conversationId, meId, meRole, other, roleRefreshKey]);
+  }, [conversationId, loadedConversationId, loading, meId, meRole, order?.status, other, roleRefreshKey]);
 
   // Stage 6 → show completion summary for 5s, then hide the panel entirely.
   useEffect(() => {
@@ -283,6 +313,7 @@ export function EscrowPanel({
     setShowSummary(false);
     setHidden(false);
     setIAmProvider(null);
+    latestEscrowStatusRef.current = null;
     setRoleRefreshKey((k) => k + 1);
   };
 
@@ -706,7 +737,7 @@ export function EscrowPanel({
           onSent={load}
         />
       )}
-      {askRoleOpen && other && (
+      {askRoleOpen && other && !isCancelled && (
         <AskRoleDialog
           open={askRoleOpen}
           onOpenChange={setAskRoleOpen}
