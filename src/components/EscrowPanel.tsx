@@ -128,18 +128,11 @@ export function EscrowPanel({
 
   const load = async () => {
     try {
-      const [{ data: ag }, { data: od }, { data: latestEscrow }] = await Promise.all([
+      const [{ data: ag }, { data: latestEscrow }] = await Promise.all([
         supabase
           .from("service_agreements")
           .select("*")
           .eq("conversation_id", conversationId)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-        supabase
-          .from("orders")
-          .select("*, escrow!inner(*)")
-          .eq("escrow.conversation_id", conversationId)
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle(),
@@ -152,50 +145,15 @@ export function EscrowPanel({
           .maybeSingle(),
       ]);
       const agObj = (ag as ServiceAgreement) ?? null;
-      let odObj = escrowFromJoinedOrder(od);
-
-      // Direct escrow check: if the latest escrow row is cancelled, treat
-      // it as a cancelled order even if the orders join failed or returned
-      // stale data. This ensures both parties see the cancelled state on
-      // page load without relying on realtime.
       const escrowRaw = latestEscrow as Record<string, unknown> | null;
-      // If the orders join didn't return a row (e.g. the provider can't read
-      // the orders table, or there's a transient race), but a latest escrow
-      // row exists in the DB, synthesize the order object from the escrow row
-      // so BOTH parties see the same active/terminal state and can act on it
-      // (cancel, mark complete, dispute, etc.).
-      if (!odObj && escrowRaw?.id) {
-        odObj = {
-          ...(escrowRaw as unknown as EscrowOrder),
-          order_id: (escrowRaw.order_id as string | null) ?? null,
-          customer_id: (escrowRaw.customer_id as string) ?? "",
-          professional_id: (escrowRaw.professional_id as string) ?? "",
-          title: (escrowRaw.title as string) ?? "Order",
-          amount_ngn: Number(escrowRaw.amount_ngn ?? 0),
-          payment_ref: (escrowRaw.payment_ref as string | null) ?? null,
-          created_at: (escrowRaw.created_at as string) ?? "",
-        } as EscrowOrder;
-      } else if (escrowRaw?.status === "cancelled" && odObj) {
-        // Force the cancelled status onto the joined order if the join is stale.
-        odObj = { ...odObj, status: "cancelled", stage: "cancelled" };
-      }
+      const odObj = escrowFromLatestRow(escrowRaw);
 
-      // If the latest escrow is finished/cancelled and a NEW agreement was
-      // created afterwards, ignore the old escrow — we're in a fresh deal flow.
-      if (
-        odObj &&
-        (odObj.status === "released" ||
-          odObj.status === "completed" ||
-          odObj.status === "cancelled") &&
-        agObj
-      ) {
-        const escrowEndedAt = odObj.released_at ?? odObj.created_at;
-        if (
-          escrowEndedAt &&
-          new Date(agObj.created_at).getTime() > new Date(escrowEndedAt).getTime()
-        ) {
-          odObj = null;
-        }
+      if (odObj?.status === "cancelled") {
+        setAskRoleOpen(false);
+        setSendOpen(false);
+        setDisputeOpen(false);
+        setCompleteOpen(false);
+        setCancelOpen(false);
       }
 
       setAgreement(agObj && agObj.id === dismissedAgreementIdRef.current ? null : agObj);
