@@ -123,6 +123,7 @@ export function EscrowPanel({
   const [showSummary, setShowSummary] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [roleRefreshKey, setRoleRefreshKey] = useState(0);
+  const [loadedConversationId, setLoadedConversationId] = useState<string | null>(null);
   const dismissedOrderIdRef = useRef<string | null>(null);
   const dismissedAgreementIdRef = useRef<string | null>(null);
   const latestEscrowStatusRef = useRef<EscrowOrder["status"] | null>(null);
@@ -150,6 +151,7 @@ export function EscrowPanel({
       const escrowRaw = latestEscrow as Record<string, unknown> | null;
       const odObj = escrowFromLatestRow(escrowRaw);
       latestEscrowStatusRef.current = odObj?.status ?? null;
+      setLoadedConversationId(conversationId);
 
       if (odObj?.status === "cancelled") {
         setAskRoleOpen(false);
@@ -178,6 +180,7 @@ export function EscrowPanel({
 
   useEffect(() => {
     setLoading(true);
+    setLoadedConversationId(null);
     load();
     const ch = supabase
       .channel(`escrow-${conversationId}`)
@@ -216,6 +219,7 @@ export function EscrowPanel({
   // Resolve who is the provider (seller) in this conversation.
   useEffect(() => {
     if (loading) return;
+    if (loadedConversationId !== conversationId) return;
     if (!other) return;
     if (order?.status === "cancelled" || latestEscrowIsCancelled()) {
       setAskRoleOpen(false);
@@ -275,7 +279,7 @@ export function EscrowPanel({
     return () => {
       cancelled = true;
     };
-  }, [conversationId, loading, meId, meRole, order?.status, other, roleRefreshKey]);
+  }, [conversationId, loadedConversationId, loading, meId, meRole, order?.status, other, roleRefreshKey]);
 
   // Stage 6 → show completion summary for 5s, then hide the panel entirely.
   useEffect(() => {
