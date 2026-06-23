@@ -313,6 +313,7 @@ export function EscrowPanel({
     setShowSummary(false);
     setHidden(false);
     setIAmProvider(null);
+    latestEscrowStatusRef.current = null;
     setRoleRefreshKey((k) => k + 1);
   };
 
