@@ -215,6 +215,10 @@ export function EscrowPanel({
   // Resolve who is the provider (seller) in this conversation.
   useEffect(() => {
     if (!other) return;
+    if (order?.status === "cancelled" || latestEscrowStatusRef.current === "cancelled") {
+      setAskRoleOpen(false);
+      return;
+    }
     // Customers can NEVER be the service provider.
     if (meRole === "customer") {
       setIAmProvider(false);
@@ -233,6 +237,10 @@ export function EscrowPanel({
         .order("created_at", { ascending: true })
         .limit(60);
       if (cancelled) return;
+        if (latestEscrowStatusRef.current === "cancelled") {
+          setAskRoleOpen(false);
+          return;
+        }
       if (!msgs || msgs.length < 2) {
         setAskRoleOpen(true);
         return;
@@ -249,6 +257,10 @@ export function EscrowPanel({
           },
         });
         if (cancelled) return;
+        if (latestEscrowStatusRef.current === "cancelled") {
+          setAskRoleOpen(false);
+          return;
+        }
         if (result.providerId && result.confidence >= 0.6) {
           setIAmProvider(result.providerId === meId);
         } else {
