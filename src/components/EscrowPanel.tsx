@@ -3,7 +3,6 @@ import { supabase, formatNgn, type Profile } from "@/integrations/supabase/clien
 import {
   type EscrowOrder,
   type ServiceAgreement,
-  escrowFromJoinedOrder,
   escrowStage,
   snapshotChatToEvidence,
 } from "@/lib/escrow";
@@ -50,6 +49,56 @@ const STAGES = [
   "Mark Complete",
   "Released",
 ];
+
+function escrowFromLatestRow(row: Record<string, unknown> | null): EscrowOrder | null {
+  if (!row?.id) return null;
+
+  const status = (row.status as EscrowOrder["status"] | undefined) ?? "pending_payment";
+  const stage =
+    (row.stage as EscrowOrder["stage"] | undefined) ??
+    (status === "holding" || status === "in_progress"
+      ? "work_in_progress"
+      : status === "released" || status === "completed"
+        ? "completed"
+        : status === "cancelled"
+          ? "cancelled"
+          : status === "disputed"
+            ? "disputed"
+            : status === "refunded"
+              ? "refunded"
+              : "pending_payment");
+
+  const amount = Number(row.amount_ngn ?? row.amount ?? 0);
+  const commission = Number(row.commission_amount ?? 0);
+
+  return {
+    ...(row as unknown as EscrowOrder),
+    id: row.id as string,
+    order_id: (row.order_id as string | null) ?? null,
+    kind: ((row.kind as EscrowOrder["kind"] | undefined) ?? "service") as EscrowOrder["kind"],
+    customer_id: (row.customer_id as string | undefined) ?? "",
+    professional_id:
+      (row.professional_id as string | undefined) ?? (row.provider_id as string | undefined) ?? "",
+    conversation_id: (row.conversation_id as string | null) ?? null,
+    agreement_id: (row.agreement_id as string | null) ?? null,
+    product_id: (row.product_id as string | null) ?? null,
+    quantity: (row.quantity as number | null) ?? null,
+    title: (row.title as string | undefined) ?? (row.service_title as string | undefined) ?? "Order",
+    amount_ngn: amount,
+    commission_amount: commission,
+    payout_amount: Number(row.payout_amount ?? amount - commission),
+    status,
+    stage,
+    payment_ref: (row.payment_ref as string | null) ?? null,
+    paystack_reference: (row.paystack_reference as string | null) ?? null,
+    paid_at: (row.paid_at as string | null) ?? null,
+    released_at: (row.released_at as string | null) ?? null,
+    refunded_at: (row.refunded_at as string | null) ?? null,
+    refund_status: (row.refund_status as EscrowOrder["refund_status"]) ?? null,
+    refund_amount: (row.refund_amount as number | null) ?? null,
+    created_at: (row.created_at as string | undefined) ?? "",
+  };
+}
 
 export function EscrowPanel({
   conversationId,
