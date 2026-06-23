@@ -268,7 +268,7 @@ export function EscrowPanel({
           setAskRoleOpen(true);
         }
       } catch {
-        if (!cancelled) setAskRoleOpen(true);
+        if (!cancelled && !latestEscrowIsCancelled()) setAskRoleOpen(true);
       }
     })();
     return () => {
