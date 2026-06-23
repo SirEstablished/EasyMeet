@@ -154,13 +154,16 @@ export function EscrowPanel({
         setDisputeOpen(false);
         setCompleteOpen(false);
         setCancelOpen(false);
+        setShowSummary(false);
+        setHidden(false);
       }
 
       setAgreement(agObj && agObj.id === dismissedAgreementIdRef.current ? null : agObj);
       setOrder((prev) => {
         const next = odObj && odObj.id === dismissedOrderIdRef.current ? null : odObj;
-        // Keep the optimistic order if the DB read returned nothing yet (realtime race)
-        if (!next && prev) return prev;
+        // Only keep an optimistic payment row before the database has returned
+        // that same latest escrow. Never fall back to an older escrow record.
+        if (!next && prev && paying) return prev;
         return next;
       });
     } catch (e) {
