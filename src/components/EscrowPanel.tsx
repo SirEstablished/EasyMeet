@@ -125,6 +125,7 @@ export function EscrowPanel({
   const [roleRefreshKey, setRoleRefreshKey] = useState(0);
   const dismissedOrderIdRef = useRef<string | null>(null);
   const dismissedAgreementIdRef = useRef<string | null>(null);
+  const latestEscrowStatusRef = useRef<EscrowOrder["status"] | null>(null);
 
   const load = async () => {
     try {
@@ -147,6 +148,7 @@ export function EscrowPanel({
       const agObj = (ag as ServiceAgreement) ?? null;
       const escrowRaw = latestEscrow as Record<string, unknown> | null;
       const odObj = escrowFromLatestRow(escrowRaw);
+      latestEscrowStatusRef.current = odObj?.status ?? null;
 
       if (odObj?.status === "cancelled") {
         setAskRoleOpen(false);
