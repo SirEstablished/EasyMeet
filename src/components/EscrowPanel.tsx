@@ -363,7 +363,15 @@ export function EscrowPanel({
           sender_id: meId,
           body: cancelBody,
         });
-        setOrder({ ...order, status: "cancelled" });
+        setOrder({
+          ...order,
+          status: "cancelled",
+          ...({
+            cancelled_by: meId,
+            cancelled_at: nowIso,
+            cancellation_reason: trimmed || null,
+          } as Partial<EscrowOrder>),
+        });
         toast.success("Deal cancelled");
       } else {
         // Pre-payment: cancel the agreement (if any) and end the deal.

@@ -106,6 +106,8 @@ function MyOrdersPage() {
       setOutgoing(outgoingOrders);
       setIncoming(incomingOrders);
 
+      // Best-effort: keep order.escrow_status in sync. RLS may block this for
+      // some roles (e.g. customers) so failures must NOT crash the page.
       const escrowOrders = [...outgoingOrders, ...incomingOrders].filter((order) => {
         const escrow = order.escrow;
         return (
@@ -114,15 +116,14 @@ function MyOrdersPage() {
             (order as OrderWithEscrow & { escrow_stage?: string }).escrow_stage !== escrow.stage)
         );
       });
-      await Promise.all(
+      void Promise.allSettled(
         escrowOrders.map(async (order) => {
           const escrow = order.escrow;
           if (!escrow) return;
-          const { error } = await supabase
+          await supabase
             .from("orders")
             .update({ escrow_status: escrow.status, escrow_stage: escrow.stage })
             .eq("id", order.id);
-          if (error) throw error;
         }),
       );
       const reviewedOrderIds = new Set<string>(
