@@ -161,6 +161,15 @@ export function EscrowPanel({
         setCancelOpen(false);
         setShowSummary(false);
         setHidden(false);
+        // A cancelled latest record is the source of truth. Ignore any
+        // dismissed-ref filtering so the cancelled UI always renders
+        // on page load for BOTH parties.
+        dismissedOrderIdRef.current = null;
+        dismissedAgreementIdRef.current = null;
+        setAgreement(agObj);
+        setOrder(odObj);
+        setLoading(false);
+        return;
       }
 
       setAgreement(agObj && agObj.id === dismissedAgreementIdRef.current ? null : agObj);
@@ -559,6 +568,32 @@ export function EscrowPanel({
   };
 
   if (loading) return null;
+
+  // Latest escrow record says cancelled → render cancelled UI immediately,
+  // before any other branch (hidden, summary, role detection, buttons).
+  if (order?.status === "cancelled") {
+    return (
+      <div className="border-t border-border bg-card/60 backdrop-blur p-3">
+        <div className="flex items-center gap-2 mb-2">
+          <Shield className="h-4 w-4 text-primary" />
+          <span className="text-xs font-bold uppercase tracking-wide text-gradient-tri">
+            Escrow
+          </span>
+          <Badge variant="outline" className="ml-auto text-[10px] capitalize">
+            cancelled
+          </Badge>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-destructive flex items-center gap-1">
+            <XCircle className="h-3.5 w-3.5" /> ❌ This deal was cancelled
+          </span>
+          <Button size="sm" onClick={startNewDeal} className="bg-gradient-brand ml-auto">
+            <Sparkles className="h-3.5 w-3.5 mr-1" /> Start New Deal
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (hidden) {
     return (
