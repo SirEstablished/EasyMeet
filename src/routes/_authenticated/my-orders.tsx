@@ -394,15 +394,49 @@ function OrderList({
             </div>
             <div className="text-right">
               <div className="font-extrabold text-gradient-brand">{formatNgn(o.amount)}</div>
-              <span
-                className={`status-pill status-${isEscrow ? (escrowStatus === "released" || escrowStatus === "completed" ? "completed" : "pending") : o.status} capitalize mt-1`}
-              >
-                {isEscrow
-                  ? escrowStatus === "released" || escrowStatus === "completed"
-                    ? "escrow released"
-                    : escrowStatus?.replace("_", " ")
-                  : o.status}
-              </span>
+              {(() => {
+                const effective =
+                  escrowStatus === "cancelled" || o.status === "cancelled"
+                    ? "cancelled"
+                    : escrowStatus === "released" || escrowStatus === "completed" || o.status === "completed"
+                      ? "completed"
+                      : escrowStatus === "holding" || escrowStatus === "in_progress" || o.status === "confirmed"
+                        ? "in_escrow"
+                        : escrowStatus === "disputed"
+                          ? "disputed"
+                          : escrowStatus === "refunded"
+                            ? "refunded"
+                            : "pending";
+                const label =
+                  effective === "in_escrow"
+                    ? "In Escrow"
+                    : effective === "completed"
+                      ? "Completed"
+                      : effective === "cancelled"
+                        ? "Cancelled"
+                        : effective === "disputed"
+                          ? "Disputed"
+                          : effective === "refunded"
+                            ? "Refunded"
+                            : "Pending";
+                const cls =
+                  effective === "in_escrow"
+                    ? "bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30"
+                    : effective === "completed"
+                      ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                      : effective === "cancelled"
+                        ? "bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30"
+                        : effective === "disputed"
+                          ? "bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30"
+                          : effective === "refunded"
+                            ? "bg-muted text-muted-foreground border border-border"
+                            : "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 border border-yellow-500/30";
+                return (
+                  <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${cls}`}>
+                    {label}
+                  </span>
+                );
+              })()}
             </div>
 
             {canMarkComplete && (
