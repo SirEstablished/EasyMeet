@@ -689,17 +689,38 @@ export function EscrowPanel({
         </div>
       )}
 
+      {isCancelled && (
+        <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 mb-2">
+          <div className="flex items-center gap-2 mb-2">
+            <XCircle className="h-5 w-5 text-destructive" />
+            <span className="font-bold text-sm">❌ Deal Cancelled</span>
+          </div>
+          <p className="text-sm text-foreground">
+            This deal was cancelled by{" "}
+            <span className="font-semibold">
+              {(order as unknown as { cancelled_by?: string | null })?.cancelled_by === meId
+                ? "you"
+                : (other?.full_name || other?.username || "the other party")}
+            </span>.
+          </p>
+          {(order as unknown as { cancelled_at?: string | null })?.cancelled_at && (
+            <p className="text-xs text-muted-foreground mt-1">
+              {new Date(
+                (order as unknown as { cancelled_at: string }).cancelled_at,
+              ).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
+            </p>
+          )}
+          <Button
+            size="sm"
+            onClick={startNewDeal}
+            className="bg-gradient-brand mt-3 w-full sm:w-auto"
+          >
+            <Sparkles className="h-3.5 w-3.5 mr-1" /> Start New Deal
+          </Button>
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-2">
-        {isCancelled && (
-          <>
-            <span className="text-xs text-destructive flex items-center gap-1">
-              <XCircle className="h-3.5 w-3.5" /> ❌ This deal was cancelled
-            </span>
-            <Button size="sm" onClick={startNewDeal} className="bg-gradient-brand ml-auto">
-              <Sparkles className="h-3.5 w-3.5 mr-1" /> Start New Deal
-            </Button>
-          </>
-        )}
 
         {/* Stage 2 — provider sends agreement (AI-detected role) */}
         {!isCancelled &&
