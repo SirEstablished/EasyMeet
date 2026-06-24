@@ -161,6 +161,15 @@ export function EscrowPanel({
         setCancelOpen(false);
         setShowSummary(false);
         setHidden(false);
+        // A cancelled latest record is the source of truth. Ignore any
+        // dismissed-ref filtering so the cancelled UI always renders
+        // on page load for BOTH parties.
+        dismissedOrderIdRef.current = null;
+        dismissedAgreementIdRef.current = null;
+        setAgreement(agObj);
+        setOrder(odObj);
+        setLoading(false);
+        return;
       }
 
       setAgreement(agObj && agObj.id === dismissedAgreementIdRef.current ? null : agObj);
