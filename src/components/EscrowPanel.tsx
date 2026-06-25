@@ -299,7 +299,7 @@ export function EscrowPanel({
     return () => {
       cancelled = true;
     };
-  }, [conversationId, loadedConversationId, loading, meId, meRole, order?.status, other, roleRefreshKey]);
+  }, [agreement, conversationId, loadedConversationId, loading, meId, meRole, order?.status, other, roleRefreshKey]);
 
   // Stage 6 → show completion summary for 5s, then hide the panel entirely.
   useEffect(() => {
