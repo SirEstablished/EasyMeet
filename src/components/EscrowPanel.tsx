@@ -234,7 +234,18 @@ export function EscrowPanel({
       setAskRoleOpen(false);
       return;
     }
-    // Customers can NEVER be the service provider.
+    // If we already have an agreement, the roles are fixed:
+    // sender = provider (seller), receiver = buyer. This works for ANY
+    // role combination (customer/professional/business in any direction)
+    // and removes the need for AI/role-popup before payment.
+    if (agreement) {
+      if (agreement.sender_id === meId) setIAmProvider(true);
+      else if (agreement.receiver_id === meId) setIAmProvider(false);
+      setAskRoleOpen(false);
+      return;
+    }
+    // No agreement yet — fall back to role hints for who can SEND an agreement.
+    // Customers can NEVER be the service provider (sender of agreement).
     if (meRole === "customer") {
       setIAmProvider(false);
       return;
@@ -288,7 +299,7 @@ export function EscrowPanel({
     return () => {
       cancelled = true;
     };
-  }, [conversationId, loadedConversationId, loading, meId, meRole, order?.status, other, roleRefreshKey]);
+  }, [agreement, conversationId, loadedConversationId, loading, meId, meRole, order?.status, other, roleRefreshKey]);
 
   // Stage 6 → show completion summary for 5s, then hide the panel entirely.
   useEffect(() => {
