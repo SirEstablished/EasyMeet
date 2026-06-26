@@ -167,7 +167,33 @@ export function EscrowPanel({
       ]);
       const agObj = (ag as ServiceAgreement) ?? null;
       const escrowRaw = latestEscrow as Record<string, unknown> | null;
-      const odObj = escrowFromLatestRow(escrowRaw);
+      let odObj = escrowFromLatestRow(escrowRaw);
+
+      // Fix #1: ignore any escrow record that predates a "fresh deal" cutoff
+      // (set when Start New Deal is clicked) OR that was superseded by a
+      // newer service_agreement. An old cancelled/released escrow must not
+      // bleed through onto a brand-new deal.
+      if (odObj) {
+        const freshAfter = readFreshAfter();
+        const escrowTs = Date.parse(
+          (escrowRaw?.cancelled_at as string | undefined) ??
+            (escrowRaw?.released_at as string | undefined) ??
+            odObj.created_at ??
+            "",
+        );
+        const agTs = agObj ? Date.parse(agObj.created_at) : 0;
+        const terminal =
+          odObj.status === "cancelled" ||
+          odObj.status === "released" ||
+          odObj.status === "completed" ||
+          odObj.status === "refunded";
+        const supersededByAgreement = terminal && agTs > 0 && escrowTs > 0 && agTs > escrowTs;
+        const supersededByFreshDeal = freshAfter > 0 && escrowTs > 0 && freshAfter >= escrowTs;
+        if (supersededByAgreement || supersededByFreshDeal) {
+          odObj = null;
+        }
+      }
+
       latestEscrowStatusRef.current = odObj?.status ?? null;
       setLoadedConversationId(conversationId);
 
