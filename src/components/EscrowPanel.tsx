@@ -230,7 +230,11 @@ export function EscrowPanel({
     if (loading) return;
     if (loadedConversationId !== conversationId) return;
     if (!other) return;
-    if (order?.status === "cancelled" || latestEscrowIsCancelled()) {
+    if (
+      order?.status === "cancelled" ||
+      latestEscrowIsCancelled() ||
+      (!order && agreement?.status === "cancelled")
+    ) {
       setAskRoleOpen(false);
       return;
     }
