@@ -920,7 +920,11 @@ export function EscrowPanel({
           onOpenChange={setAskRoleOpen}
           otherName={other.full_name ?? other.username ?? "the other person"}
           onChoose={(role) => {
-            setIAmProvider(role === "provider");
+            const isProv = role === "provider";
+            setIAmProvider(isProv);
+            if (typeof window !== "undefined") {
+              window.localStorage.setItem(roleKey, isProv ? "provider" : "buyer");
+            }
             setAskRoleOpen(false);
           }}
         />
