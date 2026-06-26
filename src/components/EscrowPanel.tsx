@@ -293,6 +293,14 @@ export function EscrowPanel({
       setAskRoleOpen(false);
       return;
     }
+    // Fix #2: if the user already picked a role for this conversation, use
+    // it and never show the popup again (until Start New Deal).
+    const saved = readSavedRole();
+    if (saved !== null) {
+      setIAmProvider(saved);
+      setAskRoleOpen(false);
+      return;
+    }
     // If we already have an agreement, the roles are fixed:
     // sender = provider (seller), receiver = buyer. This works for ANY
     // role combination (customer/professional/business in any direction)
@@ -387,6 +395,13 @@ export function EscrowPanel({
   const startNewDeal = () => {
     if (order) dismissedOrderIdRef.current = order.id;
     if (agreement) dismissedAgreementIdRef.current = agreement.id;
+    // Fix #1: persist a cutoff so older escrow/agreement rows are ignored
+    // even after a hard refresh, on every load() for this user+conversation.
+    // Fix #2: clear the saved role so a new deal can re-detect it.
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(freshDealKey, new Date().toISOString());
+      window.localStorage.removeItem(roleKey);
+    }
     setOrder(null);
     setAgreement(null);
     setShowSummary(false);
