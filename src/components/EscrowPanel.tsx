@@ -129,6 +129,24 @@ export function EscrowPanel({
   const latestEscrowStatusRef = useRef<EscrowOrder["status"] | null>(null);
   const latestEscrowIsCancelled = () => latestEscrowStatusRef.current === "cancelled";
 
+  // Per-conversation, per-user keys for fix #1 (fresh-deal cutoff) and
+  // fix #2 (sticky role choice so the popup never re-appears).
+  const freshDealKey = `escrow_fresh_after_${conversationId}_${meId}`;
+  const roleKey = `escrow_role_${conversationId}_${meId}`;
+  const readFreshAfter = (): number => {
+    if (typeof window === "undefined") return 0;
+    const v = window.localStorage.getItem(freshDealKey);
+    const n = v ? Date.parse(v) : 0;
+    return Number.isFinite(n) ? n : 0;
+  };
+  const readSavedRole = (): boolean | null => {
+    if (typeof window === "undefined") return null;
+    const v = window.localStorage.getItem(roleKey);
+    if (v === "provider") return true;
+    if (v === "buyer") return false;
+    return null;
+  };
+
   const load = async () => {
     try {
       const [{ data: ag }, { data: latestEscrow }] = await Promise.all([
