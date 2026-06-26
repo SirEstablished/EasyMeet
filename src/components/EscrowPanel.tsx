@@ -129,6 +129,24 @@ export function EscrowPanel({
   const latestEscrowStatusRef = useRef<EscrowOrder["status"] | null>(null);
   const latestEscrowIsCancelled = () => latestEscrowStatusRef.current === "cancelled";
 
+  // Per-conversation, per-user keys for fix #1 (fresh-deal cutoff) and
+  // fix #2 (sticky role choice so the popup never re-appears).
+  const freshDealKey = `escrow_fresh_after_${conversationId}_${meId}`;
+  const roleKey = `escrow_role_${conversationId}_${meId}`;
+  const readFreshAfter = (): number => {
+    if (typeof window === "undefined") return 0;
+    const v = window.localStorage.getItem(freshDealKey);
+    const n = v ? Date.parse(v) : 0;
+    return Number.isFinite(n) ? n : 0;
+  };
+  const readSavedRole = (): boolean | null => {
+    if (typeof window === "undefined") return null;
+    const v = window.localStorage.getItem(roleKey);
+    if (v === "provider") return true;
+    if (v === "buyer") return false;
+    return null;
+  };
+
   const load = async () => {
     try {
       const [{ data: ag }, { data: latestEscrow }] = await Promise.all([
@@ -149,7 +167,33 @@ export function EscrowPanel({
       ]);
       const agObj = (ag as ServiceAgreement) ?? null;
       const escrowRaw = latestEscrow as Record<string, unknown> | null;
-      const odObj = escrowFromLatestRow(escrowRaw);
+      let odObj = escrowFromLatestRow(escrowRaw);
+
+      // Fix #1: ignore any escrow record that predates a "fresh deal" cutoff
+      // (set when Start New Deal is clicked) OR that was superseded by a
+      // newer service_agreement. An old cancelled/released escrow must not
+      // bleed through onto a brand-new deal.
+      if (odObj) {
+        const freshAfter = readFreshAfter();
+        const escrowTs = Date.parse(
+          (escrowRaw?.cancelled_at as string | undefined) ??
+            (escrowRaw?.released_at as string | undefined) ??
+            odObj.created_at ??
+            "",
+        );
+        const agTs = agObj ? Date.parse(agObj.created_at) : 0;
+        const terminal =
+          odObj.status === "cancelled" ||
+          odObj.status === "released" ||
+          odObj.status === "completed" ||
+          odObj.status === "refunded";
+        const supersededByAgreement = terminal && agTs > 0 && escrowTs > 0 && agTs > escrowTs;
+        const supersededByFreshDeal = freshAfter > 0 && escrowTs > 0 && freshAfter >= escrowTs;
+        if (supersededByAgreement || supersededByFreshDeal) {
+          odObj = null;
+        }
+      }
+
       latestEscrowStatusRef.current = odObj?.status ?? null;
       setLoadedConversationId(conversationId);
 
@@ -172,7 +216,15 @@ export function EscrowPanel({
         return;
       }
 
-      setAgreement(agObj && agObj.id === dismissedAgreementIdRef.current ? null : agObj);
+      // Gate the agreement by the fresh-deal cutoff so a stale cancelled
+      // agreement (pre-payment cancel path) doesn't reappear after refresh.
+      let nextAgreement = agObj && agObj.id === dismissedAgreementIdRef.current ? null : agObj;
+      if (nextAgreement && nextAgreement.status === "cancelled") {
+        const freshAfter = readFreshAfter();
+        const agTs = Date.parse(nextAgreement.created_at);
+        if (freshAfter > 0 && agTs > 0 && freshAfter >= agTs) nextAgreement = null;
+      }
+      setAgreement(nextAgreement);
       setOrder((prev) => {
         const next = odObj && odObj.id === dismissedOrderIdRef.current ? null : odObj;
         // Only keep an optimistic payment row before the database has returned
@@ -190,6 +242,9 @@ export function EscrowPanel({
   useEffect(() => {
     setLoading(true);
     setLoadedConversationId(null);
+    // Fix #2: hydrate the saved role choice before load() runs so the
+    // popup never re-appears for a conversation the user already answered.
+    setIAmProvider(readSavedRole());
     load();
     const ch = supabase
       .channel(`escrow-${conversationId}`)
@@ -235,6 +290,14 @@ export function EscrowPanel({
       latestEscrowIsCancelled() ||
       (!order && agreement?.status === "cancelled")
     ) {
+      setAskRoleOpen(false);
+      return;
+    }
+    // Fix #2: if the user already picked a role for this conversation, use
+    // it and never show the popup again (until Start New Deal).
+    const saved = readSavedRole();
+    if (saved !== null) {
+      setIAmProvider(saved);
       setAskRoleOpen(false);
       return;
     }
@@ -332,6 +395,13 @@ export function EscrowPanel({
   const startNewDeal = () => {
     if (order) dismissedOrderIdRef.current = order.id;
     if (agreement) dismissedAgreementIdRef.current = agreement.id;
+    // Fix #1: persist a cutoff so older escrow/agreement rows are ignored
+    // even after a hard refresh, on every load() for this user+conversation.
+    // Fix #2: clear the saved role so a new deal can re-detect it.
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(freshDealKey, new Date().toISOString());
+      window.localStorage.removeItem(roleKey);
+    }
     setOrder(null);
     setAgreement(null);
     setShowSummary(false);
@@ -850,7 +920,11 @@ export function EscrowPanel({
           onOpenChange={setAskRoleOpen}
           otherName={other.full_name ?? other.username ?? "the other person"}
           onChoose={(role) => {
-            setIAmProvider(role === "provider");
+            const isProv = role === "provider";
+            setIAmProvider(isProv);
+            if (typeof window !== "undefined") {
+              window.localStorage.setItem(roleKey, isProv ? "provider" : "buyer");
+            }
             setAskRoleOpen(false);
           }}
         />
