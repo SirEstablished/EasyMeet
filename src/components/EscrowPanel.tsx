@@ -588,11 +588,21 @@ export function EscrowPanel({
 
   if (loading) return null;
 
-  // Latest escrow record says cancelled → render cancelled UI immediately,
-  // before any other branch (hidden, summary, role detection, buttons).
-  if (order?.status === "cancelled") {
-    const cancelledBy = (order as unknown as { cancelled_by?: string | null }).cancelled_by ?? null;
-    const cancelledAt = (order as unknown as { cancelled_at?: string | null }).cancelled_at ?? null;
+  // FIRST CHECK: if the latest escrow row OR the latest agreement says
+  // cancelled, render the cancelled banner immediately and nothing else.
+  // Works for every role combination (customer/professional/business in
+  // either direction) because it relies only on the latest record's
+  // status field — no role gating.
+  const escrowCancelled = order?.status === "cancelled";
+  const agreementCancelledNoOrder = !order && agreement?.status === "cancelled";
+  if (escrowCancelled || agreementCancelledNoOrder) {
+    const src = (escrowCancelled ? order : agreement) as unknown as {
+      cancelled_by?: string | null;
+      cancelled_at?: string | null;
+      updated_at?: string | null;
+    } | null;
+    const cancelledBy = src?.cancelled_by ?? null;
+    const cancelledAt = src?.cancelled_at ?? src?.updated_at ?? null;
     const cancellerName =
       cancelledBy && cancelledBy === meId
         ? "you"
