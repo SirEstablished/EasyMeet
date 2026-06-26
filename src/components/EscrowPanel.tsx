@@ -216,7 +216,15 @@ export function EscrowPanel({
         return;
       }
 
-      setAgreement(agObj && agObj.id === dismissedAgreementIdRef.current ? null : agObj);
+      // Gate the agreement by the fresh-deal cutoff so a stale cancelled
+      // agreement (pre-payment cancel path) doesn't reappear after refresh.
+      let nextAgreement = agObj && agObj.id === dismissedAgreementIdRef.current ? null : agObj;
+      if (nextAgreement && nextAgreement.status === "cancelled") {
+        const freshAfter = readFreshAfter();
+        const agTs = Date.parse(nextAgreement.created_at);
+        if (freshAfter > 0 && agTs > 0 && freshAfter >= agTs) nextAgreement = null;
+      }
+      setAgreement(nextAgreement);
       setOrder((prev) => {
         const next = odObj && odObj.id === dismissedOrderIdRef.current ? null : odObj;
         // Only keep an optimistic payment row before the database has returned
@@ -234,6 +242,9 @@ export function EscrowPanel({
   useEffect(() => {
     setLoading(true);
     setLoadedConversationId(null);
+    // Fix #2: hydrate the saved role choice before load() runs so the
+    // popup never re-appears for a conversation the user already answered.
+    setIAmProvider(readSavedRole());
     load();
     const ch = supabase
       .channel(`escrow-${conversationId}`)
