@@ -885,7 +885,11 @@ export function EscrowPanel({
         )}
 
         {order?.status === "disputed" && (
-          <span className="text-xs text-destructive">Dispute is under admin review.</span>
+          <div className="w-full rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4" />
+            <span className="font-medium">Dispute Under Review</span>
+            <span className="text-destructive/80">— EasyMeet admin will review within 24–48 hours.</span>
+          </div>
         )}
 
         {order?.status === "refunded" && (
@@ -1192,30 +1196,64 @@ function OpenDisputeDialog({
   const submit = async () => {
     if (reason.trim().length < 10) return toast.error("Please describe the issue (10+ chars)");
     setBusy(true);
-    const { data: dispute, error } = await supabase
-      .from("escrow_disputes")
-      .insert({ order_id: orderId, opened_by: meId, reason: reason.trim() })
-      .select("id")
-      .single();
-    if (error || !dispute) {
-      setBusy(false);
-      return toast.error(error?.message || "Could not open dispute");
-    }
-    await supabase.from("escrow").update({ status: "disputed" }).eq("id", orderId);
-    if (evidence.trim()) {
-      await supabase.from("escrow_dispute_evidence").insert({
-        dispute_id: (dispute as { id: string }).id,
-        uploaded_by: meId,
-        note: evidence.trim(),
+    try {
+      const evidenceText = evidence.trim();
+      const { error: escrowErr } = await supabase
+        .from("escrow")
+        .update({
+          status: "disputed",
+          dispute_reason: reason.trim(),
+          dispute_evidence: evidenceText ? [evidenceText] : null,
+        })
+        .eq("id", orderId);
+      if (escrowErr) {
+        toast.error(escrowErr.message || "Could not open dispute");
+        return;
+      }
+
+      // Best-effort: also create a dispute record and attach evidence/snapshot.
+      const { data: dispute } = await supabase
+        .from("escrow_disputes")
+        .insert({ order_id: orderId, opened_by: meId, reason: reason.trim() })
+        .select("id")
+        .single();
+      const disputeId = (dispute as { id: string } | null)?.id;
+      if (disputeId && evidenceText) {
+        await supabase.from("escrow_dispute_evidence").insert({
+          dispute_id: disputeId,
+          uploaded_by: meId,
+          note: evidenceText,
+        });
+      }
+      if (disputeId && conversationId) {
+        await snapshotChatToEvidence(disputeId, conversationId, meId);
+      }
+
+      // Auto chat message
+      if (conversationId) {
+        await supabase.from("messages").insert({
+          conversation_id: conversationId,
+          sender_id: meId,
+          body: "⚠️ A dispute has been opened. EasyMeet admin will review within 24-48 hours.",
+        });
+      }
+
+      // Notify admin
+      await supabase.from("notifications").insert({
+        user_id: "18f810c2-762f-4d66-93a2-48b1be211c8c",
+        title: "New Dispute Opened",
+        message: "A dispute has been opened for an escrow deal. Please review.",
+        type: "dispute",
       });
+
+      toast.success("Dispute submitted successfully");
+      onOpened();
+      onOpenChange(false);
+    } catch (e) {
+      toast.error((e as Error)?.message || "Could not open dispute");
+    } finally {
+      setBusy(false);
     }
-    if (conversationId) {
-      await snapshotChatToEvidence((dispute as { id: string }).id, conversationId, meId);
-    }
-    setBusy(false);
-    toast.success("Dispute opened. Admin will review.");
-    onOpened();
-    onOpenChange(false);
   };
 
   return (
