@@ -885,7 +885,11 @@ export function EscrowPanel({
         )}
 
         {order?.status === "disputed" && (
-          <span className="text-xs text-destructive">Dispute is under admin review.</span>
+          <div className="w-full rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4" />
+            <span className="font-medium">Dispute Under Review</span>
+            <span className="text-destructive/80">— EasyMeet admin will review within 24–48 hours.</span>
+          </div>
         )}
 
         {order?.status === "refunded" && (
