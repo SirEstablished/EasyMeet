@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { SupabaseClient } from "@supabase/supabase-js";
 
 export interface AdminDisputeRow {
   id: string;
@@ -9,7 +10,7 @@ export interface AdminDisputeRow {
   amount: number;
   status: string;
   dispute_reason: string | null;
-  dispute_evidence: unknown;
+  dispute_evidence: string[] | null;
   created_at: string;
   payment_ref: string | null;
   paystack_reference: string | null;
@@ -21,8 +22,11 @@ export interface AdminDisputeRow {
 
 export const getDisputedEscrows = createServerFn({ method: "GET" }).middleware([requireSupabaseAuth]).handler(
   async ({ context }): Promise<AdminDisputeRow[]> => {
-    // Verify the caller is an admin using the user's own client (RLS applies).
-    const { data: roleData, error: roleError } = await context.supabase
+    const db = context.supabase as SupabaseClient;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const adminDb = supabaseAdmin as SupabaseClient;
+
+    const { data: roleData, error: roleError } = await db
       .from("user_roles")
       .select("role")
       .eq("user_id", context.userId)
@@ -31,11 +35,7 @@ export const getDisputedEscrows = createServerFn({ method: "GET" }).middleware([
     if (roleError) throw roleError;
     if (!roleData) throw new Error("Unauthorized: admins only");
 
-    // Use the admin client so the full set of disputed escrow records is visible
-    // regardless of any party-scoped RLS policies on the escrow table.
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    const { data: escrowRows, error } = await supabaseAdmin
+    const { data: escrowRows, error } = await adminDb
       .from("escrow")
       .select("*")
       .eq("status", "disputed")
@@ -49,19 +49,29 @@ export const getDisputedEscrows = createServerFn({ method: "GET" }).middleware([
       new Set(rows.flatMap((r) => [r.customer_id, r.provider_id]).filter(Boolean)),
     );
 
-    const [ordersRes, profilesRes] = await Promise.all([
-      orderIds.length
-        ? supabaseAdmin.from("orders").select("id, service_title, amount").in("id", orderIds)
-        : Promise.resolve({ data: [] as any[] }),
-      userIds.length
-        ? supabaseAdmin.from("profiles").select("id, full_name, username, email").in("id", userIds)
-        : Promise.resolve({ data: [] as any[] }),
-    ]);
-    if (ordersRes.error) throw ordersRes.error;
-    if (profilesRes.error) throw profilesRes.error;
+    let ordersData: any[] = [];
+    let profilesData: any[] = [];
 
-    const oMap = new Map(((ordersRes.data as any[]) ?? []).map((o) => [o.id, o]));
-    const pMap = new Map(((profilesRes.data as any[]) ?? []).map((p) => [p.id, p]));
+    if (orderIds.length > 0) {
+      const { data, error: oErr } = await adminDb
+        .from("orders")
+        .select("id, service_title, amount")
+        .in("id", orderIds);
+      if (oErr) throw oErr;
+      ordersData = (data as any[]) ?? [];
+    }
+
+    if (userIds.length > 0) {
+      const { data, error: pErr } = await adminDb
+        .from("profiles")
+        .select("id, full_name, username, email")
+        .in("id", userIds);
+      if (pErr) throw pErr;
+      profilesData = (data as any[]) ?? [];
+    }
+
+    const oMap = new Map(ordersData.map((o) => [o.id, o]));
+    const pMap = new Map(profilesData.map((p) => [p.id, p]));
     const nameOf = (id: string) => {
       const p = pMap.get(id);
       return p?.full_name || p?.username || p?.email || "Unknown";
@@ -77,7 +87,7 @@ export const getDisputedEscrows = createServerFn({ method: "GET" }).middleware([
         amount: Number(r.amount_ngn ?? r.amount ?? o?.amount ?? 0),
         status: r.status,
         dispute_reason: r.dispute_reason,
-        dispute_evidence: r.dispute_evidence,
+        dispute_evidence: Array.isArray(r.dispute_evidence) ? r.dispute_evidence : null,
         created_at: r.created_at,
         payment_ref: r.payment_ref ?? null,
         paystack_reference: r.payment_ref ?? r.paystack_reference ?? null,
