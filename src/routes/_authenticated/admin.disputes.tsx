@@ -8,29 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Loader2, Shield, ShieldCheck, ShieldX } from "lucide-react";
 import { refundPaystackTransaction } from "@/lib/paystack.functions";
+import { getDisputedEscrows, type AdminDisputeRow } from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/disputes")({
   component: AdminDisputesPage,
 });
 
-interface DisputeRow {
-  id: string;
-  order_id: string | null;
-  customer_id: string;
-  provider_id: string;
-  amount: number;
-  amount_ngn?: number | null;
-  status: string;
-  dispute_reason: string | null;
-  dispute_evidence: unknown;
-  created_at: string;
-  payment_ref?: string | null;
-  paystack_reference?: string | null;
-  service_title: string;
-  order_amount: number;
-  customer_name: string;
-  provider_name: string;
-}
+type DisputeRow = AdminDisputeRow;
 
 function AdminDisputesPage() {
   const { user } = useAuth();
