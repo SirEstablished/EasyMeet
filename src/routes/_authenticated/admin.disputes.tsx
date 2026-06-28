@@ -154,6 +154,30 @@ function AdminDisputesPage() {
           resolved_at: new Date().toISOString(),
         })
         .eq("order_id", d.id);
+      // Notify both parties of the resolution.
+      const amountLabel = formatNgn(d.amount);
+      const proMessage =
+        outcome === "release"
+          ? `The dispute has been resolved in your favour. Payment of ${amountLabel} has been released to your account.`
+          : `The dispute has been resolved. A refund of ${amountLabel} will be processed to the customer.`;
+      const custMessage =
+        outcome === "refund"
+          ? `The dispute has been resolved in your favour. A refund of ${amountLabel} will be processed to your account.`
+          : `The dispute has been resolved. Payment of ${amountLabel} has been released to the professional.`;
+      await supabase.from("notifications").insert([
+        {
+          user_id: d.provider_id,
+          title: "Dispute Resolved ✅",
+          message: proMessage,
+          type: "dispute_resolved",
+        },
+        {
+          user_id: d.customer_id,
+          title: "Dispute Resolved ✅",
+          message: custMessage,
+          type: "dispute_resolved",
+        },
+      ] as never);
       toast.success(
         outcome === "release" ? "Payment released to professional" : "Refund issued to customer",
       );

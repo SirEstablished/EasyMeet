@@ -51,6 +51,7 @@ function MyOrdersPage() {
             .from("orders")
             .select("*")
             .eq("customer_id", user.id)
+            .or("kind.eq.service,kind.eq.product,kind.is.null")
             .order("created_at", { ascending: false }),
           isCustomer
             ? Promise.resolve({ data: [] as Order[] })
