@@ -8,29 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Loader2, Shield, ShieldCheck, ShieldX } from "lucide-react";
 import { refundPaystackTransaction } from "@/lib/paystack.functions";
+import { getDisputedEscrows, type AdminDisputeRow } from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/disputes")({
   component: AdminDisputesPage,
 });
 
-interface DisputeRow {
-  id: string;
-  order_id: string | null;
-  customer_id: string;
-  provider_id: string;
-  amount: number;
-  amount_ngn?: number | null;
-  status: string;
-  dispute_reason: string | null;
-  dispute_evidence: unknown;
-  created_at: string;
-  payment_ref?: string | null;
-  paystack_reference?: string | null;
-  service_title: string;
-  order_amount: number;
-  customer_name: string;
-  provider_name: string;
-}
+type DisputeRow = AdminDisputeRow;
 
 function AdminDisputesPage() {
   const { user } = useAuth();
@@ -51,59 +35,12 @@ function AdminDisputesPage() {
   }, [user]);
 
   const load = useCallback(async () => {
-    const { data: escrowRows, error } = await supabase
-      .from("escrow")
-      .select("*")
-      .eq("status", "disputed")
-      .order("created_at", { ascending: false });
-    if (error) {
-      toast.error(error.message);
-      return;
+    try {
+      const rows = await getDisputedEscrows({ data: undefined });
+      setDisputes(rows);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not load disputes");
     }
-    const rows = (escrowRows as any[]) ?? [];
-    if (rows.length === 0) return setDisputes([]);
-
-    const orderIds = Array.from(new Set(rows.map((r) => r.order_id).filter(Boolean)));
-    const userIds = Array.from(
-      new Set(rows.flatMap((r) => [r.customer_id, r.provider_id]).filter(Boolean)),
-    );
-
-    const [ordersRes, profilesRes] = await Promise.all([
-      orderIds.length
-        ? supabase.from("orders").select("id, service_title, amount").in("id", orderIds)
-        : Promise.resolve({ data: [] as any[] }),
-      userIds.length
-        ? supabase.from("profiles").select("id, full_name, username, email").in("id", userIds)
-        : Promise.resolve({ data: [] as any[] }),
-    ]);
-    const oMap = new Map(((ordersRes.data as any[]) ?? []).map((o) => [o.id, o]));
-    const pMap = new Map(((profilesRes.data as any[]) ?? []).map((p) => [p.id, p]));
-    const nameOf = (id: string) => {
-      const p = pMap.get(id);
-      return p?.full_name || p?.username || p?.email || "Unknown";
-    };
-
-    setDisputes(
-      rows.map((r) => {
-        const o = oMap.get(r.order_id);
-        return {
-          id: r.id,
-          order_id: r.order_id,
-          customer_id: r.customer_id,
-          provider_id: r.provider_id,
-          amount: Number(r.amount_ngn ?? r.amount ?? o?.amount ?? 0),
-          status: r.status,
-          dispute_reason: r.dispute_reason,
-          dispute_evidence: r.dispute_evidence,
-          created_at: r.created_at,
-          paystack_reference: r.payment_ref ?? r.paystack_reference ?? null,
-          service_title: o?.service_title ?? "Order",
-          order_amount: Number(o?.amount ?? r.amount_ngn ?? r.amount ?? 0),
-          customer_name: nameOf(r.customer_id),
-          provider_name: nameOf(r.provider_id),
-        } as DisputeRow;
-      }),
-    );
   }, []);
 
   useEffect(() => {
