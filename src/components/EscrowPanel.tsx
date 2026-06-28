@@ -189,7 +189,10 @@ export function EscrowPanel({
           odObj.status === "refunded";
         const supersededByAgreement = terminal && agTs > 0 && escrowTs > 0 && agTs > escrowTs;
         const supersededByFreshDeal = freshAfter > 0 && escrowTs > 0 && freshAfter >= escrowTs;
-        if (supersededByAgreement || supersededByFreshDeal) {
+        // Never suppress a cancelled escrow — it is the source of truth and
+        // MUST render for both parties (Realtime + page refresh) regardless
+        // of any local "Start New Deal" cutoff one side may have set.
+        if (odObj.status !== "cancelled" && (supersededByAgreement || supersededByFreshDeal)) {
           odObj = null;
         }
       }
