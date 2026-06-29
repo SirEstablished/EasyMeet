@@ -42,31 +42,24 @@ function MyOrdersPage() {
     if (!user) return;
     try {
       const [
-        { data: outData, error: outError },
-        inResult,
+        { data: allData, error: allError },
         { data: revData, error: revError },
         { data: prodRevData, error: prodRevError },
       ] = await Promise.all([
           supabase
             .from("orders")
             .select("*")
-            .eq("customer_id", user.id)
+            .or(`customer_id.eq.${user.id},provider_id.eq.${user.id}`)
             .order("created_at", { ascending: false }),
-          isCustomer
-            ? Promise.resolve({ data: [] as Order[] })
-            : supabase
-                .from("orders")
-                .select("*")
-                .eq("provider_id", user.id)
-                .order("created_at", { ascending: false }),
           supabase.from("reviews").select("order_id").eq("reviewer_id", user.id),
           supabase.from("product_reviews").select("product_id").eq("reviewer_id", user.id),
         ]);
-      if (outError) throw outError;
-      if ("error" in inResult && inResult.error) throw inResult.error;
+      if (allError) throw allError;
       if (revError) throw revError;
       if (prodRevError) throw prodRevError;
-      const inData = inResult.data;
+      const rows = (allData ?? []) as Order[];
+      const outData = rows.filter((o) => o.customer_id === user.id);
+      const inData = isCustomer ? [] : rows.filter((o) => o.provider_id === user.id);
 
       const outOrderIds = (outData ?? []).map((o) => o.id);
       const inOrderIds = (inData ?? []).map((o) => o.id);
