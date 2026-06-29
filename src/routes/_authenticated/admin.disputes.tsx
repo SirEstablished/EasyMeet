@@ -39,7 +39,42 @@ function AdminDisputesPage() {
       const rows = await getDisputedEscrows({ data: undefined });
       setDisputes(rows);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not load disputes");
+      // Fallback to direct client query (RLS allows admins to see disputes).
+      try {
+        const { data, error } = await supabase
+          .from("escrow")
+          .select(
+            "*, orders(*), customer:profiles!escrow_customer_id_fkey(*), provider:profiles!escrow_provider_id_fkey(*)",
+          )
+          .eq("status", "disputed")
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        const mapped: DisputeRow[] = ((data as any[]) ?? []).map((r) => {
+          const amount = Number(r.amount_ngn ?? r.amount ?? r.orders?.amount ?? 0);
+          const nameOf = (p: any) =>
+            p?.full_name || p?.username || p?.email || "Unknown";
+          return {
+            id: r.id,
+            order_id: r.order_id,
+            customer_id: r.customer_id,
+            provider_id: r.provider_id,
+            amount,
+            status: r.status,
+            dispute_reason: r.dispute_reason,
+            dispute_evidence: Array.isArray(r.dispute_evidence) ? r.dispute_evidence : null,
+            created_at: r.created_at,
+            payment_ref: r.payment_ref ?? null,
+            paystack_reference: r.payment_ref ?? r.paystack_reference ?? null,
+            service_title: r.orders?.service_title ?? "Order",
+            order_amount: Number(r.orders?.amount ?? amount),
+            customer_name: nameOf(r.customer),
+            provider_name: nameOf(r.provider),
+          };
+        });
+        setDisputes(mapped);
+      } catch (e2) {
+        toast.error(e2 instanceof Error ? e2.message : "Could not load disputes");
+      }
     }
   }, []);
 
