@@ -177,29 +177,27 @@ function ProductDetailPage() {
         toast.error(verify.message || "Payment could not be verified");
         return;
       }
-      const authUser = await supabase.auth.getUser();
       const orderData = {
-        customer_id: authUser.data.user!.id,
+        customer_id: user.id,
         provider_id: product.seller_id,
         product_id: product.id,
-        service_id: null,
-        kind: "product",
         service_title: product.title,
         amount: product.price,
-        commission_amount: Math.round(product.price * 0.03 * 100) / 100,
-        currency: "NGN",
-        notes: null,
         payment_ref: res.reference,
         payment_status: "paid",
         status: "confirmed",
+        currency: "NGN",
+        kind: "product",
       };
+      console.log("[shop] inserting order:", orderData);
       const { data: orderRow, error: orderError } = await supabase
         .from("orders")
         .insert(orderData)
         .select("id")
         .single();
+      console.log("[shop] insert result:", { orderRow, orderError });
       if (orderError || !orderRow) {
-        toast.error("Payment received but order record failed. Please contact support.");
+        toast.error(orderError?.message || "Order insert failed");
         return;
       }
       // Escrow: hold funds until customer marks complete
