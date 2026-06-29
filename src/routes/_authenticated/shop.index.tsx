@@ -245,24 +245,28 @@ function PurchaseModal({ product, onClose }: { product: Product | null; onClose:
         return;
       }
       const { commission, payout } = computeCommission(product.price);
-      const { data: orderRow, error: orderError } = await supabase.from("orders").insert({
+      const orderData = {
         customer_id: user.id,
         provider_id: product.seller_id,
         product_id: product.id,
-        service_id: null,
-        kind: "product",
         service_title: product.title,
         amount: product.price,
-        commission_amount: commission,
-        currency: "NGN",
-        notes: null,
         payment_ref: res.reference,
         payment_status: "paid",
         status: "confirmed",
-      }).select("id").single();
+        currency: "NGN",
+        kind: "product",
+      };
+      console.log("[shop] inserting order:", orderData);
+      const { data: orderRow, error: orderError } = await supabase
+        .from("orders")
+        .insert(orderData)
+        .select("id")
+        .single();
+      console.log("[shop] insert result:", { orderRow, orderError });
       if (orderError || !orderRow) {
-        console.error("Order insert failed after payment:", orderError, "ref:", res.reference);
-        toast.error("Payment received but order record failed. Please contact support.");
+        console.error("[shop] order insert failed:", orderError, "ref:", res.reference);
+        toast.error("Payment received but order failed to save: " + (orderError?.message ?? "unknown error"));
         return;
       }
 
