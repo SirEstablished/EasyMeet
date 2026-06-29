@@ -205,7 +205,7 @@ function ProductDetailPage() {
       await supabase.from("escrow").insert({
         order_id: (orderRow as { id: string }).id,
         kind: "product",
-        customer_id: authUser.data.user!.id,
+        customer_id: user.id,
         professional_id: product.seller_id,
         product_id: product.id,
         quantity: 1,
