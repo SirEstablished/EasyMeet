@@ -197,7 +197,8 @@ function ProductDetailPage() {
         .single();
       console.log("[shop] insert result:", { orderRow, orderError });
       if (orderError || !orderRow) {
-        toast.error(orderError?.message || "Order insert failed");
+        console.error("[shop] order insert failed:", orderError);
+        toast.error("Payment received but order failed to save: " + (orderError?.message ?? "unknown error"));
         return;
       }
       // Escrow: hold funds until customer marks complete
