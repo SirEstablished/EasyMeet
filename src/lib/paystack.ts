@@ -44,6 +44,7 @@ export async function payWithPaystack(args: PaystackArgs): Promise<PaystackResul
   return new Promise<PaystackResult>((resolve, reject) => {
     const PaystackPop = (window as any).PaystackPop;
     if (!PaystackPop) return reject(new Error("Paystack not loaded"));
+    let paid = false;
     const handler = PaystackPop.setup({
       key: PAYSTACK_PUBLIC_KEY,
       email: args.email,
@@ -51,8 +52,18 @@ export async function payWithPaystack(args: PaystackArgs): Promise<PaystackResul
       currency: "NGN",
       ref: args.reference || `em_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       metadata: args.metadata ?? {},
-      callback: (response: PaystackResult) => resolve(response),
-      onClose: () => reject(new Error("Payment cancelled")),
+      callback: (response: PaystackResult) => {
+        console.log("[paystack] callback fired", response);
+        paid = true;
+        resolve(response);
+      },
+      onClose: () => {
+        console.log("[paystack] onClose fired, paid=", paid);
+        // Defer so a callback firing right after close still wins
+        setTimeout(() => {
+          if (!paid) reject(new Error("Payment cancelled"));
+        }, 400);
+      },
     });
     handler.openIframe();
   });
