@@ -14,7 +14,69 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      orders: {
+        Row: {
+          amount: number
+          commission_amount: number
+          created_at: string
+          currency: string
+          customer_id: string
+          escrow_stage: string | null
+          escrow_status: string | null
+          id: string
+          kind: string
+          payment_ref: string | null
+          payment_status: string
+          payout_amount: number
+          product_id: string | null
+          provider_id: string
+          service_id: string | null
+          service_title: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          commission_amount?: number
+          created_at?: string
+          currency?: string
+          customer_id: string
+          escrow_stage?: string | null
+          escrow_status?: string | null
+          id?: string
+          kind?: string
+          payment_ref?: string | null
+          payment_status?: string
+          payout_amount?: number
+          product_id?: string | null
+          provider_id: string
+          service_id?: string | null
+          service_title: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          commission_amount?: number
+          created_at?: string
+          currency?: string
+          customer_id?: string
+          escrow_stage?: string | null
+          escrow_status?: string | null
+          id?: string
+          kind?: string
+          payment_ref?: string | null
+          payment_status?: string
+          payout_amount?: number
+          product_id?: string | null
+          provider_id?: string
+          service_id?: string | null
+          service_title?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
