@@ -170,6 +170,7 @@ function ProductDetailPage() {
         amountNgn: product.price,
         metadata: { product_id: product.id, kind: "product" },
       });
+      console.log("[shop] onSuccess fired", res);
       const verify = await verifyPaystackTransaction({
         data: { reference: res.reference, expectedAmountNgn: product.price },
       });
