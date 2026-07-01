@@ -112,6 +112,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (typeof meta.business_type === "string") updates.business_type = meta.business_type;
         if (typeof meta.sells_products === "boolean") updates.sells_products = meta.sells_products;
         if (typeof meta.offers_services === "boolean") updates.offers_services = meta.offers_services;
+
+        // Google OAuth users are always customers — auto-provision profile
+        // so they never see the role-selection screen.
+        const appMeta = (userData.user?.app_metadata ?? {}) as Record<string, unknown>;
+        const provider = (appMeta.provider as string | undefined) ?? "";
+        const providers = (appMeta.providers as string[] | undefined) ?? [];
+        const isGoogle = provider === "google" || providers.includes("google");
+        if (isGoogle) {
+          if (!updates.role) updates.role = "customer";
+          if (!updates.full_name) {
+            const gName =
+              (meta.full_name as string | undefined) ||
+              (meta.name as string | undefined) ||
+              (userData.user?.email ?? "");
+            if (gName) updates.full_name = gName;
+          }
+        }
       }
       if (Object.keys(updates).length > (profileRow ? 0 : 1)) {
         if (profileRow) {
