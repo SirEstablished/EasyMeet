@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.prevent_orders_financial_field_update() FROM PUBLIC, anon, authenticated;
