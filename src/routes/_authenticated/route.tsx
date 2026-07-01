@@ -10,7 +10,7 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 function AuthLayout() {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, profileLoading } = useAuth();
   const { openModal } = useAuthModal();
   const navigate = useNavigate();
   const location = useLocation();
@@ -23,10 +23,10 @@ function AuthLayout() {
   }, [loading, user, navigate, openModal]);
 
   useEffect(() => {
-    if (!loading && user && !profile?.role && location.pathname !== "/select-role") {
+    if (!loading && !profileLoading && user && !profile?.role && location.pathname !== "/select-role") {
       navigate({ to: "/select-role" });
     }
-  }, [loading, user, profile, location.pathname, navigate]);
+  }, [loading, profileLoading, user, profile, location.pathname, navigate]);
 
   if (loading) {
     return (
