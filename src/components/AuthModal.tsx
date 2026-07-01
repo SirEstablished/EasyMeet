@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { lovable } from "@/integrations/lovable";
+
 
 type BusinessMode = "products" | "services" | "both";
 
