@@ -310,10 +310,10 @@ function OrderList({
         {direction === "outgoing" ? (
           <>
             No orders yet.{" "}
-            <Link to="/shop" className="text-primary font-medium">
-              Browse the shop
+            <Link to="/explore" className="text-primary font-medium">
+              Browse professionals
             </Link>{" "}
-            to find professionals.
+            to get started.
           </>
         ) : (
           <>No incoming orders yet.</>

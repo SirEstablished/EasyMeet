@@ -9,7 +9,6 @@ import {
   Sparkles,
   Search,
   Users,
-  Store,
   Package,
   Users2,
 } from "lucide-react";
@@ -47,7 +46,6 @@ function Dashboard() {
   const quickLinks: { Icon: typeof Search; label: string; to: string }[] =
     role === "customer"
       ? [
-          { Icon: Store, label: "Shop", to: "/shop" },
           { Icon: Search, label: "Browse Professionals", to: "/explore" },
           { Icon: CalendarCheck, label: "My Orders", to: "/my-orders" },
           { Icon: MessageCircle, label: "Messages", to: "/messages" },
@@ -56,7 +54,6 @@ function Dashboard() {
           ...(offersServices ? [{ Icon: Sparkles, label: "My Services", to: "/my-services" }] : []),
           ...(sellsProducts ? [{ Icon: Package, label: "My Products", to: "/my-products" }] : []),
           { Icon: CalendarCheck, label: "Orders", to: "/my-orders" },
-          { Icon: Store, label: "Shop", to: "/shop" },
           { Icon: Users, label: "Explore", to: "/explore" },
           { Icon: MessageCircle, label: "Messages", to: "/messages" },
           ...(role === "business" ? [{ Icon: Users2, label: "Staffs", to: "/staffs" }] : []),

@@ -26,11 +26,9 @@ import { Route as AuthenticatedMessagesRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedFeedRouteImport } from './routes/_authenticated/feed'
 import { Route as AuthenticatedExploreRouteImport } from './routes/_authenticated/explore'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
-import { Route as AuthenticatedShopIndexRouteImport } from './routes/_authenticated/shop.index'
 import { Route as AuthenticatedProfileIndexRouteImport } from './routes/_authenticated/profile.index'
 import { Route as AuthenticatedProfileIdRouteImport } from './routes/_authenticated/profile.$id'
 import { Route as AuthenticatedAdminDisputesRouteImport } from './routes/_authenticated/admin.disputes'
-import { Route as AuthenticatedShopProductIdRouteImport } from './routes/_authenticated/shop.product.$id'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
@@ -116,11 +114,6 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedShopIndexRoute = AuthenticatedShopIndexRouteImport.update({
-  id: '/shop/',
-  path: '/shop/',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedProfileIndexRoute =
   AuthenticatedProfileIndexRouteImport.update({
     id: '/',
@@ -136,12 +129,6 @@ const AuthenticatedAdminDisputesRoute =
   AuthenticatedAdminDisputesRouteImport.update({
     id: '/admin/disputes',
     path: '/admin/disputes',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedShopProductIdRoute =
-  AuthenticatedShopProductIdRouteImport.update({
-    id: '/shop/product/$id',
-    path: '/shop/product/$id',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 
@@ -165,8 +152,6 @@ export interface FileRoutesByFullPath {
   '/admin/disputes': typeof AuthenticatedAdminDisputesRoute
   '/profile/$id': typeof AuthenticatedProfileIdRoute
   '/profile/': typeof AuthenticatedProfileIndexRoute
-  '/shop/': typeof AuthenticatedShopIndexRoute
-  '/shop/product/$id': typeof AuthenticatedShopProductIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -187,8 +172,6 @@ export interface FileRoutesByTo {
   '/admin/disputes': typeof AuthenticatedAdminDisputesRoute
   '/profile/$id': typeof AuthenticatedProfileIdRoute
   '/profile': typeof AuthenticatedProfileIndexRoute
-  '/shop': typeof AuthenticatedShopIndexRoute
-  '/shop/product/$id': typeof AuthenticatedShopProductIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -212,8 +195,6 @@ export interface FileRoutesById {
   '/_authenticated/admin/disputes': typeof AuthenticatedAdminDisputesRoute
   '/_authenticated/profile/$id': typeof AuthenticatedProfileIdRoute
   '/_authenticated/profile/': typeof AuthenticatedProfileIndexRoute
-  '/_authenticated/shop/': typeof AuthenticatedShopIndexRoute
-  '/_authenticated/shop/product/$id': typeof AuthenticatedShopProductIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -237,8 +218,6 @@ export interface FileRouteTypes {
     | '/admin/disputes'
     | '/profile/$id'
     | '/profile/'
-    | '/shop/'
-    | '/shop/product/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -259,8 +238,6 @@ export interface FileRouteTypes {
     | '/admin/disputes'
     | '/profile/$id'
     | '/profile'
-    | '/shop'
-    | '/shop/product/$id'
   id:
     | '__root__'
     | '/'
@@ -283,8 +260,6 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/disputes'
     | '/_authenticated/profile/$id'
     | '/_authenticated/profile/'
-    | '/_authenticated/shop/'
-    | '/_authenticated/shop/product/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -417,13 +392,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/shop/': {
-      id: '/_authenticated/shop/'
-      path: '/shop'
-      fullPath: '/shop/'
-      preLoaderRoute: typeof AuthenticatedShopIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/profile/': {
       id: '/_authenticated/profile/'
       path: '/'
@@ -443,13 +411,6 @@ declare module '@tanstack/react-router' {
       path: '/admin/disputes'
       fullPath: '/admin/disputes'
       preLoaderRoute: typeof AuthenticatedAdminDisputesRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/shop/product/$id': {
-      id: '/_authenticated/shop/product/$id'
-      path: '/shop/product/$id'
-      fullPath: '/shop/product/$id'
-      preLoaderRoute: typeof AuthenticatedShopProductIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
   }
@@ -481,8 +442,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedStaffsRoute: typeof AuthenticatedStaffsRoute
   AuthenticatedAdminDisputesRoute: typeof AuthenticatedAdminDisputesRoute
-  AuthenticatedShopIndexRoute: typeof AuthenticatedShopIndexRoute
-  AuthenticatedShopProductIdRoute: typeof AuthenticatedShopProductIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -498,8 +457,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedStaffsRoute: AuthenticatedStaffsRoute,
   AuthenticatedAdminDisputesRoute: AuthenticatedAdminDisputesRoute,
-  AuthenticatedShopIndexRoute: AuthenticatedShopIndexRoute,
-  AuthenticatedShopProductIdRoute: AuthenticatedShopProductIdRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
