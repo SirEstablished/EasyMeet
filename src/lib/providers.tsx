@@ -57,6 +57,7 @@ interface AuthCtx {
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
+  profileLoading: boolean;
   refreshProfile: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -67,8 +68,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(true);
 
   const loadProfile = async (uid: string) => {
+    setProfileLoading(true);
     const { data } = await supabase
       .from("profiles")
       .select("*")
@@ -133,6 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setProfile(profileRow);
+    setProfileLoading(false);
   };
 
   useEffect(() => {
@@ -145,6 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setTimeout(() => loadProfile(s.user.id), 0);
       } else {
         setProfile(null);
+        setProfileLoading(false);
       }
     });
 
@@ -152,6 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(s);
       setUser(s?.user ?? null);
       if (s?.user) loadProfile(s.user.id);
+      else setProfileLoading(false);
       setLoading(false);
     });
 
@@ -165,6 +171,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         session,
         profile,
         loading,
+        profileLoading,
         refreshProfile: async () => {
           if (user) await loadProfile(user.id);
         },
