@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useNavigate, useLocation } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useAuth, useAuthModal } from "@/lib/providers";
 import { AppNavbar } from "@/components/AppNavbar";
@@ -10,9 +10,10 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 function AuthLayout() {
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
   const { openModal } = useAuthModal();
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     if (!loading && !user) {
@@ -20,6 +21,12 @@ function AuthLayout() {
       openModal("login");
     }
   }, [loading, user, navigate, openModal]);
+
+  useEffect(() => {
+    if (!loading && user && !profile?.role && location.pathname !== "/select-role") {
+      navigate({ to: "/select-role" });
+    }
+  }, [loading, user, profile, location.pathname, navigate]);
 
   if (loading) {
     return (
