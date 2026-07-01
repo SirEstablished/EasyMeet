@@ -307,45 +307,28 @@ export function AuthModal() {
           </div>
         )}
 
-        {!(mode === "signup" && step === 2) && (
+        {(mode === "login" || (mode === "signup" && step === 1 && role === "customer")) && (
           <>
             <Button
               type="button"
               variant="outline"
-              className="w-full"
+              className="w-full bg-white text-slate-900 hover:bg-slate-50 border-slate-300"
               disabled={loading}
               onClick={async () => {
                 reset();
                 setLoading(true);
                 try {
-                  const result = await lovable.auth.signInWithOAuth("google", {
-                    redirect_uri: window.location.origin,
+                  const { error: err } = await supabase.auth.signInWithOAuth({
+                    provider: "google",
+                    options: { redirectTo: "https://easymeet.com.ng" },
                   });
-                  if (result.error) {
-                    setError(
-                      result.error instanceof Error ? result.error.message : "Google sign-in failed.",
-                    );
+                  if (err) {
+                    setError(err.message);
                     setLoading(false);
-                    return;
                   }
-                  if (result.redirected) return; // browser navigating away
-                  // Popup flow succeeded — session is set. Route based on profile.
-                  close();
-                  const { data: userData } = await supabase.auth.getUser();
-                  const uid = userData.user?.id;
-                  if (!uid) {
-                    navigate({ to: "/" });
-                    return;
-                  }
-                  const { data: prof } = await supabase
-                    .from("profiles")
-                    .select("role")
-                    .eq("id", uid)
-                    .maybeSingle();
-                  navigate({ to: prof?.role ? "/dashboard" : "/select-role" });
+                  // Browser will redirect to Google; nothing else to do.
                 } catch (e) {
                   setError(e instanceof Error ? e.message : "Google sign-in failed.");
-                } finally {
                   setLoading(false);
                 }
               }}
