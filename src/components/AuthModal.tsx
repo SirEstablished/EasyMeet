@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { lovable } from "@/integrations/lovable";
 
 type BusinessMode = "products" | "services" | "both";
 
@@ -304,6 +305,65 @@ export function AuthModal() {
           <div className="text-sm rounded-md bg-accent/10 text-accent-foreground px-3 py-2">
             {info}
           </div>
+        )}
+
+        {!(mode === "signup" && step === 2) && (
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              disabled={loading}
+              onClick={async () => {
+                reset();
+                setLoading(true);
+                try {
+                  const result = await lovable.auth.signInWithOAuth("google", {
+                    redirect_uri: window.location.origin,
+                  });
+                  if (result.error) {
+                    setError(
+                      result.error instanceof Error ? result.error.message : "Google sign-in failed.",
+                    );
+                    setLoading(false);
+                    return;
+                  }
+                  if (result.redirected) return; // browser navigating away
+                  // Popup flow succeeded — session is set. Route based on profile.
+                  close();
+                  const { data: userData } = await supabase.auth.getUser();
+                  const uid = userData.user?.id;
+                  if (!uid) {
+                    navigate({ to: "/" });
+                    return;
+                  }
+                  const { data: prof } = await supabase
+                    .from("profiles")
+                    .select("role")
+                    .eq("id", uid)
+                    .maybeSingle();
+                  navigate({ to: prof?.role ? "/dashboard" : "/select-role" });
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : "Google sign-in failed.");
+                } finally {
+                  setLoading(false);
+                }
+              }}
+            >
+              <svg className="h-4 w-4 mr-2" viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="#EA4335" d="M12 10.2v3.9h5.5c-.24 1.4-1.7 4.1-5.5 4.1-3.3 0-6-2.7-6-6.1s2.7-6.1 6-6.1c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.7 3.4 14.5 2.4 12 2.4 6.7 2.4 2.4 6.7 2.4 12S6.7 21.6 12 21.6c6.9 0 9.5-4.8 9.5-9.4 0-.6-.1-1-.1-1.4H12z"/>
+              </svg>
+              Continue with Google
+            </Button>
+            <div className="relative my-1">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">or</span>
+              </div>
+            </div>
+          </>
         )}
 
         {mode === "signup" ? (
