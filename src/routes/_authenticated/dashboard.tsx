@@ -9,7 +9,6 @@ import {
   Sparkles,
   Search,
   Users,
-  Store,
   Package,
   Users2,
 } from "lucide-react";
