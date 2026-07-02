@@ -15,6 +15,7 @@ import {
   Sun,
 } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -30,9 +31,17 @@ export const Route = createFileRoute("/")({
 
 function Landing() {
   const { openModal } = useAuthModal();
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const { theme, toggle } = useTheme();
   const navigate = useNavigate();
+
+  // If a session is present (e.g. returning from Google OAuth), send the
+  // user straight to their dashboard.
+  useEffect(() => {
+    if (!loading && user) {
+      navigate({ to: "/dashboard" });
+    }
+  }, [loading, user, navigate]);
 
   const goApp = () => {
     if (user) navigate({ to: "/dashboard" });
