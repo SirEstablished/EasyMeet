@@ -950,7 +950,7 @@ export function EscrowPanel({
 
         {/* Stage 3 — pay into escrow */}
         {!isCancelled && iAmProvider === false && agreement?.status === "accepted" && !order && (
-          <Button size="sm" onClick={payEscrow} disabled={paying} className="bg-gradient-brand">
+          <Button size="sm" onClick={openPayBreakdown} disabled={paying} className="bg-gradient-brand">
             {paying ? (
               <Loader2 className="h-4 w-4 mr-1 animate-spin" />
             ) : (
@@ -1076,7 +1076,81 @@ export function EscrowPanel({
         busy={busy}
         onConfirm={cancelDeal}
       />
+      <PaymentBreakdownDialog
+        open={payBreakdownOpen}
+        onOpenChange={(v) => {
+          setPayBreakdownOpen(v);
+          if (!v) setPayAgreement(null);
+        }}
+        agreement={payAgreement}
+        paying={paying}
+        onConfirm={payEscrow}
+      />
     </div>
+  );
+}
+
+function PaymentBreakdownDialog({
+  open,
+  onOpenChange,
+  agreement,
+  paying,
+  onConfirm,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  agreement: ServiceAgreement | null;
+  paying: boolean;
+  onConfirm: () => void;
+}) {
+  if (!agreement) return null;
+  const ag = agreement as ServiceAgreement & {
+    materials_cost?: number | null;
+    labor_cost?: number | null;
+    contingency_cost?: number | null;
+    total_amount?: number | null;
+    paystack_fee?: number | null;
+    commission_amount?: number | null;
+  };
+  const materials = Number(ag.materials_cost ?? 0);
+  const labor = Number(ag.labor_cost ?? 0);
+  const contingency = Number(ag.contingency_cost ?? 0);
+  const fallback = computeAgreementFees(materials, labor, contingency);
+  const subtotal = Number(ag.total_amount ?? (materials + labor + contingency)) || agreement.price;
+  const commission = Number(ag.commission_amount ?? fallback.commission);
+  const paystackFee = Number(ag.paystack_fee ?? fallback.paystackFee);
+  const total = subtotal + paystackFee;
+  const professionalReceives = Math.max(0, materials + labor - commission);
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Confirm payment breakdown</DialogTitle>
+        </DialogHeader>
+        <div className="rounded-lg border border-border/60 bg-background/40 p-3 space-y-1 text-sm">
+          {materials > 0 && <SummaryRow label="Materials (released immediately)" value={materials} />}
+          {labor > 0 && <SummaryRow label="Labor (held in escrow)" value={labor} />}
+          {contingency > 0 && <SummaryRow label="Contingency (buffer)" value={contingency} />}
+          {materials === 0 && labor === 0 && contingency === 0 && (
+            <SummaryRow label="Escrow amount" value={subtotal} />
+          )}
+          <SummaryRow label="EasyMeet commission (deducted at completion)" value={commission} muted />
+          <SummaryRow label="Paystack fee" value={paystackFee} muted />
+          <div className="border-t border-border/50 my-1" />
+          <SummaryRow label="Total you pay" value={total} bold />
+          <SummaryRow label="Professional receives" value={professionalReceives} accent />
+        </div>
+        <DialogFooter>
+          <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={paying}>
+            Cancel
+          </Button>
+          <Button onClick={onConfirm} disabled={paying} className="bg-gradient-brand">
+            {paying ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <CreditCard className="h-4 w-4 mr-1" />}
+            Confirm & Pay {formatNgn(total)}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
