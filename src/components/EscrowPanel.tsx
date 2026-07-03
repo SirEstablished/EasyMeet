@@ -1022,12 +1022,18 @@ function SendAgreementDialog({
   customerId: string;
   onSent: () => void;
 }) {
+  const [agreementType, setAgreementType] = useState<string>("service");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [price, setPrice] = useState("");
+  const [materials, setMaterials] = useState("");
+  const [labor, setLabor] = useState("");
+  const [contingency, setContingency] = useState("");
+  const [deliveryDate, setDeliveryDate] = useState("");
   const [terms, setTerms] = useState("");
   const [busy, setBusy] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
+
+  const fees = computeAgreementFees(Number(materials), Number(labor), Number(contingency));
 
   // Auto-fill the agreement form from the conversation on open.
   useEffect(() => {
@@ -1054,7 +1060,7 @@ function SendAgreementDialog({
         if (cancelled) return;
         setTitle((cur) => cur || suggestion.title);
         setDescription((cur) => cur || suggestion.description);
-        setPrice((cur) => cur || (suggestion.price ? String(suggestion.price) : ""));
+        setLabor((cur) => cur || (suggestion.price ? String(suggestion.price) : ""));
         setTerms((cur) => cur || suggestion.terms);
       } catch {
         // best-effort; ignore
@@ -1070,28 +1076,37 @@ function SendAgreementDialog({
   const submit = async () => {
     const jobTitle = title.trim();
     const jobDescription = description.trim();
-    const priceNum = Number(price);
     if (!jobTitle) return toast.error("Job title is required");
     if (!jobDescription) return toast.error("Job description is required");
-    if (!price.trim() || !Number.isFinite(priceNum) || priceNum <= 0) {
-      return toast.error("Enter a valid price greater than 0");
-    }
+    if (fees.subtotal <= 0) return toast.error("Enter Materials and/or Labor amount greater than 0");
+    if (!deliveryDate) return toast.error("Delivery/Completion date is required");
     setBusy(true);
-    const { error } = await supabase.from("service_agreements").insert({
+    const payload: Record<string, unknown> = {
       conversation_id: conversationId,
       sender_id: professionalId,
       receiver_id: customerId,
       job_title: jobTitle,
       job_description: jobDescription,
-      price: priceNum,
+      price: fees.subtotal,
       terms: terms.trim() || null,
       status: "pending",
-    });
+      agreement_type: agreementType,
+      materials_cost: fees.materials,
+      labor_cost: fees.labor,
+      contingency_cost: fees.contingency,
+      delivery_date: deliveryDate,
+      total_amount: fees.subtotal,
+      commission_amount: fees.commission,
+      paystack_fee: fees.paystackFee,
+    };
+    const { error } = await supabase
+      .from("service_agreements")
+      .insert(payload as never);
     if (!error) {
       await supabase.from("messages").insert({
         conversation_id: conversationId,
         sender_id: professionalId,
-        body: `📄 Agreement sent: "${jobTitle}" — ${formatNgn(priceNum)}. Please review and accept.`,
+        body: `📄 Agreement sent: "${jobTitle}" — ${formatNgn(fees.subtotal)} (Materials ${formatNgn(fees.materials)} · Labor ${formatNgn(fees.labor)}${fees.contingency ? ` · Contingency ${formatNgn(fees.contingency)}` : ""}). Please review and accept.`,
       });
     }
     setBusy(false);
@@ -1103,10 +1118,10 @@ function SendAgreementDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            Send Service Agreement
+            Send Escrow Agreement
             {suggesting && (
               <span className="text-xs font-normal text-muted-foreground flex items-center gap-1">
                 <Sparkles className="h-3 w-3" /> AI drafting…
@@ -1115,6 +1130,17 @@ function SendAgreementDialog({
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
+          <div>
+            <Label>Agreement type</Label>
+            <Select value={agreementType} onValueChange={setAgreementType}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {AGREEMENT_TYPES.map((t) => (
+                  <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div>
             <Label>
               Job title <span className="text-destructive">*</span>
@@ -1128,7 +1154,7 @@ function SendAgreementDialog({
           </div>
           <div>
             <Label>
-              Job description <span className="text-destructive">*</span>
+              Description <span className="text-destructive">*</span>
             </Label>
             <Textarea
               required
@@ -1139,17 +1165,25 @@ function SendAgreementDialog({
             />
           </div>
           <div>
+            <Label>Materials / Products / Delivery cost (₦)</Label>
+            <Input type="number" min="0" step="1" value={materials} onChange={(e) => setMaterials(e.target.value)} placeholder="0" />
+            <p className="text-[11px] text-muted-foreground mt-1">Released immediately upon acceptance & payment.</p>
+          </div>
+          <div>
+            <Label>Labor / Service fee (₦)</Label>
+            <Input type="number" min="0" step="1" value={labor} onChange={(e) => setLabor(e.target.value)} placeholder="0" />
+            <p className="text-[11px] text-muted-foreground mt-1">Released after job completion.</p>
+          </div>
+          <div>
+            <Label>Contingency (₦)</Label>
+            <Input type="number" min="0" step="1" value={contingency} onChange={(e) => setContingency(e.target.value)} placeholder="0" />
+            <p className="text-[11px] text-muted-foreground mt-1">Optional buffer — refunded if unused.</p>
+          </div>
+          <div>
             <Label>
-              Price (NGN) <span className="text-destructive">*</span>
+              Delivery / Completion date <span className="text-destructive">*</span>
             </Label>
-            <Input
-              required
-              type="number"
-              min="1"
-              step="0.01"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-            />
+            <Input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} />
           </div>
           <div>
             <Label>Terms (optional)</Label>
@@ -1160,17 +1194,51 @@ function SendAgreementDialog({
               rows={2}
             />
           </div>
+          <div className="rounded-lg border border-border/60 bg-background/40 p-3 space-y-1 text-sm">
+            <div className="text-xs font-bold uppercase tracking-wide text-gradient-tri mb-1">Payment summary</div>
+            <SummaryRow label="Materials" value={fees.materials} />
+            <SummaryRow label="Labor" value={fees.labor} />
+            {fees.contingency > 0 && <SummaryRow label="Contingency" value={fees.contingency} />}
+            <SummaryRow label="EasyMeet commission (3% of labor)" value={fees.commission} muted />
+            <SummaryRow label="Paystack fee" value={fees.paystackFee} muted />
+            <div className="border-t border-border/50 my-1" />
+            <SummaryRow label="Total customer pays" value={fees.totalPaid} bold />
+            <SummaryRow label="Professional receives" value={fees.professionalReceives} accent />
+          </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="secondary" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button onClick={submit} disabled={busy} className="bg-gradient-brand">
-            {busy && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}Send
+            {busy && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}Send Agreement
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function SummaryRow({
+  label,
+  value,
+  muted,
+  bold,
+  accent,
+}: {
+  label: string;
+  value: number;
+  muted?: boolean;
+  bold?: boolean;
+  accent?: boolean;
+}) {
+  return (
+    <div className="flex justify-between">
+      <span className={muted ? "text-muted-foreground" : ""}>{label}</span>
+      <span className={`${bold ? "font-bold" : "font-semibold"} ${accent ? "text-accent" : ""}`}>
+        {formatNgn(value)}
+      </span>
+    </div>
   );
 }
 
