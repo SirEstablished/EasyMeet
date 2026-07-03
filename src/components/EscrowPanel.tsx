@@ -151,6 +151,8 @@ export function EscrowPanel({
   const [completeOpen, setCompleteOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
+  const [payBreakdownOpen, setPayBreakdownOpen] = useState(false);
+  const [payAgreement, setPayAgreement] = useState<ServiceAgreement | null>(null);
   const [hidden, setHidden] = useState(false);
   const [roleRefreshKey, setRoleRefreshKey] = useState(0);
   const [loadedConversationId, setLoadedConversationId] = useState<string | null>(null);
@@ -557,7 +559,7 @@ export function EscrowPanel({
     return (data as ServiceAgreement) ?? null;
   };
 
-  const payEscrow = async () => {
+  const openPayBreakdown = async () => {
     setPaying(true);
     try {
       const paymentAgreement = await getLatestAcceptedAgreement();
@@ -565,16 +567,53 @@ export function EscrowPanel({
         toast.error("No accepted agreement found for this conversation");
         return;
       }
+      setPayAgreement(paymentAgreement);
+      setPayBreakdownOpen(true);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not load agreement");
+    } finally {
+      setPaying(false);
+    }
+  };
+
+  const payEscrow = async () => {
+    if (!payAgreement) return;
+    const paymentAgreement = payAgreement;
+    setPaying(true);
+    try {
+      const ag = paymentAgreement as ServiceAgreement & {
+        materials_cost?: number | null;
+        labor_cost?: number | null;
+        contingency_cost?: number | null;
+        total_amount?: number | null;
+        paystack_fee?: number | null;
+      };
+      const materialsCost = Number(ag.materials_cost ?? 0);
+      const laborCost = Number(ag.labor_cost ?? 0);
+      const contingencyCost = Number(ag.contingency_cost ?? 0);
+      const subtotal = Number(ag.total_amount ?? paymentAgreement.price);
+      const fees = computeAgreementFees(materialsCost, laborCost, contingencyCost);
+      // Fallback to computed fee if agreement missing paystack_fee
+      const paystackFee = ag.paystack_fee != null ? Number(ag.paystack_fee) : fees.paystackFee;
+      const chargeAmount = subtotal + paystackFee;
+      setPayBreakdownOpen(false);
       const reference = await payWithPaystack({
         email: myEmail,
-        amountNgn: paymentAgreement.price,
-        metadata: { agreement_id: paymentAgreement.id, kind: "escrow_service" },
+        amountNgn: chargeAmount,
+        metadata: {
+          agreement_id: paymentAgreement.id,
+          kind: "escrow_service",
+          materials_cost: materialsCost,
+          labor_cost: laborCost,
+          contingency_cost: contingencyCost,
+          paystack_fee: paystackFee,
+        },
       });
       const p_conversation_id = conversationId;
       const p_agreement_id = paymentAgreement.id;
       const p_customer_id = meId;
       const p_provider_id = paymentAgreement.sender_id;
-      const p_amount = paymentAgreement.price;
+      const p_amount = subtotal;
       const p_payment_ref = reference.reference;
       console.log("[escrow] create_escrow_payment params:", {
         p_conversation_id,
@@ -620,7 +659,7 @@ export function EscrowPanel({
       const paidOrder: EscrowOrder = {
         ...(base as EscrowOrder),
         commission_amount: 0,
-        payout_amount: paymentAgreement.price,
+        payout_amount: subtotal,
         status: "holding",
         stage: "work_in_progress",
         payment_ref: reference.reference,
@@ -631,12 +670,46 @@ export function EscrowPanel({
       setAgreement(paymentAgreement);
       setOrder(paidOrder);
 
+      // Persist split amounts + release materials immediately on the escrow row.
+      const escrowId = (base.id as string | undefined) ?? paidOrder.id;
+      const nowIso = new Date().toISOString();
+      const escrowUpdate: Record<string, unknown> = {
+        materials_amount: materialsCost,
+        labor_amount: laborCost,
+        contingency_amount: contingencyCost,
+      };
+      if (materialsCost > 0) {
+        escrowUpdate.materials_released = true;
+        escrowUpdate.materials_released_at = nowIso;
+      }
+      if (escrowId) {
+        const { error: updErr } = await supabase
+          .from("escrow")
+          .update(escrowUpdate as never)
+          .eq("id", escrowId);
+        if (updErr) console.error("[escrow] split-amount update failed", updErr);
+      }
+
       const { error: messageError } = await supabase.from("messages").insert({
         conversation_id: conversationId,
         sender_id: meId,
-        body: `💳 Payment of ${formatNgn(paymentAgreement.price)} placed in escrow. Work can begin.`,
+        body: materialsCost > 0
+          ? `💳 Payment of ${formatNgn(chargeAmount)} placed in escrow. ${formatNgn(materialsCost)} for materials released to professional. Work can begin.`
+          : `💳 Payment of ${formatNgn(chargeAmount)} placed in escrow. Work can begin.`,
       });
       if (messageError) console.error("Escrow payment message failed", messageError);
+
+      // Notify professional about material release.
+      if (materialsCost > 0) {
+        const { error: notifErr } = await supabase.from("notifications").insert({
+          user_id: paymentAgreement.sender_id,
+          title: "Materials released",
+          message: `${formatNgn(materialsCost)} for materials has been released to your account. Begin work!`,
+          type: "escrow",
+        } as never);
+        if (notifErr) console.error("Material release notification failed", notifErr);
+      }
+
       toast.success("Payment held in escrow successfully");
       void load();
     } catch (e) {
