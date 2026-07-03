@@ -18,6 +18,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import {
   Loader2,
@@ -31,6 +38,29 @@ import {
 } from "lucide-react";
 import { payWithPaystack } from "@/lib/paystack";
 import { detectEscrowRoles, suggestAgreement } from "@/lib/escrow-ai.functions";
+
+const AGREEMENT_TYPES = [
+  { value: "service", label: "Service Agreement" },
+  { value: "product_sale", label: "Product Sale Agreement" },
+  { value: "supply", label: "Supply Agreement" },
+  { value: "material_labor", label: "Material + Labor Agreement" },
+  { value: "delivery", label: "Delivery Agreement" },
+  { value: "milestone", label: "Milestone Agreement" },
+] as const;
+
+export function computeAgreementFees(materials: number, labor: number, contingency: number) {
+  const m = Math.max(0, Number(materials) || 0);
+  const l = Math.max(0, Number(labor) || 0);
+  const c = Math.max(0, Number(contingency) || 0);
+  const subtotal = m + l + c;
+  const commission = l >= 5000 ? Math.round(l * 0.03 * 100) / 100 : 0;
+  const paystackFee = subtotal > 0
+    ? Math.min(2000, Math.round((subtotal * 0.015 + (subtotal >= 2500 ? 100 : 0)) * 100) / 100)
+    : 0;
+  const totalPaid = subtotal + paystackFee;
+  const professionalReceives = Math.max(0, m + l - commission);
+  return { materials: m, labor: l, contingency: c, subtotal, commission, paystackFee, totalPaid, professionalReceives };
+}
 
 interface Props {
   conversationId: string;
