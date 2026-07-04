@@ -235,6 +235,7 @@ function MyOrdersPage() {
               reviewedOrders={reviewedOrders}
               onReview={setReviewing}
               onMarkComplete={setCompleting}
+              onRequestRefund={setRefunding}
               busyId={busyId}
               currentUserId={user?.id ?? null}
             />
@@ -318,6 +319,7 @@ function OrderList({
   onReview,
   onUpdateStatus,
   onMarkComplete,
+  onRequestRefund,
   busyId,
   currentUserId,
 }: {
@@ -327,6 +329,7 @@ function OrderList({
   onReview: (o: Order) => void;
   onUpdateStatus?: (o: Order, status: Order["status"]) => void;
   onMarkComplete: (o: OrderWithEscrow) => void;
+  onRequestRefund?: (o: OrderWithEscrow) => void;
   busyId: string | null;
   currentUserId: string | null;
 }) {
@@ -368,6 +371,17 @@ function OrderList({
 
         const isEscrow = !!o.escrow;
         const escrowStatus = o.escrow?.status;
+        const orderStatus = o.status as unknown as string;
+        const alreadyRequested =
+          orderStatus === "refund_requested" || !!o.escrow?.refund_status;
+        const canRequestRefund =
+          direction === "outgoing" &&
+          !!currentUserId &&
+          o.customer_id === currentUserId &&
+          isEscrow &&
+          escrowStatus === "cancelled" &&
+          !!o.escrow?.payment_ref &&
+          !alreadyRequested;
         const canMarkComplete =
           direction === "outgoing" &&
           !!currentUserId &&
@@ -471,6 +485,24 @@ function OrderList({
                 >
                   <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Mark as Complete
                 </Button>
+              </div>
+            )}
+
+            {canRequestRefund && onRequestRefund && (
+              <div className="basis-full">
+                <Button
+                  size="sm"
+                  onClick={() => onRequestRefund(o)}
+                  className="rounded-full bg-gradient-brand"
+                >
+                  Request Refund
+                </Button>
+              </div>
+            )}
+
+            {direction === "outgoing" && alreadyRequested && (
+              <div className="basis-full text-xs text-muted-foreground">
+                Refund requested — Paystack fee will be deducted. 3–5 business days.
               </div>
             )}
 
