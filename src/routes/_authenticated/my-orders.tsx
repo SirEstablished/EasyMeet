@@ -270,7 +270,7 @@ function MyOrdersPage() {
                 x.id === refunding.id
                   ? {
                       ...x,
-                      status: "refund_requested",
+                      status: "refund_requested" as unknown as Order["status"],
                       escrow: x.escrow ? { ...x.escrow, refund_status: "processing" } : x.escrow,
                     }
                   : x,
