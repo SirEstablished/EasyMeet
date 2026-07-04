@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Loader2, Star, CheckCircle2, XCircle, Shield } from "lucide-react";
 import { ReviewOrderDialog } from "@/components/ReviewOrderDialog";
+import { RequestRefundDialog } from "@/components/RequestRefundDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLiveData } from "@/hooks/use-live-data";
 import { toast } from "sonner";
@@ -36,6 +37,7 @@ function MyOrdersPage() {
   const [reviewedOrders, setReviewedOrders] = useState<Set<string>>(new Set());
   const [reviewing, setReviewing] = useState<Order | null>(null);
   const [completing, setCompleting] = useState<OrderWithEscrow | null>(null);
+  const [refunding, setRefunding] = useState<OrderWithEscrow | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -248,6 +250,33 @@ function MyOrdersPage() {
           providerName={reviewing.provider?.full_name || reviewing.provider?.username || "Provider"}
           orderId={reviewing.id}
           onSubmitted={() => setReviewedOrders((cur) => new Set(cur).add(reviewing.id))}
+        />
+      )}
+
+      {refunding && refunding.escrow && (
+        <RequestRefundDialog
+          open={!!refunding}
+          onOpenChange={(v) => !v && setRefunding(null)}
+          orderId={refunding.id}
+          escrowId={refunding.escrow.id}
+          amount={Number(refunding.escrow.amount_ngn ?? refunding.amount ?? 0)}
+          serviceTitle={refunding.service_title}
+          customerName={
+            refunding.customer?.full_name || refunding.customer?.username || profile?.full_name || "Customer"
+          }
+          onSubmitted={() => {
+            setOutgoing((cur) =>
+              cur.map((x) =>
+                x.id === refunding.id
+                  ? {
+                      ...x,
+                      status: "refund_requested",
+                      escrow: x.escrow ? { ...x.escrow, refund_status: "processing" } : x.escrow,
+                    }
+                  : x,
+              ),
+            );
+          }}
         />
       )}
 
