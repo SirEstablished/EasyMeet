@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { useState } from "react";
 import { payWithPaystack } from "@/lib/paystack";
 import { verifyPaystackTransaction } from "@/lib/paystack.functions";
+import { computePaystackFee } from "@/lib/paystackFees";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/providers";
 
@@ -28,6 +29,9 @@ export function BoostPostModal({
 }) {
   const { user } = useAuth();
   const [paying, setPaying] = useState(false);
+  const BOOST_AMOUNT = 2000;
+  const paystackFee = computePaystackFee(BOOST_AMOUNT);
+  const total = BOOST_AMOUNT + paystackFee;
 
   const boost = async () => {
     if (!user) return;
@@ -40,11 +44,11 @@ export function BoostPostModal({
     try {
       const res = await payWithPaystack({
         email: user.email || `${user.id}@easymeet.app`,
-        amountNgn: 2000,
+        amountNgn: total,
         metadata: { post_id: postId, kind: "boost" },
       });
       const verify = await verifyPaystackTransaction({
-        data: { reference: res.reference, expectedAmountNgn: 2000 },
+        data: { reference: res.reference, expectedAmountNgn: total },
       });
       if (!verify.ok) {
         toast.error(verify.message || "Payment could not be verified");
@@ -55,7 +59,7 @@ export function BoostPostModal({
         supabase.from("boosts").insert({
           post_id: postId,
           user_id: user.id,
-          amount_paid: 2000,
+          amount_paid: BOOST_AMOUNT,
           end_at: endAt,
           payment_ref: res.reference,
         }),
@@ -88,9 +92,19 @@ export function BoostPostModal({
             Reach more customers — boost your post to the top of the feed.
           </DialogDescription>
         </DialogHeader>
-        <div className="rounded-xl border border-border bg-secondary/50 p-4 text-center">
-          <div className="text-2xl font-bold text-primary">₦2,000</div>
-          <div className="text-xs text-muted-foreground">for 7 days at the top of the feed</div>
+        <div className="rounded-xl border border-border bg-secondary/50 p-4 space-y-2 text-sm">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Boost (7 days)</span>
+            <span>₦{BOOST_AMOUNT.toLocaleString()}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Paystack fee</span>
+            <span>₦{paystackFee.toLocaleString()}</span>
+          </div>
+          <div className="flex justify-between font-semibold pt-2 border-t border-border">
+            <span>Total</span>
+            <span className="text-primary">₦{total.toLocaleString()}</span>
+          </div>
         </div>
         <DialogFooter className="sm:justify-center gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
@@ -98,7 +112,7 @@ export function BoostPostModal({
           </Button>
           <Button className="bg-gradient-brand" onClick={boost} disabled={paying || !postId}>
             {paying && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Boost Now
+            Pay ₦{total.toLocaleString()}
           </Button>
         </DialogFooter>
       </DialogContent>

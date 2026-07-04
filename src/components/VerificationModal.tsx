@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/providers";
 import { payWithPaystack } from "@/lib/paystack";
 import { verifyPaystackTransaction } from "@/lib/paystack.functions";
+import { computePaystackFee } from "@/lib/paystackFees";
 import { toast } from "sonner";
 
 type Tick = "blue" | "white";
@@ -101,13 +102,15 @@ export function VerificationModal({
     setPaying(true);
     try {
       const amount = TICK_PRICE_NGN[tickType];
+      const paystackFee = computePaystackFee(amount);
+      const total = amount + paystackFee;
       const res = await payWithPaystack({
         email: user.email || `${user.id}@easymeet.app`,
-        amountNgn: amount,
+        amountNgn: total,
         metadata: { kind: "tick_verification", tick_type: tickType },
       });
       const verify = await verifyPaystackTransaction({
-        data: { reference: res.reference, expectedAmountNgn: amount },
+        data: { reference: res.reference, expectedAmountNgn: total },
       });
       if (!verify.ok) {
         toast.error(verify.message || "Payment could not be verified");
@@ -231,20 +234,35 @@ export function VerificationModal({
 
         {step === 2 && (
           <div className="space-y-4">
-            <div className="rounded-xl border border-border p-4">
-              <div className="text-sm text-muted-foreground">Amount due</div>
-              <div className="text-2xl font-bold text-primary mt-1">
-                ₦{TICK_PRICE_NGN[tickType].toLocaleString()}/month
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                Payment is processed securely via Paystack.
-              </p>
-            </div>
+            {(() => {
+              const amount = TICK_PRICE_NGN[tickType];
+              const fee = computePaystackFee(amount);
+              const total = amount + fee;
+              return (
+                <div className="rounded-xl border border-border p-4 space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Amount</span>
+                    <span>₦{amount.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Paystack fee</span>
+                    <span>₦{fee.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between font-semibold pt-2 border-t border-border">
+                    <span>Total</span>
+                    <span className="text-primary">₦{total.toLocaleString()}</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground pt-1">
+                    Paystack's transaction fee (1.5% + ₦100, capped at ₦2,000) is added — EasyMeet does not charge extra.
+                  </p>
+                </div>
+              );
+            })()}
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setStep(1)}>Back</Button>
               <Button className="bg-gradient-brand" disabled={paying} onClick={pay}>
                 {paying && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Pay ₦{TICK_PRICE_NGN[tickType].toLocaleString()}
+                Pay ₦{(TICK_PRICE_NGN[tickType] + computePaystackFee(TICK_PRICE_NGN[tickType])).toLocaleString()}
               </Button>
             </div>
           </div>
