@@ -375,7 +375,8 @@ function OrderList({
         const orderEscrowStatus = (o as OrderWithEscrow & { escrow_status?: string }).escrow_status;
         const alreadyRequested =
           orderStatus === "refund_requested" ||
-          (!!o.escrow?.refund_status && o.escrow.refund_status !== "none");
+          (!!o.escrow?.refund_status &&
+            (o.escrow.refund_status as string) !== "none");
         const isCancelled =
           escrowStatus === "cancelled" ||
           orderEscrowStatus === "cancelled" ||
