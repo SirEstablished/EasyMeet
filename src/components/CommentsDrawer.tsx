@@ -37,7 +37,7 @@ export function CommentsDrawer({
     if (!open || !postId) return;
     let cancelled = false;
     setLoading(true);
-    supabase
+    const reload = () => supabase
       .from("comments")
       .select("*, author:author_id(id, full_name, username, avatar_url)")
       .eq("post_id", postId)
@@ -47,8 +47,20 @@ export function CommentsDrawer({
         setComments((data as Comment[]) ?? []);
         setLoading(false);
       });
+    reload();
+
+    const channel = supabase
+      .channel(`comments-${postId}`)
+      .on(
+        "postgres_changes" as never,
+        { event: "*", schema: "public", table: "comments", filter: `post_id=eq.${postId}` } as never,
+        () => reload(),
+      )
+      .subscribe();
+
     return () => {
       cancelled = true;
+      supabase.removeChannel(channel);
     };
   }, [open, postId]);
 
