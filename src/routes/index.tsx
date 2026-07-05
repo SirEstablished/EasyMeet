@@ -63,7 +63,7 @@ function Landing() {
       </header>
 
       {/* HERO */}
-      <section className="relative overflow-hidden min-h-[92vh] flex items-center">
+      <section className="relative overflow-hidden min-h-[80vh] sm:min-h-[92vh] flex items-center">
         <div className="absolute inset-0 -z-10 bg-mesh-brand opacity-[0.28] dark:opacity-[0.45]" />
         <div className="absolute -top-32 -left-32 -z-10 h-96 w-96 rounded-full bg-primary/30 blur-3xl float-soft" />
         <div className="absolute -bottom-32 -right-32 -z-10 h-[28rem] w-[28rem] rounded-full bg-accent/30 blur-3xl float-soft-slow" />
@@ -77,15 +77,15 @@ function Landing() {
           <FloatingProfile className="right-[10%] bottom-[18%] float-soft" name="Chidi M." role="Tutor" rating={4.7} blue />
         </div>
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-24 sm:py-32 text-center w-full">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-32 text-center w-full">
           <div className="inline-flex items-center gap-2 rounded-full glass-card px-3 py-1 text-xs font-medium text-muted-foreground mb-6">
             <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
             Now live in Nigeria
           </div>
-          <h1 className="text-5xl sm:text-7xl font-extrabold tracking-tight max-w-4xl mx-auto leading-[1.02]">
+          <h1 className="text-[2.25rem] leading-[1.05] sm:text-7xl font-extrabold tracking-tight max-w-4xl mx-auto">
             Find <span className="text-gradient-tri">Verified Professionals</span> Near You
           </h1>
-          <p className="mt-6 max-w-2xl mx-auto text-lg sm:text-xl text-muted-foreground">
+          <p className="mt-4 sm:mt-6 max-w-2xl mx-auto text-base sm:text-xl text-muted-foreground px-2">
             EasyMeet is Nigeria's top service marketplace — connecting customers with trusted local
             professionals and businesses, in minutes.
           </p>
