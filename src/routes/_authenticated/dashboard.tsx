@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAuth } from "@/lib/providers";
 import { useEffect, useState } from "react";
 import { fetchCompletion } from "@/lib/profileCompletion";
-import { TransactionsSection } from "@/components/TransactionsSection";
 import {
   ShieldCheck,
   CalendarCheck,
@@ -64,7 +63,7 @@ function Dashboard() {
         ];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 grid gap-8 md:grid-cols-[240px_1fr]">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-10 pb-24 md:pb-10 grid gap-6 md:gap-8 md:grid-cols-[240px_1fr]">
       <aside className="hidden md:block">
         <div className="rounded-2xl p-4 sticky top-20 bg-[#0D0D1A] text-white/90 border border-primary/20 shadow-[0_10px_40px_-20px_color-mix(in_oklab,var(--primary)_60%,transparent)]">
           <div className="text-[11px] font-semibold text-white/50 uppercase tracking-[0.18em] mb-3 px-2">
@@ -90,17 +89,17 @@ function Dashboard() {
         </div>
       </aside>
 
-      <div className="space-y-8">
+      <div className="space-y-5 sm:space-y-8">
         {/* Welcome banner */}
-        <div className="rounded-3xl p-8 sm:p-10 bg-mesh-brand text-primary-foreground relative overflow-hidden glow-primary">
+        <div className="rounded-2xl sm:rounded-3xl p-5 sm:p-10 bg-mesh-brand text-primary-foreground relative overflow-hidden glow-primary">
           <div className="absolute inset-0 opacity-[0.08] bg-[radial-gradient(circle_at_top_right,white,transparent_60%)]" />
           <div className="absolute inset-0 opacity-[0.08] [background-image:radial-gradient(white_1px,transparent_1px)] [background-size:18px_18px]" />
           <div className="absolute -top-20 -left-10 h-72 w-72 rounded-full bg-white/10 blur-3xl float-soft" />
           <div className="absolute -bottom-24 right-0 h-80 w-80 rounded-full bg-accent/30 blur-3xl float-soft-slow" />
           <div className="relative">
             <div className="text-xs uppercase tracking-[0.2em] opacity-80">Welcome back</div>
-            <h1 className="text-3xl sm:text-5xl font-extrabold mt-2 tracking-tight">Hi, {name} <span className="inline-block animate-pulse">👋</span></h1>
-            <p className="mt-3 opacity-90 max-w-xl text-base sm:text-lg">{greeting}</p>
+            <h1 className="text-2xl sm:text-5xl font-extrabold mt-2 tracking-tight">Hi, {name} <span className="inline-block animate-pulse">👋</span></h1>
+            <p className="mt-2 sm:mt-3 opacity-90 max-w-xl text-sm sm:text-lg">{greeting}</p>
             <div className="mt-5 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold capitalize gradient-border bg-white/10 backdrop-blur-md">
               <ShieldCheck className="h-3.5 w-3.5" /> {role} account
             </div>
@@ -140,34 +139,31 @@ function Dashboard() {
         </div>
 
         {/* Getting started / Quick links card */}
-        <div className="rounded-2xl glass-card p-6 sm:p-7">
+        <div className="rounded-2xl glass-card p-4 sm:p-7">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h2 className="font-bold text-xl">Getting started</h2>
+              <h2 className="font-bold text-lg sm:text-xl">Getting started</h2>
               <p className="text-sm text-muted-foreground mt-0.5">
                 Jump right back in — your shortcuts are here.
               </p>
             </div>
             <Sparkles className="h-5 w-5 text-primary hidden sm:block" />
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 grid-cols-2">
             {quickLinks.map(({ Icon, label, to }) => (
               <Link
                 key={label}
                 to={to}
-                className="group flex items-center gap-3 rounded-xl p-3 border border-border lift-hover hover:-translate-y-0.5 hover:border-primary/40 hover:bg-gradient-to-r hover:from-primary/10 hover:to-accent/10"
+                className="group flex items-center gap-3 rounded-xl p-3 min-h-[56px] border border-border lift-hover hover:-translate-y-0.5 hover:border-primary/40 hover:bg-gradient-to-r hover:from-primary/10 hover:to-accent/10"
               >
                 <span className="h-10 w-10 shrink-0 rounded-full bg-gradient-brand text-primary-foreground flex items-center justify-center glow-primary group-hover:scale-110 transition-transform">
                   <Icon className="h-5 w-5" />
                 </span>
-                <span className="font-semibold text-sm group-hover:text-gradient-brand">{label}</span>
+                <span className="font-semibold text-sm group-hover:text-gradient-brand truncate">{label}</span>
               </Link>
             ))}
           </div>
         </div>
-
-        {/* Transactions */}
-        <TransactionsSection />
       </div>
     </div>
   );
