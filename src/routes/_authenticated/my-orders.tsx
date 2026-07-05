@@ -372,15 +372,21 @@ function OrderList({
         const isEscrow = !!o.escrow;
         const escrowStatus = o.escrow?.status;
         const orderStatus = o.status as unknown as string;
+        const orderEscrowStatus = (o as OrderWithEscrow & { escrow_status?: string }).escrow_status;
         const alreadyRequested =
-          orderStatus === "refund_requested" || !!o.escrow?.refund_status;
+          orderStatus === "refund_requested" ||
+          (!!o.escrow?.refund_status && o.escrow.refund_status !== "none");
+        const isCancelled =
+          escrowStatus === "cancelled" ||
+          orderEscrowStatus === "cancelled" ||
+          orderStatus === "cancelled";
+        const hasPayment = !!o.escrow?.payment_ref || !!o.payment_ref;
         const canRequestRefund =
           direction === "outgoing" &&
           !!currentUserId &&
           o.customer_id === currentUserId &&
-          isEscrow &&
-          escrowStatus === "cancelled" &&
-          !!o.escrow?.payment_ref &&
+          isCancelled &&
+          hasPayment &&
           !alreadyRequested;
         const canMarkComplete =
           direction === "outgoing" &&
