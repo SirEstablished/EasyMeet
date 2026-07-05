@@ -380,9 +380,9 @@ function OrderList({
 }) {
   if (orders.length === 0) {
     return (
-      <div className="rounded-2xl glass-card border-dashed p-12 text-center text-sm text-muted-foreground">
-        <div className="mx-auto mb-3 h-12 w-12 rounded-full bg-gradient-brand grid place-items-center text-white">
-          <Star className="h-5 w-5" />
+      <div className="rounded-2xl bg-card border border-dashed border-border p-12 text-center text-sm text-muted-foreground">
+        <div className="mx-auto mb-3 h-12 w-12 rounded-full bg-primary/10 grid place-items-center text-primary">
+          <Package className="h-5 w-5" />
         </div>
         {direction === "outgoing" ? (
           <>
@@ -450,39 +450,83 @@ function OrderList({
         return (
           <div
             key={o.id}
-            className="rounded-2xl glass-card p-4 flex flex-wrap items-center gap-4 lift-hover hover:-translate-y-0.5 hover:border-primary/50"
+            className="rounded-2xl bg-card border border-border/60 p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:shadow-[0_10px_28px_-16px_rgba(108,76,246,0.25)] hover:border-primary/30 transition-all"
           >
-            <Link to="/profile/$id" params={{ id: otherId }}>
-              <span className="avatar-ring">
-                <Avatar className="h-12 w-12 border-2 border-background">
-                  <AvatarImage src={other?.avatar_url ?? undefined} />
-                  <AvatarFallback className="bg-primary text-primary-foreground">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
-              </span>
-            </Link>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5">
-                <div className="font-semibold truncate">{o.service_title}</div>
-                {isEscrow && (
-                  <span title="Escrow Protected">
-                    <Shield className="h-3 w-3 text-primary flex-shrink-0" />
-                  </span>
-                )}
-              </div>
-              <div className="text-xs text-muted-foreground truncate">
-                {name} · {new Date(o.created_at).toLocaleDateString()}
-              </div>
-              {o.payment_ref && (
-                <div className="text-[10px] text-muted-foreground truncate">
-                  Ref: {o.payment_ref}
+            <div className="flex items-start gap-3.5">
+              <Link
+                to="/profile/$id"
+                params={{ id: otherId }}
+                className="shrink-0"
+              >
+                <div className="h-[68px] w-[68px] rounded-2xl overflow-hidden bg-muted grid place-items-center">
+                  {other?.avatar_url ? (
+                    <img
+                      src={other.avatar_url}
+                      alt={name}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <Avatar className="h-full w-full rounded-none">
+                      <AvatarFallback className="rounded-none bg-primary/10 text-primary font-bold text-lg">
+                        {initials}
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
                 </div>
-              )}
-            </div>
-            <div className="text-right">
-              <div className="font-extrabold text-gradient-brand">{formatNgn(o.amount)}</div>
-              {(() => {
+              </Link>
+
+              <div className="flex-1 min-w-0 flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <div className="font-bold text-[15px] text-foreground truncate">
+                      {o.service_title}
+                    </div>
+                    {isEscrow && (
+                      <span title="Escrow Protected" className="shrink-0">
+                        <Shield className="h-3.5 w-3.5 text-primary" />
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[13px] text-muted-foreground truncate mt-0.5">
+                    From {name}
+                  </div>
+                  {(() => {
+                    const isCompleted =
+                      o.status === "completed" || escrowStatus === "released";
+                    if (isEscrow && escrowStatus === "holding") {
+                      return (
+                        <div className="text-[13px] font-semibold text-primary mt-1">
+                          Escrow funded
+                        </div>
+                      );
+                    }
+                    if (isCompleted) {
+                      return (
+                        <div className="text-[12px] text-muted-foreground mt-1">
+                          Completed on {new Date(o.created_at).toLocaleDateString()}
+                        </div>
+                      );
+                    }
+                    if (o.status === "pending" || orderStatus === "pending") {
+                      return (
+                        <div className="text-[12px] text-muted-foreground mt-1">
+                          Waiting for action
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="text-[12px] text-muted-foreground mt-1">
+                        {new Date(o.created_at).toLocaleDateString()}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                <div className="text-right shrink-0">
+                  <div className="font-extrabold text-[15px] text-foreground tabular-nums">
+                    {formatNgn(o.amount)}
+                  </div>
+                  {(() => {
                 const effective =
                   escrowStatus === "cancelled" || o.status === "cancelled"
                     ? "cancelled"
@@ -497,7 +541,7 @@ function OrderList({
                             : "pending";
                 const label =
                   effective === "in_escrow"
-                    ? "In Escrow"
+                    ? "In Progress"
                     : effective === "completed"
                       ? "Completed"
                       : effective === "cancelled"
@@ -509,31 +553,33 @@ function OrderList({
                             : "Pending";
                 const cls =
                   effective === "in_escrow"
-                    ? "bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30"
+                    ? "bg-primary/10 text-primary"
                     : effective === "completed"
-                      ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                      ? "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400"
                       : effective === "cancelled"
-                        ? "bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30"
+                        ? "bg-red-500/12 text-red-600 dark:text-red-400"
                         : effective === "disputed"
-                          ? "bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30"
+                          ? "bg-orange-500/12 text-orange-600 dark:text-orange-400"
                           : effective === "refunded"
-                            ? "bg-muted text-muted-foreground border border-border"
-                            : "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 border border-yellow-500/30";
+                            ? "bg-muted text-muted-foreground"
+                            : "bg-amber-500/12 text-amber-700 dark:text-amber-400";
                 return (
-                  <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${cls}`}>
+                  <span className={`inline-block mt-2 px-2.5 py-1 rounded-full text-[11px] font-semibold ${cls}`}>
                     {label}
                   </span>
                 );
               })()}
+                </div>
+              </div>
             </div>
 
             {canMarkComplete && (
-              <div className="basis-full">
+              <div className="mt-3 pt-3 border-t border-border/60">
                 <Button
                   size="sm"
                   onClick={() => onMarkComplete(o)}
                   disabled={busyId === o.id}
-                  className="rounded-full bg-gradient-brand"
+                  className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground"
                 >
                   <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Mark as Complete
                 </Button>
@@ -541,19 +587,19 @@ function OrderList({
             )}
 
             {canRequestRefund && onRequestRefund && (
-              <div className="basis-full">
+              <div className="mt-3 pt-3 border-t border-border/60">
                 <Button
                   size="sm"
                   onClick={() => onRequestRefund(o)}
-                  className="rounded-full bg-red-600 hover:bg-red-700 text-white"
+                  className="rounded-full bg-destructive hover:bg-destructive/90 text-destructive-foreground"
                 >
-                  Request Refund 💰
+                  Request Refund
                 </Button>
               </div>
             )}
 
             {direction === "outgoing" && alreadyRequested && (
-              <div className="basis-full text-xs text-muted-foreground">
+              <div className="mt-3 pt-3 border-t border-border/60 text-xs text-muted-foreground">
                 Refund requested — Paystack fee will be deducted. 3–5 business days.
               </div>
             )}
@@ -562,12 +608,12 @@ function OrderList({
               onUpdateStatus &&
               !isEscrow &&
               (o.status === "confirmed" || o.status === "pending") && (
-                <div className="basis-full flex flex-wrap items-center gap-2">
+                <div className="mt-3 pt-3 border-t border-border/60 flex flex-wrap items-center gap-2">
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => onUpdateStatus(o, "completed")}
-                    className="rounded-full"
+                    className="rounded-full border-border/60"
                   >
                     <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Mark Completed
                   </Button>
@@ -584,20 +630,22 @@ function OrderList({
 
             {showLeaveReview &&
               (reviewedOrders.has(o.id) ? (
-                <div className="basis-full text-xs text-accent font-medium">
+                <div className="mt-3 pt-3 border-t border-border/60 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
                   ✓ Thanks for your review!
                 </div>
               ) : (
-                <Button
-                  size="sm"
-                  className="basis-full sm:basis-auto rounded-full bg-gradient-brand glow-primary"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    onReview(o);
-                  }}
-                >
-                  <Star className="h-3.5 w-3.5 mr-1" /> Leave a Review
-                </Button>
+                <div className="mt-3 pt-3 border-t border-border/60">
+                  <Button
+                    size="sm"
+                    className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      onReview(o);
+                    }}
+                  >
+                    <Star className="h-3.5 w-3.5 mr-1" /> Leave a Review
+                  </Button>
+                </div>
               ))}
           </div>
         );
