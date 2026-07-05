@@ -13,7 +13,19 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { VerificationTicks } from "@/components/VerificationTicks";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, MessageCircle, Search, Send, SlidersHorizontal } from "lucide-react";
+import {
+  ArrowLeft,
+  MessageCircle,
+  Search,
+  Send,
+  SlidersHorizontal,
+  Phone,
+  Info,
+  MoreVertical,
+  Paperclip,
+  Shield,
+  ChevronRight,
+} from "lucide-react";
 import { containsPhone, PHONE_BLOCK_MESSAGE } from "@/lib/phoneCheck";
 import { cn } from "@/lib/utils";
 import { EscrowPanel } from "@/components/EscrowPanel";
@@ -477,8 +489,9 @@ function Thread({
 
   return (
     <>
-      <div className="h-14 border-b border-border px-4 flex items-center gap-3 glass-panel">
-        <Button variant="ghost" size="icon" className="sm:hidden" onClick={onBack}>
+      {/* Header */}
+      <div className="h-16 border-b border-border/60 bg-card px-3 flex items-center gap-2">
+        <Button variant="ghost" size="icon" className="sm:hidden -ml-1" onClick={onBack}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <Link
@@ -486,15 +499,18 @@ function Thread({
           params={{ id: other?.id ?? "" }}
           className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-90"
         >
-          <span className="avatar-ring shrink-0">
-            <Avatar className="h-9 w-9 border-2 border-background">
+          <div className="relative shrink-0">
+            <Avatar className="h-10 w-10 ring-2 ring-primary/20">
               <AvatarImage src={other?.avatar_url ?? undefined} />
-              <AvatarFallback>{initials(name)}</AvatarFallback>
+              <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                {initials(name)}
+              </AvatarFallback>
             </Avatar>
-          </span>
-          <div className="min-w-0">
+            <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-card" />
+          </div>
+          <div className="min-w-0 flex flex-col items-start">
             <div className="flex items-center gap-1">
-              <span className="font-semibold truncate">{name}</span>
+              <span className="font-semibold text-[15px] truncate text-foreground">{name}</span>
               <VerificationTicks
                 blue={other?.blue_tick}
                 white={other?.white_tick}
@@ -502,18 +518,56 @@ function Thread({
                 size="sm"
               />
             </div>
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize glass-card text-primary">
-              {other?.role}
-            </span>
+            <div className="flex items-center gap-2">
+              {other?.role && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize bg-primary/10 text-primary">
+                  {other.role}
+                </span>
+              )}
+              <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                Active now
+              </span>
+            </div>
           </div>
         </Link>
+        <div className="flex items-center gap-1 text-muted-foreground">
+          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full">
+            <Phone className="h-[18px] w-[18px]" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full">
+            <Info className="h-[18px] w-[18px]" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full">
+            <MoreVertical className="h-[18px] w-[18px]" />
+          </Button>
+        </div>
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
+      {/* Scrollable body */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto bg-muted/30 px-4 pt-4 pb-2 space-y-1.5">
+        {/* Escrow protection banner */}
+        <div className="flex items-center gap-3 rounded-2xl bg-card border border-border/60 px-3.5 py-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+          <div className="h-9 w-9 rounded-full bg-primary/10 grid place-items-center shrink-0">
+            <Shield className="h-[18px] w-[18px] text-primary" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] font-semibold text-foreground leading-tight">
+              You're protected by EasyMeet Escrow
+            </p>
+            <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+              Secure payments. Safe transactions.
+            </p>
+          </div>
+          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+        </div>
+
+        <div className="h-2" />
+
         {items.map((it) =>
           it.type === "sep" ? (
-            <div key={it.key} className="flex justify-center my-4">
-              <span className="text-[11px] font-bold text-gradient-tri tracking-wide uppercase">
+            <div key={it.key} className="flex justify-center my-3">
+              <span className="text-[11px] font-semibold text-muted-foreground tracking-wide uppercase bg-card px-2.5 py-1 rounded-full border border-border/60">
                 {it.label}
               </span>
             </div>
@@ -528,9 +582,6 @@ function Thread({
         )}
       </div>
 
-      <div className="border-t border-border p-3 glass-panel">
-        {warn && <div className="text-xs text-destructive mb-2 px-1">{warn}</div>}
-      </div>
       <EscrowPanel
         conversationId={conversation.id}
         meId={meId}
@@ -539,29 +590,35 @@ function Thread({
         meRole={profile?.role}
         refreshKey={escrowRefreshKey}
       />
-      <div className="border-t border-border p-3 glass-panel">
+
+      {/* Composer */}
+      <div className="border-t border-border/60 bg-card px-3 pt-2.5 pb-3">
+        {warn && <div className="text-xs text-destructive mb-2 px-1">{warn}</div>}
         <div className="flex items-center gap-2">
-          <Input
-            value={text}
-            onChange={(e) => {
-              setText(e.target.value);
-              if (warn) setWarn(null);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                send();
-              }
-            }}
-            placeholder="Type a message..."
-            className="h-11 rounded-full input-glow border-border/60"
-          />
+          <div className="flex-1 flex items-center gap-1.5 h-12 rounded-full bg-muted/60 border border-border/60 px-2 pl-3">
+            <Paperclip className="h-[18px] w-[18px] text-muted-foreground shrink-0" />
+            <Input
+              value={text}
+              onChange={(e) => {
+                setText(e.target.value);
+                if (warn) setWarn(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  send();
+                }
+              }}
+              placeholder="Type a message..."
+              className="flex-1 h-full bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none px-2 text-[14px]"
+            />
+          </div>
           <Button
             onClick={send}
             disabled={!text.trim() || sending}
-            className="bg-gradient-brand glow-primary h-11 w-11 p-0 rounded-full"
+            className="h-12 w-12 p-0 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-[0_8px_24px_-10px_color-mix(in_oklab,var(--primary)_60%,transparent)]"
           >
-            <Send className="h-4 w-4" />
+            <Send className="h-[18px] w-[18px]" />
           </Button>
         </div>
       </div>
@@ -571,13 +628,13 @@ function Thread({
 
 function MessageBubble({ m, mine }: { m: Message; mine: boolean }) {
   return (
-    <div className={cn("flex flex-col", mine ? "items-end" : "items-start")}>
+    <div className={cn("flex flex-col mt-2", mine ? "items-end" : "items-start")}>
       <div
         className={cn(
-          "max-w-[75%] rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap break-words",
+          "max-w-[78%] px-4 py-2.5 text-[14px] leading-snug whitespace-pre-wrap break-words",
           mine
-            ? "bg-gradient-to-br from-primary to-[color-mix(in_oklab,var(--primary)_70%,white)] text-primary-foreground rounded-br-md shadow-[0_8px_24px_-12px_color-mix(in_oklab,var(--primary)_55%,transparent)]"
-            : "bg-secondary text-foreground rounded-bl-md border border-border/60 dark:bg-card/80 dark:backdrop-blur-md",
+            ? "bg-primary text-primary-foreground rounded-[20px] rounded-br-md shadow-[0_6px_18px_-10px_color-mix(in_oklab,var(--primary)_60%,transparent)]"
+            : "bg-card text-foreground rounded-[20px] rounded-bl-md border border-border/60 shadow-[0_1px_2px_rgba(15,23,42,0.04)]",
         )}
       >
         {m.body}
