@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { VerificationTicks } from "@/components/VerificationTicks";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, MessageCircle, Search, Send } from "lucide-react";
+import { ArrowLeft, MessageCircle, Search, Send, SlidersHorizontal } from "lucide-react";
 import { containsPhone, PHONE_BLOCK_MESSAGE } from "@/lib/phoneCheck";
 import { cn } from "@/lib/utils";
 import { EscrowPanel } from "@/components/EscrowPanel";
@@ -62,6 +62,7 @@ function MessagesPage() {
   const [convos, setConvos] = useState<ConvoRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
+  const [tab, setTab] = useState<"all" | "unread" | "active" | "deals">("all");
 
   const activeId = search.c ?? null;
   const initialMessage = search.m ?? "";
@@ -141,11 +142,24 @@ function MessagesPage() {
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    if (!needle) return convos;
-    return convos.filter((c) =>
-      (c.other?.full_name || c.other?.username || "").toLowerCase().includes(needle),
-    );
-  }, [convos, q]);
+    const dealsRegex = /(escrow|payment|released|refund|agreement|marked as complete|placed in)/i;
+    const now = Date.now();
+    return convos.filter((c) => {
+      if (needle) {
+        const hay = (c.other?.full_name || c.other?.username || "").toLowerCase();
+        if (!hay.includes(needle)) return false;
+      }
+      if (tab === "unread") return c.unread_count > 0;
+      if (tab === "active") {
+        if (!c.last_message_at) return false;
+        return now - new Date(c.last_message_at).getTime() < 30 * 24 * 60 * 60 * 1000;
+      }
+      if (tab === "deals") {
+        return !!c.last_message?.body && dealsRegex.test(c.last_message.body);
+      }
+      return true;
+    });
+  }, [convos, q, tab]);
 
   const onSelect = (id: string) => {
     navigate({ search: { c: id } });
@@ -154,31 +168,64 @@ function MessagesPage() {
   if (!user) return null;
 
   return (
-    <div className="max-w-6xl mx-auto h-[calc(100dvh-4rem)] flex">
+    <div className="max-w-6xl mx-auto h-[calc(100dvh-4rem)] flex bg-background">
       {/* Sidebar */}
       <aside
         className={cn(
-          "w-full sm:w-80 sm:border-r border-border flex flex-col bg-card",
+          "w-full sm:w-96 sm:border-r border-border flex flex-col bg-background",
           activeId && "hidden sm:flex",
         )}
       >
-        <div className="p-4 border-b border-border">
-          <h1 className="text-2xl font-extrabold text-gradient-tri mb-3">Messages</h1>
-          <div className="relative">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
-            <Input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="      Search conversations…"
-              className="search-pill h-10"
-            />
+        <div className="px-4 sm:px-5 pt-4 pb-3">
+          <h1 className="text-3xl font-extrabold tracking-tight text-foreground mb-3">Messages</h1>
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+              <Input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Search conversations…"
+                className="h-11 pl-11 pr-4 rounded-2xl bg-card border-border/60 shadow-[0_1px_2px_rgba(15,23,42,0.04)] focus-visible:ring-2 focus-visible:ring-primary/30"
+              />
+            </div>
+            <button
+              type="button"
+              className="h-11 w-11 shrink-0 rounded-2xl bg-card border border-border/60 grid place-items-center text-foreground/70 hover:text-primary hover:border-primary/30 transition shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+              aria-label="Filter"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Filter chips */}
+          <div className="mt-3 flex items-center gap-2 overflow-x-auto no-scrollbar -mx-1 px-1">
+            {(["all", "unread", "active", "deals"] as const).map((t) => {
+              const active = tab === t;
+              const label = t === "all" ? "All" : t === "unread" ? "Unread" : t === "active" ? "Active" : "Deals";
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setTab(t)}
+                  className={cn(
+                    "px-4 h-9 rounded-full text-sm font-semibold whitespace-nowrap transition",
+                    active
+                      ? "bg-primary text-primary-foreground shadow-[0_6px_18px_-8px_color-mix(in_oklab,var(--primary)_60%,transparent)]"
+                      : "bg-card border border-border/60 text-foreground/70 hover:text-foreground",
+                  )}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto">
+
+        <div className="flex-1 overflow-y-auto px-4 sm:px-5 pb-24 md:pb-6 space-y-2.5">
           {loading ? (
             <div className="p-4 text-sm text-muted-foreground">Loading…</div>
           ) : filtered.length === 0 ? (
-            <div className="p-6 text-sm text-muted-foreground text-center">
+            <div className="p-8 text-sm text-muted-foreground text-center">
               No conversations yet. Message a professional to get started.
             </div>
           ) : (
@@ -190,51 +237,61 @@ function MessagesPage() {
                   ? c.last_message.body.slice(0, 40) + "…"
                   : c.last_message.body
                 : "No messages yet";
+              const role = c.other?.role;
+              const isSelected = activeId === c.id;
               return (
                 <button
                   key={c.id}
                   onClick={() => onSelect(c.id)}
                   className={cn(
-                    "group relative w-full text-left px-4 py-3 flex items-center gap-3 transition-all border-b border-border/30",
-                    "hover:bg-primary/5 hover:border-l-2 hover:border-l-primary",
-                    activeId === c.id &&
-                      "bg-gradient-to-r from-primary/20 to-transparent border-l-2 border-l-primary",
+                    "group relative w-full text-left rounded-2xl bg-card border border-border/60 px-4 py-3.5 transition",
+                    "shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:shadow-[0_8px_24px_-16px_rgba(108,76,246,0.25)] hover:border-primary/30",
+                    isSelected && "border-primary/40 shadow-[0_8px_24px_-16px_rgba(108,76,246,0.35)]",
                   )}
                 >
-                  <span className="avatar-ring shrink-0">
-                    <Avatar className="h-10 w-10 border-2 border-background">
-                      <AvatarImage src={c.other?.avatar_url ?? undefined} />
-                      <AvatarFallback>{initials(name)}</AvatarFallback>
-                    </Avatar>
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1">
-                      <span className={cn("truncate text-sm", unread && "font-bold")}>{name}</span>
-                      <VerificationTicks
-                        blue={c.other?.blue_tick}
-                        white={c.other?.white_tick}
-                        gold={c.other?.gold_tick}
-                        size="sm"
-                      />
-                    </div>
-                    <p
-                      className={cn(
-                        "text-xs truncate",
-                        unread ? "text-foreground" : "text-muted-foreground",
+                  <div className="flex items-start gap-3">
+                    <span className="shrink-0 rounded-full p-[2px] bg-gradient-to-br from-primary/70 to-primary/30">
+                      <Avatar className="h-12 w-12 border-2 border-card">
+                        <AvatarImage src={c.other?.avatar_url ?? undefined} />
+                        <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+                          {initials(name)}
+                        </AvatarFallback>
+                      </Avatar>
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex items-center gap-1">
+                          <span className="truncate text-[15px] font-bold text-foreground">{name}</span>
+                          <VerificationTicks
+                            blue={c.other?.blue_tick}
+                            white={c.other?.white_tick}
+                            gold={c.other?.gold_tick}
+                            size="sm"
+                          />
+                        </div>
+                        <span className="text-[11px] font-medium text-muted-foreground shrink-0 whitespace-nowrap">
+                          {c.last_message_at ? formatTime(c.last_message_at) : ""}
+                        </span>
+                      </div>
+                      {role && (
+                        <div className="text-xs text-muted-foreground capitalize mt-0.5">{role}</div>
                       )}
-                    >
-                      {preview}
-                    </p>
-                  </div>
-                  <div className="flex flex-col items-end gap-1 shrink-0">
-                    {c.last_message_at && (
-                      <span className="text-[10px] text-muted-foreground">
-                        {formatTime(c.last_message_at)}
-                      </span>
-                    )}
-                    {unread && (
-                      <span className="h-2.5 w-2.5 rounded-full bg-primary shadow-[0_0_10px_var(--primary)] animate-pulse" />
-                    )}
+                      <div className="mt-2 flex items-end justify-between gap-2">
+                        <p
+                          className={cn(
+                            "text-[13px] leading-snug line-clamp-2 flex-1 min-w-0",
+                            unread ? "text-foreground font-medium" : "text-muted-foreground",
+                          )}
+                        >
+                          {preview}
+                        </p>
+                        {unread && (
+                          <span className="shrink-0 min-w-[22px] h-[22px] px-1.5 rounded-full bg-primary text-primary-foreground text-[11px] font-bold grid place-items-center tabular-nums">
+                            {c.unread_count}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </button>
               );
