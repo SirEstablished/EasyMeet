@@ -46,7 +46,11 @@ export const getDisputedEscrows = createServerFn({ method: "GET" }).middleware([
 
     const orderIds = Array.from(new Set(rows.map((r) => r.order_id).filter(Boolean)));
     const userIds = Array.from(
-      new Set(rows.flatMap((r) => [r.customer_id, r.provider_id]).filter(Boolean)),
+      new Set(
+        rows
+          .flatMap((r) => [r.customer_id, r.professional_id ?? r.provider_id])
+          .filter(Boolean),
+      ),
     );
 
     let ordersData: any[] = [];
@@ -79,11 +83,12 @@ export const getDisputedEscrows = createServerFn({ method: "GET" }).middleware([
 
     return rows.map((r) => {
       const o = oMap.get(r.order_id);
+      const providerId = r.professional_id ?? r.provider_id;
       return {
         id: r.id,
         order_id: r.order_id,
         customer_id: r.customer_id,
-        provider_id: r.provider_id,
+        provider_id: providerId,
         amount: Number(r.amount_ngn ?? r.amount ?? o?.amount ?? 0),
         status: r.status,
         dispute_reason: r.dispute_reason,
@@ -94,7 +99,7 @@ export const getDisputedEscrows = createServerFn({ method: "GET" }).middleware([
         service_title: o?.service_title ?? "Order",
         order_amount: Number(o?.amount ?? r.amount_ngn ?? r.amount ?? 0),
         customer_name: nameOf(r.customer_id),
-        provider_name: nameOf(r.provider_id),
+        provider_name: providerId ? nameOf(providerId) : "Unknown",
       };
     });
   },
