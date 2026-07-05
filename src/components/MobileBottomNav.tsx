@@ -11,7 +11,7 @@ export function MobileBottomNav() {
     { to: "/dashboard", label: "Home", Icon: Home },
     { to: "/explore", label: "Explore", Icon: Compass },
     { to: "/my-orders", label: ordersLabel, Icon: Package },
-    { to: "/transactions", label: "Wallet", Icon: Wallet },
+    { to: "/transactions", label: "Transactions", Icon: Wallet },
     { to: "/messages", label: "Chat", Icon: MessageSquare },
   ] as const;
 
@@ -25,14 +25,14 @@ export function MobileBottomNav() {
           <li key={to}>
             <Link
               to={to}
-              className="flex flex-col items-center justify-center gap-0.5 min-h-[56px] px-1 py-2 text-[11px] font-medium text-muted-foreground active:bg-primary/10"
+              className="flex flex-col items-center justify-center gap-0.5 min-h-[56px] px-0.5 py-1.5 text-[10px] font-medium text-muted-foreground active:bg-primary/10"
               activeProps={{
                 className:
-                  "flex flex-col items-center justify-center gap-0.5 min-h-[56px] px-1 py-2 text-[11px] font-semibold text-[#6C47FF] bg-[#6C47FF]/10",
+                  "flex flex-col items-center justify-center gap-0.5 min-h-[56px] px-0.5 py-1.5 text-[10px] font-semibold text-[#6C47FF] bg-[#6C47FF]/10",
               }}
             >
-              <Icon className="h-5 w-5" />
-              <span className="truncate leading-none">{label}</span>
+              <Icon className="h-5 w-5 shrink-0" />
+              <span className="truncate leading-none max-w-full px-0.5">{label}</span>
             </Link>
           </li>
         ))}
