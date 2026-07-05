@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/Logo";
 import { Footer } from "@/components/Footer";
-import { useAuth, useAuthModal, useTheme } from "@/lib/providers";
+import { useAuth, useAuthModal } from "@/lib/providers";
 import {
   ShieldCheck,
   CalendarCheck,
@@ -11,8 +11,6 @@ import {
   Search,
   Handshake,
   Star,
-  Moon,
-  Sun,
 } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
@@ -32,7 +30,6 @@ export const Route = createFileRoute("/")({
 function Landing() {
   const { openModal } = useAuthModal();
   const { user, loading } = useAuth();
-  const { theme, toggle } = useTheme();
   const navigate = useNavigate();
 
   // If a session is present (e.g. returning from Google OAuth), send the
@@ -54,9 +51,6 @@ function Landing() {
         <div className="max-w-7xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2">
           <Logo />
           <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-            <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme" className="h-9 w-9">
-              {theme === "light" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
-            </Button>
             <Button variant="ghost" onClick={() => openModal("login")} className="hidden sm:inline-flex">
               Sign in
             </Button>

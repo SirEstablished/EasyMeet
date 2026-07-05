@@ -1,8 +1,8 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
-import { useAuth, useTheme } from "@/lib/providers";
-import { Moon, Sun, LogOut } from "lucide-react";
+import { useAuth } from "@/lib/providers";
+import { LogOut } from "lucide-react";
 import { NotificationsBell } from "./NotificationsBell";
 import {
   DropdownMenu,
@@ -16,7 +16,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export function AppNavbar() {
   const { profile, user, signOut } = useAuth();
-  const { theme, toggle } = useTheme();
   const navigate = useNavigate();
 
   const isCustomer = profile?.role === "customer";
@@ -60,9 +59,6 @@ export function AppNavbar() {
           ))}
         </nav>
         <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
-          <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme" className="h-9 w-9">
-            {theme === "light" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
-          </Button>
           <NotificationsBell />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
