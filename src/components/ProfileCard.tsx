@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import type { Profile } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { VerificationTicks } from "./VerificationTicks";
+import { FoundingMemberBadge } from "./FoundingMemberBadge";
 import { StarRating } from "./StarRating";
 import { MapPin } from "lucide-react";
 import { formatDistance } from "@/lib/geo";
@@ -39,6 +40,10 @@ export function ProfileCard({ p, distanceKm }: { p: Profile; distanceKm?: number
               blue={p.blue_tick}
               white={p.white_tick}
               gold={p.gold_tick}
+              size="sm"
+            />
+            <FoundingMemberBadge
+              active={(p as unknown as { is_founding_member?: boolean }).is_founding_member}
               size="sm"
             />
           </div>
