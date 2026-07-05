@@ -803,6 +803,17 @@ export function EscrowPanel({
       });
       if (messageError) console.error("Completion message failed", messageError);
       toast.success("Payment released");
+      // Credit-wallet notification to the professional.
+      try {
+        await supabase.from("notifications").insert({
+          user_id: order.professional_id,
+          title: "Wallet credited 🎉",
+          message: `${formatNgn(payout)} has been added to your EasyMeet Wallet!`,
+          type: "wallet",
+        } as never);
+      } catch (e) {
+        console.error("Wallet notification failed", e);
+      }
       void load();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not release payment");
