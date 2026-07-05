@@ -72,13 +72,30 @@ interface Props {
 }
 
 const STAGES = [
-  "Negotiate",
-  "Agreement",
-  "Pay into Escrow",
-  "Work in Progress",
-  "Mark Complete",
+  "Negotiating",
+  "Agreement Sent",
+  "Agreement Accepted",
+  "Paid into Escrow",
+  "Mark as Complete",
   "Released",
 ];
+
+type AgreementRow = ServiceAgreement & {
+  cancelled_by?: string | null;
+  cancelled_at?: string | null;
+  updated_at?: string | null;
+};
+
+function parseTime(value: unknown): number {
+  if (typeof value !== "string" || !value) return 0;
+  const ts = Date.parse(value);
+  return Number.isFinite(ts) ? ts : 0;
+}
+
+function latestTime(row: Record<string, unknown> | null | undefined, fields: string[]) {
+  if (!row) return 0;
+  return Math.max(...fields.map((field) => parseTime(row[field])));
+}
 
 function escrowFromLatestRow(row: Record<string, unknown> | null): EscrowOrder | null {
   if (!row?.id) return null;
@@ -186,7 +203,7 @@ export function EscrowPanel({
 
   const load = async () => {
     try {
-      const [{ data: ag }, { data: latestEscrow }] = await Promise.all([
+      const [{ data: ag, error: agError }, { data: latestEscrow, error: escrowError }] = await Promise.all([
         supabase
           .from("service_agreements")
           .select("*")
@@ -202,42 +219,69 @@ export function EscrowPanel({
           .limit(1)
           .maybeSingle(),
       ]);
-      const agObj = (ag as ServiceAgreement) ?? null;
-      const escrowRaw = latestEscrow as Record<string, unknown> | null;
-      let odObj = escrowFromLatestRow(escrowRaw);
+      if (agError) throw new Error(agError.message);
+      if (escrowError) throw new Error(escrowError.message);
 
-      // Fix #1: ignore any escrow record that predates a "fresh deal" cutoff
-      // (set when Start New Deal is clicked) OR that was superseded by a
-      // newer service_agreement. An old cancelled/released escrow must not
-      // bleed through onto a brand-new deal.
-      if (odObj) {
-        const freshAfter = readFreshAfter();
-        const escrowTs = Date.parse(
-          (escrowRaw?.cancelled_at as string | undefined) ??
-            (escrowRaw?.released_at as string | undefined) ??
-            odObj.created_at ??
-            "",
-        );
-        const agTs = agObj ? Date.parse(agObj.created_at) : 0;
-        const terminal =
-          odObj.status === "cancelled" ||
-          odObj.status === "released" ||
-          odObj.status === "completed" ||
-          odObj.status === "refunded";
-        const supersededByAgreement = terminal && agTs > 0 && escrowTs > 0 && agTs > escrowTs;
-        const supersededByFreshDeal = freshAfter > 0 && escrowTs > 0 && freshAfter >= escrowTs;
-        // A cancelled/terminal escrow must be suppressed when a newer
-        // service_agreement exists OR "Start New Deal" was clicked after
-        // it — otherwise the cancelled banner blocks the new deal flow.
-        if (supersededByAgreement || supersededByFreshDeal) {
-          odObj = null;
-        }
+      const agObj = (ag as AgreementRow) ?? null;
+      const escrowRaw = latestEscrow as Record<string, unknown> | null;
+      const odObj = escrowFromLatestRow(escrowRaw);
+      const freshAfter = readFreshAfter();
+      const agreementCreatedAt = parseTime(agObj?.created_at);
+      const agreementUpdatedAt = Math.max(agreementCreatedAt, parseTime(agObj?.updated_at));
+      const escrowCreatedAt = parseTime(odObj?.created_at);
+      const escrowCancelledAt = latestTime(escrowRaw, ["cancelled_at", "updated_at", "created_at"]);
+      const escrowReleasedAt = latestTime(escrowRaw, ["released_at", "updated_at", "created_at"]);
+      const newestRecordAt = Math.max(
+        agreementUpdatedAt,
+        latestTime(escrowRaw, ["created_at", "updated_at", "cancelled_at", "released_at", "refunded_at"]),
+      );
+
+      let nextAgreement: AgreementRow | null = null;
+      let nextOrder: EscrowOrder | null = null;
+
+      // A user-initiated new deal is the strongest signal. If it is newer
+      // than every loaded record, every previous stage is stale.
+      if (freshAfter > 0 && newestRecordAt > 0 && freshAfter >= newestRecordAt) {
+        nextAgreement = null;
+        nextOrder = null;
+      } else if (
+        odObj?.status === "cancelled" &&
+        !(agObj && agreementCreatedAt > escrowCancelledAt)
+      ) {
+        // Cancelled escrow wins over an older accepted agreement, so refreshes
+        // can never fall back to a previous deal's Pay into Escrow button.
+        nextAgreement = agObj;
+        nextOrder = odObj;
+      } else if (
+        (odObj?.status === "released" || odObj?.status === "completed" || odObj?.status === "refunded") &&
+        !(agObj && agreementCreatedAt > escrowReleasedAt)
+      ) {
+        nextAgreement = agObj;
+        nextOrder = odObj;
+      } else if (odObj?.status === "holding" || odObj?.status === "in_progress") {
+        nextAgreement = agObj;
+        nextOrder = odObj;
+      } else if (odObj?.status === "disputed" && !(agObj && agreementCreatedAt > escrowCreatedAt)) {
+        nextAgreement = agObj;
+        nextOrder = odObj;
+      } else if (
+        agObj?.status === "accepted" &&
+        (!odObj || escrowCreatedAt < agreementCreatedAt || odObj.status === "pending_payment")
+      ) {
+        nextAgreement = agObj;
+        nextOrder = null;
+      } else if (agObj?.status === "pending") {
+        nextAgreement = agObj;
+        nextOrder = null;
+      } else if (agObj?.status === "cancelled" && (!odObj || escrowCreatedAt <= agreementCreatedAt)) {
+        nextAgreement = agObj;
+        nextOrder = null;
       }
 
-      latestEscrowStatusRef.current = odObj?.status ?? null;
+      latestEscrowStatusRef.current = nextOrder?.status ?? null;
       setLoadedConversationId(conversationId);
 
-      if (odObj?.status === "cancelled") {
+      if (nextOrder?.status === "cancelled") {
         setAskRoleOpen(false);
         setSendOpen(false);
         setDisputeOpen(false);
@@ -250,23 +294,17 @@ export function EscrowPanel({
         // on page load for BOTH parties.
         dismissedOrderIdRef.current = null;
         dismissedAgreementIdRef.current = null;
-        setAgreement(agObj);
-        setOrder(odObj);
+        setAgreement(nextAgreement);
+        setOrder(nextOrder);
         setLoading(false);
         return;
       }
 
-      // Gate the agreement by the fresh-deal cutoff so a stale cancelled
-      // agreement (pre-payment cancel path) doesn't reappear after refresh.
-      let nextAgreement = agObj && agObj.id === dismissedAgreementIdRef.current ? null : agObj;
-      if (nextAgreement && nextAgreement.status === "cancelled") {
-        const freshAfter = readFreshAfter();
-        const agTs = Date.parse(nextAgreement.created_at);
-        if (freshAfter > 0 && agTs > 0 && freshAfter >= agTs) nextAgreement = null;
-      }
-      setAgreement(nextAgreement);
+      const visibleAgreement =
+        nextAgreement && nextAgreement.id === dismissedAgreementIdRef.current ? null : nextAgreement;
+      setAgreement(visibleAgreement);
       setOrder((prev) => {
-        const next = odObj && odObj.id === dismissedOrderIdRef.current ? null : odObj;
+        const next = nextOrder && nextOrder.id === dismissedOrderIdRef.current ? null : nextOrder;
         // Only keep an optimistic payment row before the database has returned
         // that same latest escrow. Never fall back to an older escrow record.
         if (!next && prev && paying) return prev;
