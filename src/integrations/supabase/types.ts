@@ -77,18 +77,190 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      wallet_transactions: {
+        Row: {
+          amount: number
+          balance_after: number
+          created_at: string
+          id: string
+          note: string | null
+          reference_id: string | null
+          type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          balance_after: number
+          created_at?: string
+          id?: string
+          note?: string | null
+          reference_id?: string | null
+          type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          balance_after?: number
+          created_at?: string
+          id?: string
+          note?: string | null
+          reference_id?: string | null
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      wallets: {
+        Row: {
+          auto_withdrawal: boolean
+          auto_withdrawal_threshold: number | null
+          available_balance: number
+          created_at: string
+          escrow_balance: number
+          lifetime_earnings: number
+          total_withdrawn: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auto_withdrawal?: boolean
+          auto_withdrawal_threshold?: number | null
+          available_balance?: number
+          created_at?: string
+          escrow_balance?: number
+          lifetime_earnings?: number
+          total_withdrawn?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auto_withdrawal?: boolean
+          auto_withdrawal_threshold?: number | null
+          available_balance?: number
+          created_at?: string
+          escrow_balance?: number
+          lifetime_earnings?: number
+          total_withdrawn?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      withdrawal_requests: {
+        Row: {
+          account_name: string
+          account_number: string
+          amount: number
+          bank_name: string
+          created_at: string
+          id: string
+          paystack_transfer_ref: string | null
+          processed_at: string | null
+          processed_by: string | null
+          rejection_reason: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_name: string
+          account_number: string
+          amount: number
+          bank_name: string
+          created_at?: string
+          id?: string
+          paystack_transfer_ref?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          rejection_reason?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_name?: string
+          account_number?: string
+          amount?: number
+          bank_name?: string
+          created_at?: string
+          id?: string
+          paystack_transfer_ref?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          rejection_reason?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      admin_approve_withdrawal: {
+        Args: { p_transfer_ref: string; p_withdrawal_id: string }
+        Returns: Json
+      }
+      admin_reject_withdrawal: {
+        Args: { p_reason: string; p_withdrawal_id: string }
+        Returns: Json
+      }
+      credit_wallet_after_release: {
+        Args: {
+          p_amount: number
+          p_commission: number
+          p_escrow_id: string
+          p_order_id: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       release_escrow_payment: {
         Args: { p_escrow_id: string; p_order_id: string }
         Returns: Json
       }
+      request_withdrawal: {
+        Args: {
+          p_account_name: string
+          p_account_number: string
+          p_amount: number
+          p_bank_name: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -215,6 +387,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+    },
   },
 } as const

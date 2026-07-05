@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/providers";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Loader2, Shield, ShieldCheck, ShieldX } from "lucide-react";
 import { refundPaystackTransaction } from "@/lib/paystack.functions";
@@ -23,6 +24,8 @@ function AdminDisputesPage() {
   const [disputes, setDisputes] = useState<DisputeRow[]>([]);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [withdrawals, setWithdrawals] = useState<WithdrawalRow[]>([]);
+  const [wdBusyId, setWdBusyId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -84,6 +87,78 @@ function AdminDisputesPage() {
   }, [isAdmin, load]);
 
   useLiveData(isAdmin ? ["escrow", "escrow_disputes", "orders"] : [], load);
+
+  const loadWithdrawals = useCallback(async () => {
+    const { data } = await supabase
+      .from("withdrawal_requests" as never)
+      .select("*")
+      .in("status", ["pending", "processing"])
+      .order("created_at", { ascending: false });
+    const rows = ((data as WithdrawalRow[] | null) ?? []);
+    const ids = Array.from(new Set(rows.map((r) => r.user_id)));
+    let names = new Map<string, string>();
+    if (ids.length) {
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id, full_name, username, email")
+        .in("id", ids);
+      names = new Map((profs ?? []).map((p: any) => [p.id, p.full_name || p.username || p.email || "Unknown"]));
+    }
+    setWithdrawals(rows.map((r) => ({ ...r, user_name: names.get(r.user_id) ?? "Unknown" })));
+  }, []);
+
+  useEffect(() => {
+    if (isAdmin) void loadWithdrawals();
+  }, [isAdmin, loadWithdrawals]);
+  useLiveData(isAdmin ? ["withdrawal_requests"] : [], loadWithdrawals);
+
+  const approveWithdrawal = async (w: WithdrawalRow) => {
+    setWdBusyId(w.id);
+    try {
+      const { error } = await supabase.rpc("admin_approve_withdrawal" as never, {
+        p_withdrawal_id: w.id,
+        p_transfer_ref: null,
+      } as never);
+      if (error) throw error;
+      await supabase.from("notifications").insert({
+        user_id: w.user_id,
+        title: "Withdrawal completed ✅",
+        message: `Your withdrawal of ${formatNgn(w.amount)} has been processed.`,
+        type: "wallet",
+      } as never);
+      toast.success("Withdrawal approved");
+      setWithdrawals((cur) => cur.filter((x) => x.id !== w.id));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Approve failed");
+    } finally {
+      setWdBusyId(null);
+    }
+  };
+
+  const rejectWithdrawal = async (w: WithdrawalRow) => {
+    const reason = window.prompt("Reason for rejection?");
+    if (!reason) return;
+    setWdBusyId(w.id);
+    try {
+      const { error } = await supabase.rpc("admin_reject_withdrawal" as never, {
+        p_withdrawal_id: w.id,
+        p_reason: reason,
+      } as never);
+      if (error) throw error;
+      await supabase.from("notifications").insert({
+        user_id: w.user_id,
+        title: "Withdrawal rejected",
+        message: `Your withdrawal of ${formatNgn(w.amount)} was rejected. Reason: ${reason}. The amount has been returned to your wallet.`,
+        type: "wallet",
+      } as never);
+      toast.success("Withdrawal rejected and refunded to wallet");
+      setWithdrawals((cur) => cur.filter((x) => x.id !== w.id));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Reject failed");
+    } finally {
+      setWdBusyId(null);
+    }
+  };
 
   const resolve = async (d: DisputeRow, outcome: "release" | "refund") => {
     setBusyId(d.id);
@@ -182,9 +257,16 @@ function AdminDisputesPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-extrabold text-gradient-tri">Disputes</h1>
-      <p className="text-sm text-muted-foreground">Review evidence and resolve.</p>
-      <div className="mt-6 space-y-4">
+      <h1 className="text-3xl font-extrabold text-gradient-tri">Admin</h1>
+      <p className="text-sm text-muted-foreground">Review disputes and process withdrawals.</p>
+      <Tabs defaultValue="disputes" className="mt-6">
+        <TabsList>
+          <TabsTrigger value="disputes">Disputes</TabsTrigger>
+          <TabsTrigger value="withdrawals">
+            Withdrawals{withdrawals.length > 0 ? ` (${withdrawals.length})` : ""}
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="disputes" className="space-y-4 mt-4">
         {disputes.length === 0 && (
           <p className="text-sm text-muted-foreground">No disputes.</p>
         )}
@@ -260,7 +342,58 @@ function AdminDisputesPage() {
             </div>
           </div>
         ))}
-      </div>
+        </TabsContent>
+        <TabsContent value="withdrawals" className="space-y-3 mt-4">
+          {withdrawals.length === 0 && (
+            <p className="text-sm text-muted-foreground">No pending withdrawals.</p>
+          )}
+          {withdrawals.map((w) => (
+            <div key={w.id} className="rounded-2xl glass-card p-4">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-semibold">{w.user_name}</span>
+                <Badge variant="outline" className="capitalize">{w.status}</Badge>
+                <span className="ml-auto font-bold text-gradient-brand">{formatNgn(w.amount)}</span>
+              </div>
+              <div className="mt-2 text-xs text-muted-foreground">
+                {w.bank_name} • {w.account_number} • {w.account_name}
+              </div>
+              <div className="mt-1 text-[11px] text-muted-foreground">
+                Requested {new Date(w.created_at).toLocaleString()}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => approveWithdrawal(w)}
+                  disabled={wdBusyId === w.id}
+                  className="bg-gradient-brand"
+                >
+                  <ShieldCheck className="h-4 w-4 mr-1" /> Approve
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => rejectWithdrawal(w)}
+                  disabled={wdBusyId === w.id}
+                >
+                  <ShieldX className="h-4 w-4 mr-1" /> Reject
+                </Button>
+              </div>
+            </div>
+          ))}
+        </TabsContent>
+      </Tabs>
     </div>
   );
+}
+
+interface WithdrawalRow {
+  id: string;
+  user_id: string;
+  amount: number;
+  bank_name: string;
+  account_number: string;
+  account_name: string;
+  status: string;
+  created_at: string;
+  user_name?: string;
 }
