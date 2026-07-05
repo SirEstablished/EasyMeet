@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Loader2, Shield, ShieldCheck, ShieldX } from "lucide-react";
 import { refundPaystackTransaction } from "@/lib/paystack.functions";
 import { getDisputedEscrows, type AdminDisputeRow } from "@/lib/admin.functions";
+import { useLiveData } from "@/hooks/use-live-data";
 
 export const Route = createFileRoute("/_authenticated/admin/disputes")({
   component: AdminDisputesPage,
@@ -81,6 +82,8 @@ function AdminDisputesPage() {
   useEffect(() => {
     if (isAdmin) load();
   }, [isAdmin, load]);
+
+  useLiveData(isAdmin ? ["escrow", "escrow_disputes", "orders"] : [], load);
 
   const resolve = async (d: DisputeRow, outcome: "release" | "refund") => {
     setBusyId(d.id);
