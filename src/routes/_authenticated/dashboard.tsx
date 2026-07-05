@@ -13,7 +13,6 @@ import {
   Sparkles,
   Search,
   Users,
-  Package,
   Users2,
   Wallet as WalletIcon,
   ArrowRight,
