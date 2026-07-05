@@ -35,6 +35,9 @@ import {
   CreditCard,
   Sparkles,
   XCircle,
+  Wallet,
+  Percent,
+  User,
 } from "lucide-react";
 import { payWithPaystack } from "@/lib/paystack";
 import { detectEscrowRoles, suggestAgreement } from "@/lib/escrow-ai.functions";
