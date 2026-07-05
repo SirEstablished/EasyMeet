@@ -3,6 +3,7 @@ import { useAuth } from "@/lib/providers";
 import { useEffect, useState } from "react";
 import { fetchCompletion } from "@/lib/profileCompletion";
 import { AnalyticsSection } from "@/components/AnalyticsSection";
+import { WalletSummaryCard } from "@/components/WalletSummaryCard";
 import {
   ShieldCheck,
   CalendarCheck,
@@ -57,6 +58,7 @@ function Dashboard() {
           ...(offersServices ? [{ Icon: Sparkles, label: "My Services", to: "/my-services" }] : []),
           ...(sellsProducts ? [{ Icon: Package, label: "My Products", to: "/my-products" }] : []),
           { Icon: CalendarCheck, label: "Orders", to: "/my-orders" },
+          { Icon: Wallet, label: "Wallet", to: "/wallet" },
           { Icon: Wallet, label: "Transactions", to: "/transactions" },
           { Icon: Users, label: "Explore", to: "/explore" },
           { Icon: MessageCircle, label: "Messages", to: "/messages" },
@@ -140,6 +142,8 @@ function Dashboard() {
         </div>
 
         {role !== "customer" && <AnalyticsSection />}
+
+        {role !== "customer" && <WalletSummaryCard />}
 
         {/* Getting started / Quick links card */}
         <div className="rounded-2xl glass-card p-4 sm:p-7">
