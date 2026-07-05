@@ -165,11 +165,16 @@ export function EscrowPanel({
   // fix #2 (sticky role choice so the popup never re-appears).
   const freshDealKey = `escrow_fresh_after_${conversationId}_${meId}`;
   const roleKey = `escrow_role_${conversationId}_${meId}`;
+  // Shared (per-conversation) fresh-deal cutoff so BOTH parties skip a
+  // stale cancelled escrow after either side clicks "Start New Deal".
+  const sharedFreshDealKey = `new_deal_started_${conversationId}`;
   const readFreshAfter = (): number => {
     if (typeof window === "undefined") return 0;
-    const v = window.localStorage.getItem(freshDealKey);
-    const n = v ? Date.parse(v) : 0;
-    return Number.isFinite(n) ? n : 0;
+    const a = window.localStorage.getItem(freshDealKey);
+    const b = window.localStorage.getItem(sharedFreshDealKey);
+    const na = a ? Date.parse(a) : 0;
+    const nb = b ? Date.parse(b) : 0;
+    return Math.max(Number.isFinite(na) ? na : 0, Number.isFinite(nb) ? nb : 0);
   };
   const readSavedRole = (): boolean | null => {
     if (typeof window === "undefined") return null;
