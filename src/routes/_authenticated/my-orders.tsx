@@ -260,7 +260,7 @@ function MyOrdersPage() {
           onOpenChange={(v) => !v && setRefunding(null)}
           orderId={refunding.id}
           escrowId={refunding.escrow.id}
-          amount={Number(refunding.escrow.amount_ngn ?? refunding.amount ?? 0)}
+          amount={Number(refunding.amount ?? refunding.escrow.amount_ngn ?? 0)}
           serviceTitle={refunding.service_title}
           customerName={
             refunding.customer?.full_name || refunding.customer?.username || profile?.full_name || "Customer"
