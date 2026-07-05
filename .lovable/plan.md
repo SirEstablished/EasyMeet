@@ -1,21 +1,22 @@
-## Problem
+## Fixes
 
-The Transactions section was added to `src/routes/_authenticated/dashboard.tsx`, but you can't see it. Two likely reasons:
+1. **Rename the bottom-nav tab from "Wallet" to "Transactions"**
+   - In `src/components/MobileBottomNav.tsx`, change the label and keep the `Wallet` icon.
+   - Shrink the tab typography (`text-[10px]`, tighter padding, `truncate`) so "Transactions" fits without wrapping across all 5 tabs at 360px.
 
-1. You're viewing `/` (the public landing page), not `/dashboard`. The section only renders on the authenticated dashboard route.
-2. After sign-in, the app may be sending you somewhere other than `/dashboard` (e.g. `/feed` or `/my-orders`), so you never hit the page that contains it.
+2. **Make the Transactions page fit mobile perfectly**
+   - In `src/components/TransactionsSection.tsx`:
+     - Tighten outer padding on mobile (`p-4 sm:p-6`) and reduce header/stat gaps.
+     - Stat cards: keep `grid-cols-3` but shrink numbers on mobile (`text-lg sm:text-2xl`), smaller labels, tighter padding so all three fit side-by-side without overflow.
+     - Filter tabs: make `TabsList` horizontally scrollable (`overflow-x-auto`, `whitespace-nowrap`) so "All / Completed / In Escrow / Cancelled / Refunded" don't wrap or clip on small screens.
+     - Transaction rows: hide the desktop `Table` on mobile and render a stacked **card list** instead — each card shows service title + status badge on top, counterparty + date, and amount right-aligned. Table stays for `sm:` and up.
+     - Ensure the page wrapper uses `px-3 sm:px-6` and `max-w-full` so nothing overflows.
+   - In `src/routes/_authenticated/transactions.tsx`: reduce top padding on mobile (`py-4 sm:py-8`) and use the same tighter horizontal padding.
 
-## Plan
-
-1. Verify where signed-in users land by default (check `AppNavbar`, auth redirect, and the `/dashboard` link) — no code changes yet, just confirm the route.
-2. Make the Transactions section reachable from the primary nav so it's not hidden behind `/dashboard`:
-   - Add a **Transactions** entry to the mobile bottom nav and desktop navbar/quick links, pointing to a dedicated route.
-   - Create `src/routes/_authenticated/transactions.tsx` that renders the existing `<TransactionsSection />` full-width with a page header.
-3. Keep the summary cards + table on `/dashboard` as-is so it also appears there.
-4. Quick QA: sign in, click **Transactions** in the nav, confirm totals, filter tabs (All / Completed / In Escrow / Cancelled / Refunded), and CSV export all work.
+3. **QA on mobile viewport (390×844)**: confirm bottom-nav label reads "Transactions", stat cards fit one row, filter tabs scroll, transaction cards stack cleanly with no horizontal scroll, and CSV export button stays reachable.
 
 ## Technical notes
 
-- New route: `src/routes/_authenticated/transactions.tsx` — thin wrapper around `TransactionsSection` (already built, already wired to `orders` + `escrow` + `profiles` with realtime via `useLiveData`).
-- Nav edits: `src/components/MobileBottomNav.tsx` (replace or add a tab) and `src/components/AppNavbar.tsx` / dashboard quick links.
-- No DB or RLS changes — the section reads tables you already have policies for.
+- No new routes or DB changes.
+- Only edits: `src/components/MobileBottomNav.tsx`, `src/components/TransactionsSection.tsx`, `src/routes/_authenticated/transactions.tsx`.
+- Table → card switch uses `hidden sm:block` / `sm:hidden` pattern; no new component needed.

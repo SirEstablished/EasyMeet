@@ -179,33 +179,36 @@ export function TransactionsSection() {
   const totalLabel = isCustomer ? "Total spent" : "Total earned";
 
   return (
-    <div className="rounded-2xl glass-card p-6 sm:p-7">
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
-        <div>
-          <h2 className="font-bold text-xl">Transactions</h2>
-          <p className="text-sm text-muted-foreground mt-0.5">
+    <div className="rounded-2xl glass-card p-4 sm:p-7 max-w-full">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2 mb-4 sm:mb-5">
+        <div className="min-w-0">
+          <h2 className="font-bold text-lg sm:text-xl">Transactions</h2>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
             Your escrow activity and history.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={exportCsv} disabled={!filtered.length}>
-          <Download className="h-4 w-4 mr-2" /> Export CSV
+        <Button variant="outline" size="sm" onClick={exportCsv} disabled={!filtered.length} className="shrink-0">
+          <Download className="h-4 w-4 sm:mr-2" />
+          <span className="hidden sm:inline">Export CSV</span>
         </Button>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3 mb-5">
-        <StatCard icon={<Wallet className="h-4 w-4" />} label={totalLabel} value={formatNgn(totalAmount)} />
-        <StatCard icon={<CheckCircle2 className="h-4 w-4" />} label="Completed deals" value={String(completedCount)} />
-        <StatCard icon={<Shield className="h-4 w-4" />} label="Active in escrow" value={String(activeEscrowCount)} />
+      <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4 sm:mb-5">
+        <StatCard icon={<Wallet className="h-3.5 w-3.5" />} label={totalLabel} value={formatNgn(totalAmount)} />
+        <StatCard icon={<CheckCircle2 className="h-3.5 w-3.5" />} label="Completed" value={String(completedCount)} />
+        <StatCard icon={<Shield className="h-3.5 w-3.5" />} label="In escrow" value={String(activeEscrowCount)} />
       </div>
 
       <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)} className="mb-4">
-        <TabsList className="flex flex-wrap h-auto">
-          <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="completed">Completed</TabsTrigger>
-          <TabsTrigger value="in_escrow">In Escrow</TabsTrigger>
-          <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
-          <TabsTrigger value="refunded">Refunded</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto -mx-1 px-1">
+          <TabsList className="inline-flex h-auto w-max whitespace-nowrap">
+            <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="completed">Completed</TabsTrigger>
+            <TabsTrigger value="in_escrow">In Escrow</TabsTrigger>
+            <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
+            <TabsTrigger value="refunded">Refunded</TabsTrigger>
+          </TabsList>
+        </div>
       </Tabs>
 
       {loading ? (
@@ -217,7 +220,35 @@ export function TransactionsSection() {
           No transactions to show.
         </div>
       ) : (
-        <div className="rounded-xl border border-border overflow-hidden">
+        <>
+        {/* Mobile card list */}
+        <ul className="sm:hidden space-y-2">
+          {filtered.map((t) => {
+            const s = statusLabel(t.bucket);
+            return (
+              <li key={t.id} className="rounded-xl border border-border p-3 bg-background/40">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-semibold text-sm truncate">{t.service_title}</div>
+                    <div className="text-xs text-muted-foreground truncate mt-0.5">
+                      {isCustomer ? "To" : "From"} {t.counterparty_name}
+                    </div>
+                  </div>
+                  <Badge variant={s.variant} className="shrink-0 text-[10px]">{s.label}</Badge>
+                </div>
+                <div className="flex items-end justify-between mt-2">
+                  <span className="text-[11px] text-muted-foreground">
+                    {new Date(t.created_at).toLocaleDateString()}
+                  </span>
+                  <span className="font-bold text-sm whitespace-nowrap">{formatNgn(t.amount)}</span>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+
+        {/* Desktop table */}
+        <div className="hidden sm:block rounded-xl border border-border overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
@@ -250,6 +281,7 @@ export function TransactionsSection() {
             </TableBody>
           </Table>
         </div>
+        </>
       )}
     </div>
   );
@@ -257,11 +289,12 @@ export function TransactionsSection() {
 
 function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-border p-4 bg-background/40">
-      <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
-        {icon} {label}
+    <div className="rounded-xl border border-border p-2.5 sm:p-4 bg-background/40 min-w-0">
+      <div className="flex items-center gap-1 sm:gap-2 text-[9px] sm:text-xs uppercase tracking-wider text-muted-foreground truncate">
+        <span className="shrink-0">{icon}</span>
+        <span className="truncate">{label}</span>
       </div>
-      <div className="mt-2 text-2xl font-extrabold tracking-tight text-gradient-brand">{value}</div>
+      <div className="mt-1 sm:mt-2 text-sm sm:text-2xl font-extrabold tracking-tight text-gradient-brand truncate">{value}</div>
     </div>
   );
 }
