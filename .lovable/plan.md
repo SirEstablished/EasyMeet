@@ -1,22 +1,27 @@
-## Fixes
+## Fix mobile homepage and bottom nav
 
-1. **Rename the bottom-nav tab from "Wallet" to "Transactions"**
-   - In `src/components/MobileBottomNav.tsx`, change the label and keep the `Wallet` icon.
-   - Shrink the tab typography (`text-[10px]`, tighter padding, `truncate`) so "Transactions" fits without wrapping across all 5 tabs at 360px.
+### 1. Bottom nav tabs (`src/components/MobileBottomNav.tsx`)
+Replace current 5 tabs with exactly: **Home, Explore, Feed, Orders, Chat**.
+- Remove the Transactions/Wallet tab from the bottom nav.
+- Order: Home (`/dashboard`) → Explore (`/explore`) → Feed (`/feed`) → Orders (`/my-orders`) → Chat (`/messages`).
+- Icons: Home, Compass, Rss, Package, MessageSquare.
 
-2. **Make the Transactions page fit mobile perfectly**
-   - In `src/components/TransactionsSection.tsx`:
-     - Tighten outer padding on mobile (`p-4 sm:p-6`) and reduce header/stat gaps.
-     - Stat cards: keep `grid-cols-3` but shrink numbers on mobile (`text-lg sm:text-2xl`), smaller labels, tighter padding so all three fit side-by-side without overflow.
-     - Filter tabs: make `TabsList` horizontally scrollable (`overflow-x-auto`, `whitespace-nowrap`) so "All / Completed / In Escrow / Cancelled / Refunded" don't wrap or clip on small screens.
-     - Transaction rows: hide the desktop `Table` on mobile and render a stacked **card list** instead — each card shows service title + status badge on top, counterparty + date, and amount right-aligned. Table stays for `sm:` and up.
-     - Ensure the page wrapper uses `px-3 sm:px-6` and `max-w-full` so nothing overflows.
-   - In `src/routes/_authenticated/transactions.tsx`: reduce top padding on mobile (`py-4 sm:py-8`) and use the same tighter horizontal padding.
+### 2. Dashboard homepage (`src/routes/_authenticated/dashboard.tsx`)
+- **Remove the inline `<TransactionsSection />`** from the bottom of the dashboard so scrolling the homepage no longer reveals the full transactions panel.
+- Keep the "Transactions" entry in the Quick Links grid (both customer and business role lists) so users can still tap through to `/transactions`.
+- Drop the `TransactionsSection` import.
 
-3. **QA on mobile viewport (390×844)**: confirm bottom-nav label reads "Transactions", stat cards fit one row, filter tabs scroll, transaction cards stack cleanly with no horizontal scroll, and CSV export button stays reachable.
+### 3. Mobile polish for the dashboard page
+Currently the dashboard uses `px-4 sm:px-6 py-10` and a large welcome banner (`p-8 sm:p-10`, `text-3xl sm:text-5xl`) which feels cramped on phones and pushes content wide.
+- Outer wrapper: `px-3 sm:px-6 py-4 sm:py-10 pb-24 md:pb-10` (extra bottom padding so the fixed bottom nav doesn't cover content).
+- Welcome banner: `p-5 sm:p-10`, heading `text-2xl sm:text-5xl`, subtitle `text-sm sm:text-lg`, rounded `rounded-2xl sm:rounded-3xl`.
+- Stat cards grid: keep `sm:grid-cols-3`; on mobile stack becomes single column already — tighten gap to `gap-3`.
+- Quick links card: `p-4 sm:p-7`, grid `grid-cols-2` on mobile so shortcuts (including Transactions) are tap-friendly 44px+ tiles instead of full-width rows.
+- Section spacing: `space-y-5 sm:space-y-8`.
 
-## Technical notes
+### Result
+- Mobile bottom tabs: Home · Explore · Feed · Orders · Chat (5 items, matches request).
+- Homepage no longer shows the Transactions panel inline; it's reachable via the "Transactions" quick-link tile.
+- Dashboard fits phone widths with no horizontal scroll and doesn't get hidden behind the bottom nav.
 
-- No new routes or DB changes.
-- Only edits: `src/components/MobileBottomNav.tsx`, `src/components/TransactionsSection.tsx`, `src/routes/_authenticated/transactions.tsx`.
-- Table → card switch uses `hidden sm:block` / `sm:hidden` pattern; no new component needed.
+No backend, route, or business-logic changes.

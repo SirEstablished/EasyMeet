@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Home, Compass, MessageSquare, Package, Wallet } from "lucide-react";
+import { Home, Compass, MessageSquare, Package, Rss } from "lucide-react";
 import { useAuth } from "@/lib/providers";
 
 export function MobileBottomNav() {
@@ -10,8 +10,8 @@ export function MobileBottomNav() {
   const items = [
     { to: "/dashboard", label: "Home", Icon: Home },
     { to: "/explore", label: "Explore", Icon: Compass },
+    { to: "/feed", label: "Feed", Icon: Rss },
     { to: "/my-orders", label: ordersLabel, Icon: Package },
-    { to: "/transactions", label: "Transactions", Icon: Wallet },
     { to: "/messages", label: "Chat", Icon: MessageSquare },
   ] as const;
 
