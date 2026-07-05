@@ -163,11 +163,60 @@ function MyOrdersPage() {
     if (!o.escrow || !user) return;
     setBusyId(o.id);
     try {
-      const { error: rpcError } = await supabase.rpc("release_escrow_payment" as never, {
+      const { data: rpcData, error: rpcError } = await supabase.rpc("release_escrow_payment" as never, {
         p_escrow_id: o.escrow.id,
         p_order_id: o.id,
       } as never);
       if (rpcError) throw rpcError;
+
+      const result = (rpcData ?? {}) as {
+        commission?: number;
+        payout?: number;
+        amount?: number;
+        professional_id?: string;
+        already_released?: boolean;
+      };
+      const commission = Number(result.commission ?? o.escrow.commission_amount ?? 0);
+      const payout = Number(result.payout ?? (o.amount - commission));
+      const grossAmount = Number(
+        result.amount ??
+          (o.escrow as unknown as { amount_ngn?: number; amount?: number }).amount_ngn ??
+          (o.escrow as unknown as { amount?: number }).amount ??
+          o.amount ??
+          0,
+      );
+      const professionalId = result.professional_id ?? o.provider_id;
+
+      // Explicit wallet credit (paired with a notification + realtime refresh).
+      // release_escrow_payment no longer credits internally, so this is the
+      // single source of truth. Skip on `already_released` to avoid
+      // double-crediting on re-clicks.
+      if (!result.already_released && professionalId) {
+        const { error: creditError } = await supabase.rpc(
+          "credit_wallet_after_release" as never,
+          {
+            p_user_id: professionalId,
+            p_amount: grossAmount,
+            p_commission: commission,
+            p_order_id: o.id,
+            p_escrow_id: o.escrow.id,
+          } as never,
+        );
+        if (creditError) console.error("Wallet credit failed", creditError);
+      }
+
+      // Notify the professional. Best-effort — a failure here must not roll
+      // back the release/credit above.
+      try {
+        await supabase.from("notifications").insert({
+          user_id: professionalId,
+          title: "Wallet credited 🎉",
+          message: `₦${payout.toLocaleString()} has been added to your EasyMeet Wallet! 🎉`,
+          type: "wallet",
+        } as never);
+      } catch (e) {
+        console.error("Wallet notification failed", e);
+      }
 
       const patchOrder = (x: OrderWithEscrow): OrderWithEscrow =>
         x.id === o.id
@@ -177,7 +226,13 @@ function MyOrdersPage() {
               escrow_status: "released",
               escrow_stage: "completed",
               escrow: x.escrow
-                ? { ...x.escrow, status: "released", stage: "completed" }
+                ? {
+                    ...x.escrow,
+                    status: "released",
+                    stage: "completed",
+                    commission_amount: commission,
+                    payout_amount: payout,
+                  }
                 : x.escrow,
             }
           : x;

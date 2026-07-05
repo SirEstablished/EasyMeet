@@ -785,10 +785,34 @@ export function EscrowPanel({
         ok?: boolean;
         commission?: number;
         payout?: number;
+        amount?: number;
+        professional_id?: string;
         already_released?: boolean;
       };
       const commission = Number(result.commission ?? 0);
       const payout = Number(result.payout ?? order.amount_ngn - commission);
+      const grossAmount = Number(result.amount ?? order.amount_ngn ?? 0);
+      const professionalId = result.professional_id ?? order.professional_id;
+
+      // Credit the professional's EasyMeet Wallet. release_escrow_payment
+      // intentionally no longer credits internally so we can pair the credit
+      // with a notification + realtime refresh here. Skip when the RPC
+      // reports `already_released` — the wallet was credited on the first
+      // successful call and we must not double-credit.
+      if (!result.already_released && professionalId) {
+        const { error: creditError } = await supabase.rpc(
+          "credit_wallet_after_release",
+          {
+            p_user_id: professionalId,
+            p_amount: grossAmount,
+            p_commission: commission,
+            p_order_id: order.order_id,
+            p_escrow_id: order.id,
+          },
+        );
+        if (creditError) console.error("Wallet credit failed", creditError);
+      }
+
       const completed: EscrowOrder = {
         ...order,
         status: "released",
@@ -806,12 +830,12 @@ export function EscrowPanel({
       });
       if (messageError) console.error("Completion message failed", messageError);
       toast.success("Payment released");
-      // Credit-wallet notification to the professional.
+      // Wallet-credit notification to the professional.
       try {
         await supabase.from("notifications").insert({
-          user_id: order.professional_id,
+          user_id: professionalId,
           title: "Wallet credited 🎉",
-          message: `${formatNgn(payout)} has been added to your EasyMeet Wallet!`,
+          message: `${formatNgn(payout)} has been added to your EasyMeet Wallet! 🎉`,
           type: "wallet",
         } as never);
       } catch (e) {
