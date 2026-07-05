@@ -87,43 +87,43 @@ section, header, main, footer { max-width: 100vw; }
 
 :root {
   --radius: 0.625rem;
-  /* EasyMeet brand: forced dark theme site-wide.
-     :root uses the same values as .dark so pre-hydration paint is dark. */
-  --background: oklch(0.11 0.035 280);
-  --foreground: oklch(0.97 0.005 280);
-  --card: oklch(0.16 0.035 280);
-  --card-foreground: oklch(0.97 0.005 280);
-  --popover: oklch(0.2 0.03 280);
-  --popover-foreground: oklch(0.97 0.005 280);
-  --primary: oklch(0.65 0.22 287);
-  --primary-foreground: oklch(0.1 0.02 280);
-  --primary-glow: oklch(0.75 0.18 287);
-  --secondary: oklch(0.26 0.03 280);
-  --secondary-foreground: oklch(0.97 0.005 280);
-  --muted: oklch(0.26 0.03 280);
-  --muted-foreground: oklch(0.7 0.02 280);
-  --accent: oklch(0.7 0.17 165);
-  --accent-foreground: oklch(0.1 0.04 165);
+  /* Light-mode token values. Dark is the default via <html class="dark">
+     in the SSR shell + pre-hydration script; .dark overrides below apply. */
+  --background: oklch(0.975 0.012 285);
+  --foreground: oklch(0.18 0.03 280);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.18 0.03 280);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.18 0.03 280);
+  --primary: oklch(0.55 0.24 287);
+  --primary-foreground: oklch(0.99 0 0);
+  --primary-glow: oklch(0.72 0.18 287);
+  --secondary: oklch(0.96 0.01 280);
+  --secondary-foreground: oklch(0.2 0.03 280);
+  --muted: oklch(0.96 0.01 280);
+  --muted-foreground: oklch(0.5 0.02 280);
+  --accent: oklch(0.74 0.17 165);
+  --accent-foreground: oklch(0.15 0.05 165);
   --coral: oklch(0.72 0.21 22);
   --coral-foreground: oklch(0.99 0 0);
-  --destructive: oklch(0.7 0.19 22);
+  --destructive: oklch(0.6 0.23 27);
   --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.65 0.22 287);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.2 0.03 280);
-  --sidebar-foreground: oklch(0.97 0.005 280);
-  --sidebar-primary: oklch(0.65 0.22 287);
-  --sidebar-primary-foreground: oklch(0.1 0.02 280);
-  --sidebar-accent: oklch(0.26 0.03 280);
-  --sidebar-accent-foreground: oklch(0.97 0.005 280);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.65 0.22 287);
+  --border: oklch(0.92 0.01 280);
+  --input: oklch(0.92 0.01 280);
+  --ring: oklch(0.55 0.24 287);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0.005 280);
+  --sidebar-foreground: oklch(0.2 0.03 280);
+  --sidebar-primary: oklch(0.55 0.24 287);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.95 0.01 280);
+  --sidebar-accent-foreground: oklch(0.2 0.03 280);
+  --sidebar-border: oklch(0.92 0.01 280);
+  --sidebar-ring: oklch(0.55 0.24 287);
 }
 
 .dark {

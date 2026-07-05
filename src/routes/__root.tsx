@@ -115,6 +115,11 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="en" className="dark" style={{ colorScheme: "dark" }}>
       <head>
         <HeadContent />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('em-theme');var d=t?t==='dark':true;var r=document.documentElement;if(d)r.classList.add('dark');else r.classList.remove('dark');r.style.colorScheme=d?'dark':'light';}catch(e){}})();`,
+          }}
+        />
       </head>
       <body className="bg-background text-foreground">
         {children}
