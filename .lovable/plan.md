@@ -1,38 +1,25 @@
 ## Goal
 
-Make the site look and fit correctly on Android/mobile across every page, and force dark mode as the only theme site-wide.
+Restore the dark/light theme toggle so users can switch modes, while keeping dark as the default (so it still looks dark by default across devices) and preserving the mobile fit fixes from the previous turn.
 
-## 1. Force dark mode everywhere (remove toggle)
+## Changes
 
-- `src/lib/providers.tsx` — `ThemeProvider` always sets `dark` on `<html>`, writes `"dark"` to `localStorage`, and `toggle`/`setTheme` become no-ops. `useTheme()` still returns `{ theme: "dark" }` so existing call sites keep compiling.
-- `src/routes/__root.tsx` — add `className="dark"` on `<html>` in `RootShell` so the very first SSR paint is dark (no light flash on Android).
-- `src/styles.css` — apply the `.dark` token values to `:root` as well (or wrap the light-mode block behind an unused selector) so any pre-hydration paint uses dark colors.
-- Remove the Sun/Moon toggle button from `src/routes/index.tsx` header and from `AppNavbar` (and any other header that renders it). Drop unused `Moon`/`Sun` imports and the `useTheme()` calls where only the toggle used them.
+1. **`src/lib/providers.tsx`** — Re-enable a real `ThemeProvider`:
+   - Default `theme` to `"dark"`.
+   - On mount, read `localStorage["em-theme"]` and, if unset, fall back to `"dark"` (not the OS preference — user asked for dark default).
+   - `toggle` and `setTheme` mutate state again; effect adds/removes `.dark` on `<html>` and persists to localStorage.
 
-## 2. Android viewport + no-horizontal-scroll baseline
+2. **`src/routes/__root.tsx`** — Keep `<html className="dark" style={{ colorScheme: "dark" }}>` and `theme-color: #0D0D1A` so the very first paint (before hydration) is dark. `ThemeProvider` then takes over and can flip to light after hydration if the stored preference is `"light"`. Also add a tiny inline script in `<head>` that runs before React hydrates to read `localStorage["em-theme"]` and toggle `.dark` / `color-scheme` on `<html>` — this avoids a dark→light flash for returning light-mode users.
 
-- `src/routes/__root.tsx` head meta — extend viewport to `width=device-width, initial-scale=1, viewport-fit=cover` and add `theme-color: #0D0D1A` so the Android status bar matches the dark UI.
-- `src/styles.css` — keep `overflow-x: hidden` but also add `overscroll-behavior-y: none` on `html, body`, and guard decorative blurs/orbs with `max-width: 100vw; overflow: hidden` on the pseudo-elements so the giant `blur-3xl` orbs never create horizontal scroll on 360px Android screens.
-- Add a small utility rule to clamp any `.blur-3xl` decorative div inside a `overflow-hidden` wrapper — audit hero sections that currently place them as siblings of `min-h-[92vh]` containers.
+3. **`src/styles.css`** — Revert `:root` to the original light-mode token values, keeping `.dark` overrides intact. Dark-first paint is guaranteed by the `className="dark"` on `<html>` in the shell + the pre-hydration script, not by making `:root` dark.
 
-## 3. Mobile layout audit + fixes (all requested scopes)
+4. **`src/components/AppNavbar.tsx`** — Re-add the Sun/Moon toggle button (import `Moon`, `Sun`, `useTheme`; render the ghost icon button that calls `toggle()`), placed to the left of `NotificationsBell` as before.
 
-Apply the responsive-layout pattern (`grid-cols-[minmax(0,1fr)_auto]` + `min-w-0` + `shrink-0` + `truncate`) and tighten mobile paddings/type scale on:
+5. **`src/routes/index.tsx`** (landing header) — Re-add the same Sun/Moon toggle button next to Sign in / Get Started, using `useTheme()`.
 
-- **Landing + auth**: `src/routes/index.tsx` (hero type scale `text-4xl sm:text-7xl`, buttons full-width on mobile, container `px-4`, hide desktop-only floating cards below `lg`), `src/components/AuthModal.tsx` (dialog `max-w-[calc(100vw-1.5rem)]`, stacked inputs, eye button spacing), `src/components/LegalPageShell.tsx`, `src/routes/{about,privacy,terms,staff-register}.tsx`.
-- **Dashboard + analytics**: `src/routes/_authenticated/dashboard.tsx` header row, stat cards → `grid-cols-2` on mobile, `src/components/AnalyticsSection.tsx` metric tiles `grid-cols-2`, charts wrap in `overflow-x-auto` container with min height, top-services bars use `min-w-0` + `truncate`.
-- **Feed / Explore / Profile**: `src/routes/_authenticated/{feed,explore,profile.tsx,profile.$id.tsx,profile.index.tsx}`, `src/components/{PostCard,ProfileView,ProfileCard,CommentsDrawer,CreatePostCard}.tsx` — avatar `shrink-0`, headings `truncate`, action rows switch to two-column grid on mobile, media respects `aspect-ratio` with `max-w-full`.
-- **Orders / Messages / Transactions**: `src/routes/_authenticated/{my-orders,my-bookings,messages,transactions}.tsx`, `src/components/{EscrowOrdersSection,EscrowPanel,TransactionsSection,RequestRefundDialog,ReviewOrderDialog}.tsx` — tables wrap in `overflow-x-auto` with sticky first column on mobile, message list rows use grid layout, escrow status pills wrap.
-- **Shared chrome**: `src/components/AppNavbar.tsx` (hide desktop-only items on mobile, ensure gap/padding), `src/components/MobileBottomNav.tsx` (already fine, verify safe-area padding), `src/components/Footer.tsx` (stack columns, wrap link rows).
+No other files change. Mobile responsiveness fixes and forced-dark viewport meta from the previous turn stay in place.
 
-For each file the recipe is the same three passes: (a) replace `flex flex-wrap` header rows with the grid pattern from `responsive-layout-patterns`, (b) add `min-w-0` / `truncate` / `shrink-0` where text meets icons, (c) drop `whitespace-nowrap` and giant fixed widths, use responsive `text-*`/`p-*`/`gap-*`.
+## Verification
 
-## 4. Verification
-
-- `bunx tsgo --noEmit` to typecheck (theme toggle removal must not leave dangling imports).
-- Drive Playwright at `http://localhost:8080` at viewport `375x812` (Android-ish) — screenshot: landing, auth modal, dashboard, analytics, feed, explore, profile, my-orders, messages, transactions. Confirm no horizontal scroll (`document.documentElement.scrollWidth === innerWidth`), dark background everywhere, no light-mode flash on reload.
-
-## Out of scope
-
-- No business logic, DB, or route changes.
-- No visual redesign — colors, gradients, and the existing dark palette stay as-is; only sizing, spacing, and layout structure change.
+- `bunx tsgo --noEmit`.
+- Playwright at 360×740: load `/`, confirm dark by default; click the toggle, confirm `<html>` loses `.dark` and background turns light; reload, confirm the light preference persists; toggle back to dark and reload, confirm dark persists. Also confirm no horizontal scroll after both toggles.
