@@ -500,9 +500,9 @@ function OrderList({
                 <Button
                   size="sm"
                   onClick={() => onRequestRefund(o)}
-                  className="rounded-full bg-gradient-brand"
+                  className="rounded-full bg-red-600 hover:bg-red-700 text-white"
                 >
-                  Request Refund
+                  Request Refund 💰
                 </Button>
               </div>
             )}
