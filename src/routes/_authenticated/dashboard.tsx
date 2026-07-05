@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAuth } from "@/lib/providers";
 import { useEffect, useState } from "react";
 import { fetchCompletion } from "@/lib/profileCompletion";
+import { TransactionsSection } from "@/components/TransactionsSection";
 import {
   ShieldCheck,
   CalendarCheck,
@@ -161,6 +162,9 @@ function Dashboard() {
             ))}
           </div>
         </div>
+
+        {/* Transactions */}
+        <TransactionsSection />
       </div>
     </div>
   );
