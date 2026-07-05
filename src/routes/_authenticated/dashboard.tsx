@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAuth } from "@/lib/providers";
 import { useEffect, useState } from "react";
 import { fetchCompletion } from "@/lib/profileCompletion";
+import { AnalyticsSection } from "@/components/AnalyticsSection";
 import {
   ShieldCheck,
   CalendarCheck,
