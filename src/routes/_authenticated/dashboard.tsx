@@ -139,6 +139,8 @@ function Dashboard() {
           ))}
         </div>
 
+        {role !== "customer" && <AnalyticsSection />}
+
         {/* Getting started / Quick links card */}
         <div className="rounded-2xl glass-card p-4 sm:p-7">
           <div className="flex items-center justify-between mb-5">
