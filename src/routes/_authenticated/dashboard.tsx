@@ -12,6 +12,7 @@ import {
   Users,
   Package,
   Users2,
+  Wallet,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -49,12 +50,14 @@ function Dashboard() {
       ? [
           { Icon: Search, label: "Browse Professionals", to: "/explore" },
           { Icon: CalendarCheck, label: "My Orders", to: "/my-orders" },
+          { Icon: Wallet, label: "Transactions", to: "/transactions" },
           { Icon: MessageCircle, label: "Messages", to: "/messages" },
         ]
       : [
           ...(offersServices ? [{ Icon: Sparkles, label: "My Services", to: "/my-services" }] : []),
           ...(sellsProducts ? [{ Icon: Package, label: "My Products", to: "/my-products" }] : []),
           { Icon: CalendarCheck, label: "Orders", to: "/my-orders" },
+          { Icon: Wallet, label: "Transactions", to: "/transactions" },
           { Icon: Users, label: "Explore", to: "/explore" },
           { Icon: MessageCircle, label: "Messages", to: "/messages" },
           ...(role === "business" ? [{ Icon: Users2, label: "Staffs", to: "/staffs" }] : []),

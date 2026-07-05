@@ -15,6 +15,7 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedTransactionsRouteImport } from './routes/_authenticated/transactions'
 import { Route as AuthenticatedStaffsRouteImport } from './routes/_authenticated/staffs'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedSelectRoleRouteImport } from './routes/_authenticated/select-role'
@@ -60,6 +61,12 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedTransactionsRoute =
+  AuthenticatedTransactionsRouteImport.update({
+    id: '/transactions',
+    path: '/transactions',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedStaffsRoute = AuthenticatedStaffsRouteImport.update({
   id: '/staffs',
   path: '/staffs',
@@ -156,6 +163,7 @@ export interface FileRoutesByFullPath {
   '/select-role': typeof AuthenticatedSelectRoleRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/staffs': typeof AuthenticatedStaffsRoute
+  '/transactions': typeof AuthenticatedTransactionsRoute
   '/admin/disputes': typeof AuthenticatedAdminDisputesRoute
   '/profile/$id': typeof AuthenticatedProfileIdRoute
   '/profile/': typeof AuthenticatedProfileIndexRoute
@@ -177,6 +185,7 @@ export interface FileRoutesByTo {
   '/select-role': typeof AuthenticatedSelectRoleRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/staffs': typeof AuthenticatedStaffsRoute
+  '/transactions': typeof AuthenticatedTransactionsRoute
   '/admin/disputes': typeof AuthenticatedAdminDisputesRoute
   '/profile/$id': typeof AuthenticatedProfileIdRoute
   '/profile': typeof AuthenticatedProfileIndexRoute
@@ -201,6 +210,7 @@ export interface FileRoutesById {
   '/_authenticated/select-role': typeof AuthenticatedSelectRoleRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/staffs': typeof AuthenticatedStaffsRoute
+  '/_authenticated/transactions': typeof AuthenticatedTransactionsRoute
   '/_authenticated/admin/disputes': typeof AuthenticatedAdminDisputesRoute
   '/_authenticated/profile/$id': typeof AuthenticatedProfileIdRoute
   '/_authenticated/profile/': typeof AuthenticatedProfileIndexRoute
@@ -225,6 +235,7 @@ export interface FileRouteTypes {
     | '/select-role'
     | '/settings'
     | '/staffs'
+    | '/transactions'
     | '/admin/disputes'
     | '/profile/$id'
     | '/profile/'
@@ -246,6 +257,7 @@ export interface FileRouteTypes {
     | '/select-role'
     | '/settings'
     | '/staffs'
+    | '/transactions'
     | '/admin/disputes'
     | '/profile/$id'
     | '/profile'
@@ -269,6 +281,7 @@ export interface FileRouteTypes {
     | '/_authenticated/select-role'
     | '/_authenticated/settings'
     | '/_authenticated/staffs'
+    | '/_authenticated/transactions'
     | '/_authenticated/admin/disputes'
     | '/_authenticated/profile/$id'
     | '/_authenticated/profile/'
@@ -326,6 +339,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/transactions': {
+      id: '/_authenticated/transactions'
+      path: '/transactions'
+      fullPath: '/transactions'
+      preLoaderRoute: typeof AuthenticatedTransactionsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/staffs': {
       id: '/_authenticated/staffs'
@@ -461,6 +481,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSelectRoleRoute: typeof AuthenticatedSelectRoleRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedStaffsRoute: typeof AuthenticatedStaffsRoute
+  AuthenticatedTransactionsRoute: typeof AuthenticatedTransactionsRoute
   AuthenticatedAdminDisputesRoute: typeof AuthenticatedAdminDisputesRoute
 }
 
@@ -477,6 +498,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSelectRoleRoute: AuthenticatedSelectRoleRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedStaffsRoute: AuthenticatedStaffsRoute,
+  AuthenticatedTransactionsRoute: AuthenticatedTransactionsRoute,
   AuthenticatedAdminDisputesRoute: AuthenticatedAdminDisputesRoute,
 }
 
