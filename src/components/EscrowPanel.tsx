@@ -1217,17 +1217,62 @@ function SendAgreementDialog({
   const [agreementType, setAgreementType] = useState<string>("service");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  // material_labor
   const [materials, setMaterials] = useState("");
   const [labor, setLabor] = useState("");
   const [contingency, setContingency] = useState("");
+  // service
+  const [serviceFee, setServiceFee] = useState("");
+  // product_sale
+  const [productPrice, setProductPrice] = useState("");
+  const [productDeliveryFee, setProductDeliveryFee] = useState("");
+  // supply
+  const [supplyCost, setSupplyCost] = useState("");
+  const [supplyDeliveryFee, setSupplyDeliveryFee] = useState("");
+  // delivery
+  const [deliveryFee, setDeliveryFee] = useState("");
+  const [pickupLocation, setPickupLocation] = useState("");
+  const [dropoffLocation, setDropoffLocation] = useState("");
+  // milestone
+  const [m1Desc, setM1Desc] = useState("");
+  const [m1Amt, setM1Amt] = useState("");
+  const [m2Desc, setM2Desc] = useState("");
+  const [m2Amt, setM2Amt] = useState("");
+  const [finalPayment, setFinalPayment] = useState("");
   const [deliveryDate, setDeliveryDate] = useState("");
   const [terms, setTerms] = useState("");
   const [busy, setBusy] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
 
-  const fees = computeAgreementFees(Number(materials), Number(labor), Number(contingency));
+  // Map per-type inputs -> (immediate-release, held-in-escrow, contingency).
+  // Commission rule: 3% on labor/service only; 0% on materials/products/delivery.
+  const mapped = (() => {
+    const n = (v: string) => Math.max(0, Number(v) || 0);
+    switch (agreementType) {
+      case "service":
+        return { immediate: 0, held: n(serviceFee), contingency: 0, commissionable: n(serviceFee) };
+      case "material_labor":
+        return { immediate: n(materials), held: n(labor), contingency: n(contingency), commissionable: n(labor) };
+      case "product_sale":
+        return { immediate: n(productPrice) + n(productDeliveryFee), held: 0, contingency: 0, commissionable: 0 };
+      case "supply":
+        return { immediate: n(supplyCost) + n(supplyDeliveryFee), held: 0, contingency: 0, commissionable: 0 };
+      case "delivery":
+        return { immediate: 0, held: n(deliveryFee), contingency: 0, commissionable: 0 };
+      case "milestone": {
+        const held = n(m1Amt) + n(m2Amt) + n(finalPayment);
+        return { immediate: 0, held, contingency: 0, commissionable: held };
+      }
+      default:
+        return { immediate: 0, held: 0, contingency: 0, commissionable: 0 };
+    }
+  })();
+  const baseFees = computeAgreementFees(mapped.immediate, mapped.held, mapped.contingency);
+  const commission = Math.round(mapped.commissionable * 0.03);
+  const professionalReceives = Math.max(0, mapped.immediate + mapped.held - commission);
+  const fees = { ...baseFees, commission, professionalReceives };
 
-  // Auto-fill the agreement form from the conversation on open.
+  // Auto-fill from chat history when dialog opens.
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
@@ -1252,7 +1297,14 @@ function SendAgreementDialog({
         if (cancelled) return;
         setTitle((cur) => cur || suggestion.title);
         setDescription((cur) => cur || suggestion.description);
-        setLabor((cur) => cur || (suggestion.price ? String(suggestion.price) : ""));
+        const p = suggestion.price ? String(suggestion.price) : "";
+        if (p) {
+          setServiceFee((cur) => cur || p);
+          setLabor((cur) => cur || p);
+          setProductPrice((cur) => cur || p);
+          setSupplyCost((cur) => cur || p);
+          setDeliveryFee((cur) => cur || p);
+        }
         setTerms((cur) => cur || suggestion.terms);
       } catch {
         // best-effort; ignore
@@ -1265,14 +1317,47 @@ function SendAgreementDialog({
     };
   }, [open, conversationId]);
 
+  const titleLabel =
+    agreementType === "product_sale" ? "Product name" :
+    agreementType === "milestone" ? "Project title" :
+    "Job title";
+  const descLabel =
+    agreementType === "product_sale" ? "Product description" :
+    agreementType === "supply" ? "Supply description" :
+    agreementType === "delivery" ? "Item description" :
+    agreementType === "milestone" ? "Project description" :
+    agreementType === "service" ? "Service description" :
+    "Description";
+  const dateLabel = agreementType === "milestone" ? "Project end date" : "Delivery date";
+  const showTitle = agreementType !== "delivery" && agreementType !== "supply";
+
   const submit = async () => {
-    const jobTitle = title.trim();
     const jobDescription = description.trim();
-    if (!jobTitle) return toast.error("Job title is required");
-    if (!jobDescription) return toast.error("Job description is required");
-    if (fees.subtotal <= 0) return toast.error("Enter Materials and/or Labor amount greater than 0");
-    if (!deliveryDate) return toast.error("Delivery/Completion date is required");
+    const jobTitle = showTitle ? title.trim() : jobDescription.slice(0, 80);
+    if (showTitle && !jobTitle) return toast.error(`${titleLabel} is required`);
+    if (!jobDescription) return toast.error(`${descLabel} is required`);
+    if (agreementType === "delivery") {
+      if (!pickupLocation.trim()) return toast.error("Pickup location is required");
+      if (!dropoffLocation.trim()) return toast.error("Delivery location is required");
+    }
+    if (fees.subtotal <= 0) return toast.error("Enter an amount greater than 0");
+    if (!deliveryDate) return toast.error(`${dateLabel} is required`);
     setBusy(true);
+
+    // Encode per-type extras into terms so no schema change is required.
+    const extras: string[] = [];
+    if (agreementType === "delivery") {
+      extras.push(`Pickup: ${pickupLocation.trim()}`);
+      extras.push(`Drop-off: ${dropoffLocation.trim()}`);
+    }
+    if (agreementType === "milestone") {
+      if (m1Desc.trim() || m1Amt) extras.push(`Milestone 1: ${m1Desc.trim()} — ${formatNgn(Number(m1Amt) || 0)}`);
+      if (m2Desc.trim() || m2Amt) extras.push(`Milestone 2: ${m2Desc.trim()} — ${formatNgn(Number(m2Amt) || 0)}`);
+      if (finalPayment) extras.push(`Final payment: ${formatNgn(Number(finalPayment) || 0)}`);
+    }
+    const termsFinal =
+      [terms.trim(), extras.join("\n")].filter(Boolean).join("\n\n") || null;
+
     const payload: Record<string, unknown> = {
       conversation_id: conversationId,
       sender_id: professionalId,
@@ -1280,15 +1365,15 @@ function SendAgreementDialog({
       job_title: jobTitle,
       job_description: jobDescription,
       price: fees.subtotal,
-      terms: terms.trim() || null,
+      terms: termsFinal,
       status: "pending",
       agreement_type: agreementType,
-      materials_cost: fees.materials,
-      labor_cost: fees.labor,
-      contingency_cost: fees.contingency,
+      materials_cost: mapped.immediate,
+      labor_cost: mapped.held,
+      contingency_cost: mapped.contingency,
       delivery_date: deliveryDate,
       total_amount: fees.subtotal,
-      commission_amount: fees.commission,
+      commission_amount: commission,
       paystack_fee: fees.paystackFee,
     };
     const { error } = await supabase
@@ -1298,7 +1383,7 @@ function SendAgreementDialog({
       await supabase.from("messages").insert({
         conversation_id: conversationId,
         sender_id: professionalId,
-        body: `📄 Agreement sent: "${jobTitle}" — ${formatNgn(fees.subtotal)} (Materials ${formatNgn(fees.materials)} · Labor ${formatNgn(fees.labor)}${fees.contingency ? ` · Contingency ${formatNgn(fees.contingency)}` : ""}). Please review and accept.`,
+        body: `📄 Agreement sent: "${jobTitle}" — ${formatNgn(fees.subtotal)}. Please review and accept.`,
       });
     }
     setBusy(false);
@@ -1333,20 +1418,24 @@ function SendAgreementDialog({
               </SelectContent>
             </Select>
           </div>
+
+          {showTitle && (
+            <div>
+              <Label>
+                {titleLabel} <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                required
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                maxLength={120}
+              />
+            </div>
+          )}
+
           <div>
             <Label>
-              Job title <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              required
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              maxLength={120}
-            />
-          </div>
-          <div>
-            <Label>
-              Description <span className="text-destructive">*</span>
+              {descLabel} <span className="text-destructive">*</span>
             </Label>
             <Textarea
               required
@@ -1356,46 +1445,149 @@ function SendAgreementDialog({
               rows={3}
             />
           </div>
-          <div>
-            <Label>Materials / Products / Delivery cost (₦)</Label>
-            <Input type="number" min="0" step="1" value={materials} onChange={(e) => setMaterials(e.target.value)} placeholder="0" />
-            <p className="text-[11px] text-muted-foreground mt-1">Released immediately upon acceptance & payment.</p>
-          </div>
-          <div>
-            <Label>Labor / Service fee (₦)</Label>
-            <Input type="number" min="0" step="1" value={labor} onChange={(e) => setLabor(e.target.value)} placeholder="0" />
-            <p className="text-[11px] text-muted-foreground mt-1">Released after job completion.</p>
-          </div>
-          <div>
-            <Label>Contingency (₦)</Label>
-            <Input type="number" min="0" step="1" value={contingency} onChange={(e) => setContingency(e.target.value)} placeholder="0" />
-            <p className="text-[11px] text-muted-foreground mt-1">Optional buffer — refunded if unused.</p>
-          </div>
+
+          {agreementType === "service" && (
+            <div>
+              <Label>Labor / Service fee (₦) <span className="text-destructive">*</span></Label>
+              <Input type="number" min="0" step="1" value={serviceFee} onChange={(e) => setServiceFee(e.target.value)} placeholder="0" />
+              <p className="text-[11px] text-muted-foreground mt-1">Released after job completion.</p>
+            </div>
+          )}
+
+          {agreementType === "material_labor" && (
+            <>
+              <div>
+                <Label>Materials cost (₦)</Label>
+                <Input type="number" min="0" step="1" value={materials} onChange={(e) => setMaterials(e.target.value)} placeholder="0" />
+                <p className="text-[11px] text-muted-foreground mt-1">Released immediately upon acceptance.</p>
+              </div>
+              <div>
+                <Label>Labor fee (₦)</Label>
+                <Input type="number" min="0" step="1" value={labor} onChange={(e) => setLabor(e.target.value)} placeholder="0" />
+                <p className="text-[11px] text-muted-foreground mt-1">Released after job completion.</p>
+              </div>
+              <div>
+                <Label>Contingency (₦)</Label>
+                <Input type="number" min="0" step="1" value={contingency} onChange={(e) => setContingency(e.target.value)} placeholder="0" />
+                <p className="text-[11px] text-muted-foreground mt-1">Optional buffer — refunded if unused.</p>
+              </div>
+            </>
+          )}
+
+          {agreementType === "product_sale" && (
+            <>
+              <div>
+                <Label>Product price (₦) <span className="text-destructive">*</span></Label>
+                <Input type="number" min="0" step="1" value={productPrice} onChange={(e) => setProductPrice(e.target.value)} placeholder="0" />
+                <p className="text-[11px] text-muted-foreground mt-1">Released immediately on delivery confirmation.</p>
+              </div>
+              <div>
+                <Label>Delivery fee (₦)</Label>
+                <Input type="number" min="0" step="1" value={productDeliveryFee} onChange={(e) => setProductDeliveryFee(e.target.value)} placeholder="0" />
+                <p className="text-[11px] text-muted-foreground mt-1">Released immediately.</p>
+              </div>
+            </>
+          )}
+
+          {agreementType === "supply" && (
+            <>
+              <div>
+                <Label>Supply / materials cost (₦) <span className="text-destructive">*</span></Label>
+                <Input type="number" min="0" step="1" value={supplyCost} onChange={(e) => setSupplyCost(e.target.value)} placeholder="0" />
+                <p className="text-[11px] text-muted-foreground mt-1">Released immediately.</p>
+              </div>
+              <div>
+                <Label>Delivery fee (₦)</Label>
+                <Input type="number" min="0" step="1" value={supplyDeliveryFee} onChange={(e) => setSupplyDeliveryFee(e.target.value)} placeholder="0" />
+                <p className="text-[11px] text-muted-foreground mt-1">Released immediately.</p>
+              </div>
+            </>
+          )}
+
+          {agreementType === "delivery" && (
+            <>
+              <div>
+                <Label>Pickup location <span className="text-destructive">*</span></Label>
+                <Input value={pickupLocation} onChange={(e) => setPickupLocation(e.target.value)} maxLength={200} />
+              </div>
+              <div>
+                <Label>Delivery location <span className="text-destructive">*</span></Label>
+                <Input value={dropoffLocation} onChange={(e) => setDropoffLocation(e.target.value)} maxLength={200} />
+              </div>
+              <div>
+                <Label>Delivery fee (₦) <span className="text-destructive">*</span></Label>
+                <Input type="number" min="0" step="1" value={deliveryFee} onChange={(e) => setDeliveryFee(e.target.value)} placeholder="0" />
+                <p className="text-[11px] text-muted-foreground mt-1">Released after delivery confirmed.</p>
+              </div>
+            </>
+          )}
+
+          {agreementType === "milestone" && (
+            <>
+              <div className="grid grid-cols-[1fr_140px] gap-2">
+                <div>
+                  <Label>Milestone 1 description</Label>
+                  <Input value={m1Desc} onChange={(e) => setM1Desc(e.target.value)} maxLength={160} />
+                </div>
+                <div>
+                  <Label>Amount (₦)</Label>
+                  <Input type="number" min="0" step="1" value={m1Amt} onChange={(e) => setM1Amt(e.target.value)} placeholder="0" />
+                </div>
+              </div>
+              <div className="grid grid-cols-[1fr_140px] gap-2">
+                <div>
+                  <Label>Milestone 2 description</Label>
+                  <Input value={m2Desc} onChange={(e) => setM2Desc(e.target.value)} maxLength={160} />
+                </div>
+                <div>
+                  <Label>Amount (₦)</Label>
+                  <Input type="number" min="0" step="1" value={m2Amt} onChange={(e) => setM2Amt(e.target.value)} placeholder="0" />
+                </div>
+              </div>
+              <div>
+                <Label>Final payment (₦)</Label>
+                <Input type="number" min="0" step="1" value={finalPayment} onChange={(e) => setFinalPayment(e.target.value)} placeholder="0" />
+                <p className="text-[11px] text-muted-foreground mt-1">Released after full completion.</p>
+              </div>
+            </>
+          )}
+
           <div>
             <Label>
-              Delivery / Completion date <span className="text-destructive">*</span>
+              {dateLabel} <span className="text-destructive">*</span>
             </Label>
             <Input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} />
           </div>
-          <div>
-            <Label>Terms (optional)</Label>
-            <Textarea
-              value={terms}
-              onChange={(e) => setTerms(e.target.value)}
-              maxLength={1000}
-              rows={2}
-            />
-          </div>
+
+          {agreementType !== "delivery" && (
+            <div>
+              <Label>Terms (optional)</Label>
+              <Textarea
+                value={terms}
+                onChange={(e) => setTerms(e.target.value)}
+                maxLength={1000}
+                rows={2}
+              />
+            </div>
+          )}
+
           <div className="rounded-lg border border-border/60 bg-background/40 p-3 space-y-1 text-sm">
             <div className="text-xs font-bold uppercase tracking-wide text-gradient-tri mb-1">Payment summary</div>
-            <SummaryRow label="Materials" value={fees.materials} />
-            <SummaryRow label="Labor" value={fees.labor} />
-            {fees.contingency > 0 && <SummaryRow label="Contingency" value={fees.contingency} />}
-            <SummaryRow label="EasyMeet commission (3% of labor)" value={fees.commission} muted />
+            {mapped.immediate > 0 && (
+              <SummaryRow label="Released immediately" value={mapped.immediate} />
+            )}
+            {mapped.held > 0 && (
+              <SummaryRow
+                label={agreementType === "delivery" ? "Delivery fee (held)" : "Held in escrow"}
+                value={mapped.held}
+              />
+            )}
+            {mapped.contingency > 0 && <SummaryRow label="Contingency" value={mapped.contingency} />}
+            <SummaryRow label="EasyMeet commission (3% of labor/service)" value={commission} muted />
             <SummaryRow label="Paystack fee" value={fees.paystackFee} muted />
             <div className="border-t border-border/50 my-1" />
             <SummaryRow label="Total customer pays" value={fees.totalPaid} bold />
-            <SummaryRow label="Professional receives" value={fees.professionalReceives} accent />
+            <SummaryRow label="Professional receives" value={professionalReceives} accent />
           </div>
         </div>
         <DialogFooter>
