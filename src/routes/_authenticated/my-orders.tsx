@@ -178,7 +178,13 @@ function MyOrdersPage() {
       };
       const commission = Number(result.commission ?? o.escrow.commission_amount ?? 0);
       const payout = Number(result.payout ?? (o.amount - commission));
-      const grossAmount = Number(result.amount ?? o.escrow.amount ?? o.amount ?? 0);
+      const grossAmount = Number(
+        result.amount ??
+          (o.escrow as unknown as { amount_ngn?: number; amount?: number }).amount_ngn ??
+          (o.escrow as unknown as { amount?: number }).amount ??
+          o.amount ??
+          0,
+      );
       const professionalId = result.professional_id ?? o.provider_id;
 
       // Explicit wallet credit (paired with a notification + realtime refresh).
