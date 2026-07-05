@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { VerificationTicks } from "./VerificationTicks";
+import { FoundingMemberBadge } from "./FoundingMemberBadge";
 import { StarRating } from "./StarRating";
 import { Globe, MapPin, Star as StarIcon, MessageSquare, Briefcase } from "lucide-react";
 import { PostCard } from "./PostCard";
@@ -143,6 +144,11 @@ export function ProfileView({
                 size="lg"
               />
             )}
+            <FoundingMemberBadge
+              active={(profile as unknown as { is_founding_member?: boolean }).is_founding_member}
+              size="lg"
+              showLabel
+            />
           </div>
           <div className="mt-1 flex items-center gap-2 flex-wrap text-sm">
             <span className="inline-flex items-center px-3 py-1 rounded-full glass-card text-xs font-semibold capitalize text-primary">

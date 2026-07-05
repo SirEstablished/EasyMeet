@@ -13,7 +13,6 @@ import {
   Sparkles,
   Search,
   Users,
-  Package,
   Users2,
   Wallet as WalletIcon,
   ArrowRight,
@@ -138,7 +137,7 @@ function Dashboard() {
         ]
       : [
           ...(offersServices ? [{ Icon: Sparkles, label: "My Services", to: "/my-services" }] : []),
-          ...(sellsProducts ? [{ Icon: Package, label: "My Products", to: "/my-products" }] : []),
+          // "My Products" hidden until the shop is live.
           { Icon: CalendarCheck, label: "Orders", to: "/my-orders" },
           { Icon: MessageCircle, label: "Messages", to: "/messages" },
           { Icon: WalletIcon, label: "Wallet", to: "/wallet" },

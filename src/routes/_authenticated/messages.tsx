@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { VerificationTicks } from "@/components/VerificationTicks";
+import { FoundingMemberBadge } from "@/components/FoundingMemberBadge";
 import { Link } from "@tanstack/react-router";
 import {
   ArrowLeft,
@@ -280,6 +281,10 @@ function MessagesPage() {
                             gold={c.other?.gold_tick}
                             size="sm"
                           />
+                          <FoundingMemberBadge
+                            active={(c.other as unknown as { is_founding_member?: boolean } | null)?.is_founding_member}
+                            size="sm"
+                          />
                         </div>
                         <span className="text-[11px] font-medium text-muted-foreground shrink-0 whitespace-nowrap">
                           {c.last_message_at ? formatTime(c.last_message_at) : ""}
@@ -515,6 +520,10 @@ function Thread({
                 blue={other?.blue_tick}
                 white={other?.white_tick}
                 gold={other?.gold_tick}
+                size="sm"
+              />
+              <FoundingMemberBadge
+                active={(other as unknown as { is_founding_member?: boolean } | null)?.is_founding_member}
                 size="sm"
               />
             </div>
