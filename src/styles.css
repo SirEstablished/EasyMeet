@@ -11,7 +11,7 @@
 
 /* Prevent horizontal overflow on mobile from decorative blurs/orbs. */
 html, body {
-  overflow-x: hidden;
+  overflow-x: clip;
   max-width: 100vw;
 }
 html {
