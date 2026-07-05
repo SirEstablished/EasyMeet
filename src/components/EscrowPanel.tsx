@@ -439,7 +439,9 @@ export function EscrowPanel({
     // even after a hard refresh, on every load() for this user+conversation.
     // Fix #2: clear the saved role so a new deal can re-detect it.
     if (typeof window !== "undefined") {
-      window.localStorage.setItem(freshDealKey, new Date().toISOString());
+      const nowIso = new Date().toISOString();
+      window.localStorage.setItem(freshDealKey, nowIso);
+      window.localStorage.setItem(sharedFreshDealKey, nowIso);
       window.localStorage.removeItem(roleKey);
     }
     setOrder(null);
