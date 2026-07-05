@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { Handshake } from "lucide-react";
 
 interface LogoProps {
   size?: "sm" | "md" | "lg";
@@ -9,19 +10,18 @@ interface LogoProps {
 export function Logo({ size = "md", asLink = true, className = "" }: LogoProps) {
   const text =
     size === "sm" ? "text-lg" : size === "lg" ? "text-3xl" : "text-xl";
-  const dot = size === "sm" ? "h-2.5 w-2.5" : size === "lg" ? "h-4 w-4" : "h-3 w-3";
-  const ring = size === "sm" ? "h-6 w-6" : size === "lg" ? "h-10 w-10" : "h-8 w-8";
+  const iconSize = size === "sm" ? 20 : size === "lg" ? 32 : 24;
+  const ring = size === "sm" ? "h-8 w-8" : size === "lg" ? "h-12 w-12" : "h-10 w-10";
 
   const inner = (
     <span className={`inline-flex items-center gap-2 font-bold ${className}`}>
       <span
-        className={`relative ${ring} rounded-full bg-secondary flex items-center justify-center`}
+        className={`${ring} rounded-xl bg-[#6C47FF]/10 flex items-center justify-center shrink-0`}
         aria-hidden
       >
-        <span className={`absolute left-1 ${dot} rounded-full bg-primary`} />
-        <span className={`absolute right-1 ${dot} rounded-full bg-accent`} />
+        <Handshake size={iconSize} strokeWidth={2.2} color="#6C47FF" />
       </span>
-      <span className={`${text} tracking-tight text-foreground`}>EasyMeet</span>
+      <span className={`${text} tracking-tight text-[#6C47FF]`}>EasyMeet</span>
     </span>
   );
 
