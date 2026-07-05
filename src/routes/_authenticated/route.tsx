@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, useNavigate, useLocation } from "@tanstack/rea
 import { useEffect } from "react";
 import { useAuth, useAuthModal } from "@/lib/providers";
 import { AppNavbar } from "@/components/AppNavbar";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { BackToTop } from "@/components/BackToTop";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -41,9 +42,10 @@ function AuthLayout() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <AppNavbar />
-      <main className="flex-1">
+      <main className="flex-1 pb-[calc(64px+env(safe-area-inset-bottom))] md:pb-0">
         <Outlet />
       </main>
+      <MobileBottomNav />
       <BackToTop />
     </div>
   );

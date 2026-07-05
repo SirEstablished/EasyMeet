@@ -1,9 +1,8 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { useAuth, useTheme } from "@/lib/providers";
-import { Moon, Sun, LogOut, Menu } from "lucide-react";
+import { Moon, Sun, LogOut } from "lucide-react";
 import { NotificationsBell } from "./NotificationsBell";
 import {
   DropdownMenu,
@@ -14,19 +13,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
 
 export function AppNavbar() {
   const { profile, user, signOut } = useAuth();
   const { theme, toggle } = useTheme();
   const navigate = useNavigate();
-  const [menuOpen, setMenuOpen] = useState(false);
 
   const isCustomer = profile?.role === "customer";
   const ordersLabel = isCustomer ? "My Orders" : "Orders";
@@ -51,41 +42,6 @@ export function AppNavbar() {
     <header className="sticky top-0 z-40 glass-panel">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2 sm:gap-4">
         <div className="flex items-center gap-1 min-w-0">
-          <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-            <SheetTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="md:hidden h-9 w-9 shrink-0"
-                aria-label="Open menu"
-              >
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-72 p-0">
-              <SheetHeader className="p-4 border-b">
-                <SheetTitle>
-                  <Logo />
-                </SheetTitle>
-              </SheetHeader>
-              <nav className="flex flex-col p-2">
-                {navLinks.map((l) => (
-                  <Link
-                    key={l.to}
-                    to={l.to}
-                    onClick={() => setMenuOpen(false)}
-                    className="px-3 py-3 rounded-md text-base font-medium text-foreground hover:bg-accent"
-                    activeProps={{
-                      className:
-                        "px-3 py-3 rounded-md text-base font-semibold text-primary bg-primary/10",
-                    }}
-                  >
-                    {l.label}
-                  </Link>
-                ))}
-              </nav>
-            </SheetContent>
-          </Sheet>
           <Logo />
         </div>
         <nav className="hidden md:flex items-center gap-1">
