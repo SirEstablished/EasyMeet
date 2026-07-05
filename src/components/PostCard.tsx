@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/providers";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { VerificationTicks } from "./VerificationTicks";
-import { Heart, MessageCircle, MoreHorizontal, Trash2, Rocket, Bookmark, Share as ShareIcon, MapPin } from "lucide-react";
+import { Heart, MessageCircle, MoreHorizontal, Trash2, Rocket, Bookmark, Share as ShareIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -162,20 +162,20 @@ export function PostCard({
     <article
       id={`post-${post.id}`}
       className={cn(
-        "rounded-3xl bg-card border border-border/60 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-16px_rgba(15,23,42,0.12)] overflow-hidden transition hover:shadow-[0_2px_4px_rgba(15,23,42,0.06),0_16px_40px_-20px_rgba(108,76,246,0.25)]",
+        "rounded-2xl bg-card border border-border/50 shadow-[0_1px_2px_rgba(15,23,42,0.03),0_6px_20px_-14px_rgba(15,23,42,0.15)] overflow-hidden transition hover:shadow-[0_2px_4px_rgba(15,23,42,0.05),0_18px_44px_-22px_rgba(108,76,246,0.28)]",
         isBoosted && "ring-1 ring-amber-300/60",
       )}
     >
       {isBoosted && (
-        <div className="px-5 pt-4 -mb-1 flex items-center gap-1.5">
+        <div className="px-4 pt-4 -mb-1 flex items-center gap-1.5">
           <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-gradient-to-r from-amber-400 to-amber-500 text-white">
             <Rocket className="h-3 w-3" /> Sponsored
           </span>
         </div>
       )}
-      <div className="px-5 pt-5 pb-3 flex items-start gap-3">
-        <Link to="/profile/$id" params={{ id: post.author_id }} className="shrink-0 rounded-full p-[2px] bg-gradient-to-br from-primary/70 to-primary/30">
-          <Avatar className="h-11 w-11 border-2 border-card">
+      <div className="px-4 pt-4 pb-3 flex items-start gap-3">
+        <Link to="/profile/$id" params={{ id: post.author_id }} className="shrink-0">
+          <Avatar className="h-12 w-12">
             <AvatarImage src={a?.avatar_url ?? undefined} />
             <AvatarFallback className="bg-primary text-primary-foreground text-sm font-semibold">{initials}</AvatarFallback>
           </Avatar>
@@ -185,7 +185,7 @@ export function PostCard({
             <Link
               to="/profile/$id"
               params={{ id: post.author_id }}
-              className="font-bold text-[15px] text-foreground hover:text-primary truncate"
+              className="font-bold text-[15px] leading-tight text-foreground hover:text-primary truncate"
             >
               {a?.full_name || a?.username || "User"}
             </Link>
@@ -197,10 +197,7 @@ export function PostCard({
             />
           </div>
           {a?.role && (
-            <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-              <MapPin className="h-3 w-3" />
-              <span className="capitalize">{a.role}</span>
-            </div>
+            <div className="text-[12px] text-muted-foreground capitalize mt-0.5">{a.role}</div>
           )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
@@ -224,21 +221,25 @@ export function PostCard({
             </DropdownMenuContent>
           </DropdownMenu>
           )}
+          {!isMine && (
+            <Button variant="ghost" size="icon" className="-mr-2 h-8 w-8">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
 
       {body && (
-        <div className="px-5 pb-3 flex items-start gap-2">
-          <ShareIcon className="h-3.5 w-3.5 mt-1 text-muted-foreground shrink-0" />
-          <div className="text-[15px] leading-snug whitespace-pre-wrap break-words text-foreground/90">
+        <div className="px-4 pb-3">
+          <div className="text-[15px] leading-relaxed whitespace-pre-wrap break-words text-foreground/90">
             <RichText text={body} />
           </div>
         </div>
       )}
 
       {mediaUrl && (
-        <div className="px-5 pb-4">
-          <div className="overflow-hidden rounded-2xl bg-muted">
+        <div className="pb-3">
+          <div className="overflow-hidden bg-muted">
           {mediaType === "video" ? (
             <video ref={videoRef} src={mediaUrl} controls playsInline className="w-full max-h-[520px]" />
           ) : (
@@ -248,16 +249,16 @@ export function PostCard({
         </div>
       )}
 
-      <div className="px-4 pb-3 pt-1 flex items-center gap-5">
+      <div className="px-4 pb-4 pt-1 flex items-center gap-5">
         <button
           type="button"
           onClick={handleLike}
-          className="inline-flex items-center gap-1.5 text-sm font-semibold text-foreground/80 hover:text-foreground transition"
+          className="inline-flex items-center gap-2 text-sm font-semibold text-foreground/80 hover:text-foreground transition"
         >
           <Heart
             key={`${post.id}-${isLiked}`}
             className={cn(
-              "h-[18px] w-[18px] transition-colors",
+              "h-5 w-5 transition-colors",
               isLiked ? "fill-rose-500 text-rose-500" : "text-foreground/70",
             )}
           />
@@ -266,18 +267,17 @@ export function PostCard({
         <button
           type="button"
           onClick={() => onOpenComments(post.id)}
-          className="inline-flex items-center gap-1.5 text-sm font-semibold text-foreground/80 hover:text-foreground transition"
+          className="inline-flex items-center gap-2 text-sm font-semibold text-foreground/80 hover:text-foreground transition"
         >
-          <MessageCircle className="h-[18px] w-[18px] text-foreground/70" />
+          <MessageCircle className="h-5 w-5 text-foreground/70" />
           <span className="tabular-nums">{post.comment_count ?? 0}</span>
         </button>
         <button
           type="button"
           onClick={share}
-          className="inline-flex items-center gap-1.5 text-sm font-semibold text-foreground/80 hover:text-foreground transition"
+          className="inline-flex items-center gap-2 text-sm font-semibold text-foreground/80 hover:text-foreground transition"
         >
-          <ShareIcon className="h-[18px] w-[18px] text-foreground/70" />
-          <span className="tabular-nums">0</span>
+          <ShareIcon className="h-5 w-5 text-foreground/70" />
         </button>
         <button
           type="button"
@@ -285,7 +285,7 @@ export function PostCard({
           className="ml-auto inline-flex items-center justify-center h-9 w-9 rounded-full text-foreground/70 hover:text-primary hover:bg-primary/5 transition"
           aria-label="Save post"
         >
-          <Bookmark className="h-[18px] w-[18px]" />
+          <Bookmark className="h-5 w-5" />
         </button>
       </div>
 

@@ -4,9 +4,10 @@ import { supabase, type Post } from "@/integrations/supabase/client";
 import { CreatePostCard } from "@/components/CreatePostCard";
 import { PostCard } from "@/components/PostCard";
 import { CommentsDrawer } from "@/components/CommentsDrawer";
-import { Loader2, Lock } from "lucide-react";
+import { Loader2, Lock, Plus } from "lucide-react";
 import { useLiveData } from "@/hooks/use-live-data";
 import { useAuth } from "@/lib/providers";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/_authenticated/feed")({
   component: FeedPage,
@@ -17,7 +18,8 @@ function FeedPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [commentsFor, setCommentsFor] = useState<string | null>(null);
-  const [tab, setTab] = useState<"for-you" | "following" | "saved">("for-you");
+  const [tab, setTab] = useState<"for-you" | "following">("for-you");
+  const [createOpen, setCreateOpen] = useState(false);
 
   const load = useCallback(async () => {
     const { data: rawPosts } = await supabase
@@ -60,7 +62,11 @@ function FeedPage() {
 
   useLiveData(["posts", "comments", "post_likes"], load);
 
-  const onPosted = (p: Post) => setPosts((cur) => [p, ...cur]);
+  const canPost = profile?.role === "professional" || profile?.role === "business";
+  const onPosted = (p: Post) => {
+    setPosts((cur) => [p, ...cur]);
+    setCreateOpen(false);
+  };
   const onDeleted = (id: string) => setPosts((cur) => cur.filter((p) => p.id !== id));
   const adjustComment = (id: string, delta: number) =>
     setPosts((cur) =>
@@ -68,36 +74,35 @@ function FeedPage() {
     );
 
   return (
-    <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-4 pb-28 md:pb-10 space-y-5">
-      <div>
-        <h1 className="text-4xl font-extrabold tracking-tight text-foreground">Feed</h1>
-      </div>
-
-      {/* Segmented tabs */}
-      <div className="rounded-2xl bg-muted/60 p-1 flex items-center text-sm font-semibold">
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-2 pb-28 md:pb-10">
+      {/* Minimal tabs with thin purple indicator */}
+      <div className="flex items-center gap-6 border-b border-border/60 mb-4">
         {[
           { id: "for-you", label: "For You" },
           { id: "following", label: "Following" },
-          { id: "saved", label: "Saved" },
-        ].map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setTab(t.id as typeof tab)}
-            className={
-              "flex-1 h-10 rounded-xl transition " +
-              (tab === t.id
-                ? "bg-primary text-primary-foreground shadow-[0_6px_20px_-8px_color-mix(in_oklab,var(--primary)_60%,transparent)]"
-                : "text-muted-foreground hover:text-foreground")
-            }
-          >
-            {t.label}
-          </button>
-        ))}
+        ].map((t) => {
+          const active = tab === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id as typeof tab)}
+              className={
+                "relative py-3 text-[15px] font-semibold transition " +
+                (active ? "text-primary" : "text-muted-foreground hover:text-foreground")
+              }
+            >
+              {t.label}
+              {active && (
+                <span className="absolute left-0 right-0 -bottom-px h-[2px] rounded-full bg-primary" />
+              )}
+            </button>
+          );
+        })}
       </div>
 
-      {profile?.role === "customer" ? (
-        <div className="rounded-3xl bg-card border border-border/60 p-5 flex items-start gap-3 shadow-sm">
+      {profile?.role === "customer" && (
+        <div className="rounded-3xl bg-card border border-border/60 p-5 flex items-start gap-3 shadow-sm mb-4">
           <div className="h-10 w-10 rounded-full bg-primary/10 grid place-items-center text-primary shrink-0">
             <Lock className="h-4 w-4" />
           </div>
@@ -108,15 +113,11 @@ function FeedPage() {
             </p>
           </div>
         </div>
-      ) : tab === "for-you" ? (
-        <CreatePostCard onPosted={onPosted} />
-      ) : null}
+      )}
 
-      {tab !== "for-you" ? (
+      {tab === "following" ? (
         <div className="rounded-3xl bg-card border border-border/60 border-dashed p-12 text-center text-sm text-muted-foreground">
-          {tab === "following"
-            ? "Posts from people you follow will appear here."
-            : "Your saved posts will appear here."}
+          Posts from people you follow will appear here.
         </div>
       ) : loading ? (
         <div className="flex items-center justify-center py-12 text-muted-foreground">
@@ -145,6 +146,27 @@ function FeedPage() {
         onOpenChange={(v) => !v && setCommentsFor(null)}
         onCountChange={adjustComment}
       />
+
+      {canPost && (
+        <>
+          <button
+            type="button"
+            onClick={() => setCreateOpen(true)}
+            aria-label="Create post"
+            className="fixed z-40 bottom-24 right-5 md:bottom-10 md:right-10 h-14 w-14 rounded-full bg-primary text-primary-foreground grid place-items-center shadow-[0_10px_30px_-8px_color-mix(in_oklab,var(--primary)_65%,transparent)] hover:scale-105 active:scale-95 transition"
+          >
+            <Plus className="h-6 w-6" strokeWidth={2.5} />
+          </button>
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+            <DialogContent className="max-w-lg p-0 bg-transparent border-0 shadow-none">
+              <DialogHeader className="sr-only">
+                <DialogTitle>Create post</DialogTitle>
+              </DialogHeader>
+              <CreatePostCard onPosted={onPosted} />
+            </DialogContent>
+          </Dialog>
+        </>
+      )}
     </div>
   );
 }
