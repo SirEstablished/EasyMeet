@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Copy, UserPlus, Trash2 } from "lucide-react";
+import { useLiveData } from "@/hooks/use-live-data";
 
 export const Route = createFileRoute("/_authenticated/staffs")({
   component: StaffsPage,
@@ -80,6 +81,8 @@ function StaffsPage() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
+
+  useLiveData(user ? ["staff_invites", "profiles"] : [], load);
 
   if (!isBusiness) {
     return (

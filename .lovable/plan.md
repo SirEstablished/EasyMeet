@@ -1,27 +1,31 @@
-## Fix mobile homepage and bottom nav
+## Password show/hide + site-wide realtime updates
 
-### 1. Bottom nav tabs (`src/components/MobileBottomNav.tsx`)
-Replace current 5 tabs with exactly: **Home, Explore, Feed, Orders, Chat**.
-- Remove the Transactions/Wallet tab from the bottom nav.
-- Order: Home (`/dashboard`) → Explore (`/explore`) → Feed (`/feed`) → Orders (`/my-orders`) → Chat (`/messages`).
-- Icons: Home, Compass, Rss, Package, MessageSquare.
+### 1. Password eye toggle in `src/components/AuthModal.tsx`
+Wrap the password `<Input>` in a relative container and add an inline eye button. Toggle a local `showPassword` state to switch the input `type` between `"password"` and `"text"`. Use `Eye` / `EyeOff` from `lucide-react`.
 
-### 2. Dashboard homepage (`src/routes/_authenticated/dashboard.tsx`)
-- **Remove the inline `<TransactionsSection />`** from the bottom of the dashboard so scrolling the homepage no longer reveals the full transactions panel.
-- Keep the "Transactions" entry in the Quick Links grid (both customer and business role lists) so users can still tap through to `/transactions`.
-- Drop the `TransactionsSection` import.
+- Add `const [showPassword, setShowPassword] = useState(false);` at the top of `AuthModal`.
+- Wrap the existing password `<Input>` (lines ~376-386) in `<div className="relative">`, add `pr-10` to the input, and place an absolutely-positioned `<button type="button" aria-label="Show/Hide password">` with the icon on the right.
+- Same treatment for the login-mode password input further down the file.
+- Reset `showPassword` back to `false` when the modal closes (extend the existing `reset()` helper — or use a `useEffect` on `open`).
 
-### 3. Mobile polish for the dashboard page
-Currently the dashboard uses `px-4 sm:px-6 py-10` and a large welcome banner (`p-8 sm:p-10`, `text-3xl sm:text-5xl`) which feels cramped on phones and pushes content wide.
-- Outer wrapper: `px-3 sm:px-6 py-4 sm:py-10 pb-24 md:pb-10` (extra bottom padding so the fixed bottom nav doesn't cover content).
-- Welcome banner: `p-5 sm:p-10`, heading `text-2xl sm:text-5xl`, subtitle `text-sm sm:text-lg`, rounded `rounded-2xl sm:rounded-3xl`.
-- Stat cards grid: keep `sm:grid-cols-3`; on mobile stack becomes single column already — tighten gap to `gap-3`.
-- Quick links card: `p-4 sm:p-7`, grid `grid-cols-2` on mobile so shortcuts (including Transactions) are tap-friendly 44px+ tiles instead of full-width rows.
-- Section spacing: `space-y-5 sm:space-y-8`.
+Purely presentational — no auth-flow changes.
 
-### Result
-- Mobile bottom tabs: Home · Explore · Feed · Orders · Chat (5 items, matches request).
-- Homepage no longer shows the Transactions panel inline; it's reachable via the "Transactions" quick-link tile.
-- Dashboard fits phone widths with no horizontal scroll and doesn't get hidden behind the bottom nav.
+### 2. Site-wide realtime auto-refresh
+The `useLiveData` hook (Supabase realtime + 10s polling fallback) already exists and is used by explore, feed, my-orders, my-services, my-products, my-bookings, TransactionsSection, and ProfileView. Extend the same pattern to the remaining data-driven surfaces so users never have to refresh.
 
-No backend, route, or business-logic changes.
+Add `useLiveData([...], reload)` to the fetch/reload function in each of these, wiring the tables each screen actually reads:
+
+- `src/routes/_authenticated/messages.tsx` → `["messages", "conversations", "profiles"]` on the conversation list + active-thread refresh.
+- `src/routes/_authenticated/admin.disputes.tsx` → `["disputes", "orders", "escrow"]`.
+- `src/routes/_authenticated/staffs.tsx` → `["staff_invites", "profiles"]` (verify the actual table names in the file when editing).
+- `src/components/NotificationsBell.tsx` → `["notifications"]`.
+- `src/components/EscrowPanel.tsx` and `src/components/EscrowOrdersSection.tsx` → `["orders", "escrow"]`.
+- `src/components/PostCard.tsx` (like/comment counts) and `src/components/CommentsDrawer.tsx` → `["post_likes", "post_comments"]` scoped to the open post.
+
+For each file the change is: extract the existing load-from-Supabase logic into a `useCallback` `load` (if not already), then add `useLiveData(tables, load)` next to the initial `useEffect`. Do NOT toggle a visible loading spinner inside `load` after the first fetch (the hook contract) — introduce a `firstLoad` guard where the current code always sets `loading = true`.
+
+Ensure the referenced tables are enabled in the `supabase_realtime` publication. Ship one migration that runs `ALTER PUBLICATION supabase_realtime ADD TABLE public.<t>` for every table above (wrapped so re-adding an already-published table is a no-op via `DO $$ … EXCEPTION WHEN duplicate_object … $$`).
+
+### Out of scope
+- No changes to auth logic, RLS, table schemas, or the `useLiveData` hook itself.
+- No visual redesign — the eye button uses existing icons and Tailwind utilities.
