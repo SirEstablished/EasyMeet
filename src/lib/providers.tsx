@@ -18,26 +18,25 @@ interface ThemeCtx {
 const ThemeContext = createContext<ThemeCtx | null>(null);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("light");
-
-  useEffect(() => {
-    const stored = (localStorage.getItem("em-theme") as Theme) || "light";
-    setThemeState(stored);
-  }, []);
+  // Dark mode is enforced site-wide. Toggle is a no-op kept for API compat.
+  const theme: Theme = "dark";
 
   useEffect(() => {
     const root = document.documentElement;
-    if (theme === "dark") root.classList.add("dark");
-    else root.classList.remove("dark");
-    localStorage.setItem("em-theme", theme);
-  }, [theme]);
+    root.classList.add("dark");
+    try {
+      localStorage.setItem("em-theme", "dark");
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   return (
     <ThemeContext.Provider
       value={{
         theme,
-        setTheme: setThemeState,
-        toggle: () => setThemeState((t) => (t === "light" ? "dark" : "light")),
+        setTheme: () => {},
+        toggle: () => {},
       }}
     >
       {children}

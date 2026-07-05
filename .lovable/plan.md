@@ -1,46 +1,38 @@
-## Seller analytics section on the dashboard
+## Goal
 
-Add an `AnalyticsSection` to `/dashboard` visible only for `professional` and `business` roles (customers do not see it). It renders inline on the home page — no new route and no new mobile tab.
+Make the site look and fit correctly on Android/mobile across every page, and force dark mode as the only theme site-wide.
 
-### 1. New component `src/components/AnalyticsSection.tsx`
-Client component. Fetches once with a `useCallback` `load` and subscribes via `useLiveData(["orders", "escrow", "reviews"], load)` so numbers refresh in realtime without a page reload.
+## 1. Force dark mode everywhere (remove toggle)
 
-Data source (already in schema):
-- `orders`: `provider_id`, `amount` / `amount_ngn`, `service_title`, `service_id`, `customer_id`, `status`, `escrow_status`, `payout_amount`, `commission_amount`, `created_at`.
-- `escrow` joined on `order_id` for authoritative `released` / `completed` state.
-- `reviews`: `reviewed_id`, `rating`, `created_at`.
+- `src/lib/providers.tsx` — `ThemeProvider` always sets `dark` on `<html>`, writes `"dark"` to `localStorage`, and `toggle`/`setTheme` become no-ops. `useTheme()` still returns `{ theme: "dark" }` so existing call sites keep compiling.
+- `src/routes/__root.tsx` — add `className="dark"` on `<html>` in `RootShell` so the very first SSR paint is dark (no light flash on Android).
+- `src/styles.css` — apply the `.dark` token values to `:root` as well (or wrap the light-mode block behind an unused selector) so any pre-hydration paint uses dark colors.
+- Remove the Sun/Moon toggle button from `src/routes/index.tsx` header and from `AppNavbar` (and any other header that renders it). Drop unused `Moon`/`Sun` imports and the `useTheme()` calls where only the toggle used them.
 
-A row counts as an "earned/completed order" when `escrow.status IN ('released','completed')` OR `orders.status = 'completed'`. Revenue uses `payout_amount` when present, else `amount`.
+## 2. Android viewport + no-horizontal-scroll baseline
 
-Metrics rendered (each in a `glass-card` tile with the primary/accent gradient the rest of the dashboard uses):
+- `src/routes/__root.tsx` head meta — extend viewport to `width=device-width, initial-scale=1, viewport-fit=cover` and add `theme-color: #0D0D1A` so the Android status bar matches the dark UI.
+- `src/styles.css` — keep `overflow-x: hidden` but also add `overscroll-behavior-y: none` on `html, body`, and guard decorative blurs/orbs with `max-width: 100vw; overflow: hidden` on the pseudo-elements so the giant `blur-3xl` orbs never create horizontal scroll on 360px Android screens.
+- Add a small utility rule to clamp any `.blur-3xl` decorative div inside a `overflow-hidden` wrapper — audit hero sections that currently place them as siblings of `min-h-[92vh]` containers.
 
-1. **Total revenue (lifetime)** — sum of completed order payouts, `formatNgn`.
-2. **Revenue this month vs last month** — two figures + a small delta pill ("▲ 12%" green / "▼ 8%" red / "—") comparing sums bucketed by `created_at` in the seller's local month.
-3. **Completed orders** — count of completed orders lifetime + "(N this month)" secondary line.
-4. **Repeat customers** — distinct `customer_id`s that appear on 2+ completed orders.
-5. **Average rating trend** — current avg over last 30 days vs previous 30 days, with the same delta pill. Falls back to "No reviews yet" when the seller has none.
+## 3. Mobile layout audit + fixes (all requested scopes)
 
-Charts (using existing `recharts` via `@/components/ui/chart`):
+Apply the responsive-layout pattern (`grid-cols-[minmax(0,1fr)_auto]` + `min-w-0` + `shrink-0` + `truncate`) and tighten mobile paddings/type scale on:
 
-6. **Booking trends** — `<ChartContainer>` with a bar chart of completed-order count per week for the last 12 weeks (Sunday-anchored buckets), plus a toggle button ("Weekly" / "Monthly") that swaps to 12-month buckets.
-7. **Top performing services** — horizontal bar chart of top 5 services by revenue (group by `service_title`, fall back to service id when title is empty), each bar labeled with `formatNgn(revenue)`. Empty-state: "No completed sales yet."
+- **Landing + auth**: `src/routes/index.tsx` (hero type scale `text-4xl sm:text-7xl`, buttons full-width on mobile, container `px-4`, hide desktop-only floating cards below `lg`), `src/components/AuthModal.tsx` (dialog `max-w-[calc(100vw-1.5rem)]`, stacked inputs, eye button spacing), `src/components/LegalPageShell.tsx`, `src/routes/{about,privacy,terms,staff-register}.tsx`.
+- **Dashboard + analytics**: `src/routes/_authenticated/dashboard.tsx` header row, stat cards → `grid-cols-2` on mobile, `src/components/AnalyticsSection.tsx` metric tiles `grid-cols-2`, charts wrap in `overflow-x-auto` container with min height, top-services bars use `min-w-0` + `truncate`.
+- **Feed / Explore / Profile**: `src/routes/_authenticated/{feed,explore,profile.tsx,profile.$id.tsx,profile.index.tsx}`, `src/components/{PostCard,ProfileView,ProfileCard,CommentsDrawer,CreatePostCard}.tsx` — avatar `shrink-0`, headings `truncate`, action rows switch to two-column grid on mobile, media respects `aspect-ratio` with `max-w-full`.
+- **Orders / Messages / Transactions**: `src/routes/_authenticated/{my-orders,my-bookings,messages,transactions}.tsx`, `src/components/{EscrowOrdersSection,EscrowPanel,TransactionsSection,RequestRefundDialog,ReviewOrderDialog}.tsx` — tables wrap in `overflow-x-auto` with sticky first column on mobile, message list rows use grid layout, escrow status pills wrap.
+- **Shared chrome**: `src/components/AppNavbar.tsx` (hide desktop-only items on mobile, ensure gap/padding), `src/components/MobileBottomNav.tsx` (already fine, verify safe-area padding), `src/components/Footer.tsx` (stack columns, wrap link rows).
 
-Layout: `grid gap-4 grid-cols-2 lg:grid-cols-4` for the metric tiles, then a single `grid gap-4 lg:grid-cols-2` row for the two charts. Mobile: charts collapse to full width and the height is capped so nothing pushes the fixed bottom nav.
+For each file the recipe is the same three passes: (a) replace `flex flex-wrap` header rows with the grid pattern from `responsive-layout-patterns`, (b) add `min-w-0` / `truncate` / `shrink-0` where text meets icons, (c) drop `whitespace-nowrap` and giant fixed widths, use responsive `text-*`/`p-*`/`gap-*`.
 
-Loading: single `Loader2` spinner while the first fetch resolves; subsequent realtime refreshes are silent (per `useLiveData` contract).
-Errors: wrap the Supabase calls in `try/catch` and `toast.error(...)` — the section renders whatever it managed to load.
+## 4. Verification
 
-### 2. Mount on dashboard `src/routes/_authenticated/dashboard.tsx`
-- Import `AnalyticsSection`.
-- Render it inside the existing right-column `<div className="space-y-5 sm:space-y-8">`, **after the Stat Cards row and before the Getting Started card**, gated by `role !== "customer"`.
-- No changes to `MobileBottomNav`, no new route file, no changes to `TransactionsSection`.
+- `bunx tsgo --noEmit` to typecheck (theme toggle removal must not leave dangling imports).
+- Drive Playwright at `http://localhost:8080` at viewport `375x812` (Android-ish) — screenshot: landing, auth modal, dashboard, analytics, feed, explore, profile, my-orders, messages, transactions. Confirm no horizontal scroll (`document.documentElement.scrollWidth === innerWidth`), dark background everywhere, no light-mode flash on reload.
 
-### 3. No backend changes needed
-- `orders` and `escrow` are already readable by the signed-in provider via existing RLS (`orders parties read`).
-- `reviews` reads scoped to `reviewed_id = auth.uid()` already exist per current app usage; we only read the seller's own review rows.
-- The realtime publication for `orders`, `escrow`, and `reviews` was enabled in a prior migration; no new migration is required. If `reviews` is not yet in `supabase_realtime`, the section still works — `useLiveData`'s 10s polling fallback keeps it fresh.
+## Out of scope
 
-### Out of scope
-- No CSV export, no per-service detail drilldowns.
-- No changes to the mobile bottom nav or navigation.
-- No customer-side analytics.
+- No business logic, DB, or route changes.
+- No visual redesign — colors, gradients, and the existing dark palette stay as-is; only sizing, spacing, and layout structure change.
