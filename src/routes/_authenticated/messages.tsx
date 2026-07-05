@@ -13,7 +13,19 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { VerificationTicks } from "@/components/VerificationTicks";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, MessageCircle, Search, Send, SlidersHorizontal } from "lucide-react";
+import {
+  ArrowLeft,
+  MessageCircle,
+  Search,
+  Send,
+  SlidersHorizontal,
+  Phone,
+  Info,
+  MoreVertical,
+  Paperclip,
+  Shield,
+  ChevronRight,
+} from "lucide-react";
 import { containsPhone, PHONE_BLOCK_MESSAGE } from "@/lib/phoneCheck";
 import { cn } from "@/lib/utils";
 import { EscrowPanel } from "@/components/EscrowPanel";
