@@ -41,9 +41,7 @@ function AuthLayout() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <div className="hidden md:block">
-        <AppNavbar />
-      </div>
+      <AppNavbar />
       <main className="flex-1 pb-[calc(64px+env(safe-area-inset-bottom))] md:pb-0">
         <Outlet />
       </main>
