@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Drawer,
   DrawerContent,
@@ -66,7 +66,6 @@ export function CommentsDrawer({
   const [sending, setSending] = useState(false);
   const [sort, setSort] = useState<SortMode>("newest");
   const [likes, setLikes] = useState<Record<string, boolean>>({});
-  const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     if (!open || !postId) return;
@@ -127,12 +126,10 @@ export function CommentsDrawer({
     const handle = username || fallback || "user";
     const prefix = `@${handle} `;
     setText((cur) => (cur.startsWith(prefix) ? cur : prefix + cur.replace(/^@\S+\s*/, "")));
-    setTimeout(() => inputRef.current?.focus(), 30);
   };
 
   const insertEmoji = (e: string) => {
     setText((cur) => cur + e);
-    setTimeout(() => inputRef.current?.focus(), 20);
   };
 
   const submit = async () => {
@@ -271,7 +268,6 @@ export function CommentsDrawer({
           <div className="flex-1 flex items-center gap-1 rounded-full bg-muted/60 pl-4 pr-2 py-1.5 focus-within:ring-2 focus-within:ring-primary/30 transition">
             <div className="flex-1 min-w-0">
               <MentionTextarea
-                ref={inputRef}
                 asInput
                 value={text}
                 onChange={setText}
