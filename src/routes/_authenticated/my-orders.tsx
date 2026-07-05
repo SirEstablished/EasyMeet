@@ -4,7 +4,7 @@ import { supabase, formatNgn, type Order } from "@/integrations/supabase/client"
 import { useAuth } from "@/lib/providers";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Loader2, Star, CheckCircle2, XCircle, Shield } from "lucide-react";
+import { Loader2, Star, CheckCircle2, XCircle, Shield, Search, SlidersHorizontal, Package } from "lucide-react";
 import { ReviewOrderDialog } from "@/components/ReviewOrderDialog";
 import { RequestRefundDialog } from "@/components/RequestRefundDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -192,32 +192,77 @@ function MyOrdersPage() {
     }
   };
 
-  const title = isCustomer ? "My Orders" : "Orders";
-  const subtitle = isCustomer
-    ? "Track services and products you've ordered."
-    : "Orders coming in and your own purchases.";
+  const title = "Orders";
+  const [query, setQuery] = useState("");
+  const filterOrders = (list: OrderWithEscrow[]) => {
+    const q = query.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter((o) => {
+      const other = o.provider_id === user?.id ? o.customer : o.provider;
+      const name = other?.full_name || other?.username || "";
+      return (
+        o.service_title?.toLowerCase().includes(q) ||
+        name.toLowerCase().includes(q) ||
+        (o.payment_ref ?? "").toLowerCase().includes(q)
+      );
+    });
+  };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
-      <h1 className="text-3xl sm:text-4xl font-extrabold text-gradient-tri">{title}</h1>
-      <p className="text-sm text-muted-foreground">{subtitle}</p>
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 pt-6 pb-24">
+      <h1 className="text-[32px] leading-tight font-extrabold tracking-tight text-foreground">
+        {title}
+      </h1>
 
       {loading ? (
-        <div className="flex items-center justify-center py-12 text-muted-foreground">
+        <div className="flex items-center justify-center py-16 text-muted-foreground">
           <Loader2 className="h-5 w-5 animate-spin" />
         </div>
       ) : (
-        <Tabs defaultValue={isCustomer ? "outgoing" : "incoming"} className="mt-6">
-          <TabsList className={`grid w-full sm:w-auto ${isCustomer ? "grid-cols-1" : "grid-cols-2"}`}>
+        <Tabs defaultValue={isCustomer ? "outgoing" : "incoming"} className="mt-5">
+          <TabsList
+            className={`w-full h-12 p-1 rounded-2xl bg-muted/70 grid ${isCustomer ? "grid-cols-1" : "grid-cols-2"}`}
+          >
             {!isCustomer && (
-              <TabsTrigger value="incoming">Incoming ({incoming.length})</TabsTrigger>
+              <TabsTrigger
+                value="incoming"
+                className="rounded-xl h-full text-sm font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-[0_6px_16px_-8px_color-mix(in_oklab,var(--primary)_60%,transparent)] text-muted-foreground"
+              >
+                Incoming ({incoming.length})
+              </TabsTrigger>
             )}
-            <TabsTrigger value="outgoing">My Purchases ({outgoing.length})</TabsTrigger>
+            <TabsTrigger
+              value="outgoing"
+              className="rounded-xl h-full text-sm font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-[0_6px_16px_-8px_color-mix(in_oklab,var(--primary)_60%,transparent)] text-muted-foreground"
+            >
+              My Purchases ({outgoing.length})
+            </TabsTrigger>
           </TabsList>
+
+          {/* Search + filter */}
+          <div className="mt-5 flex items-center gap-2">
+            <div className="flex-1 flex items-center gap-2 h-12 rounded-2xl bg-card border border-border/60 px-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+              <Search className="h-4 w-4 text-muted-foreground" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search orders..."
+                className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted-foreground"
+              />
+            </div>
+            <button
+              type="button"
+              className="h-12 w-12 grid place-items-center rounded-2xl bg-card border border-border/60 text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+              aria-label="Filter"
+            >
+              <SlidersHorizontal className="h-[18px] w-[18px]" />
+            </button>
+          </div>
+
           {!isCustomer && (
-            <TabsContent value="incoming" className="mt-4">
+            <TabsContent value="incoming" className="mt-5">
               <OrderList
-                orders={incoming}
+                orders={filterOrders(incoming)}
                 direction="incoming"
                 reviewedOrders={reviewedOrders}
                 onReview={setReviewing}
@@ -228,9 +273,9 @@ function MyOrdersPage() {
               />
             </TabsContent>
           )}
-          <TabsContent value="outgoing" className="mt-4">
+          <TabsContent value="outgoing" className="mt-5">
             <OrderList
-              orders={outgoing}
+              orders={filterOrders(outgoing)}
               direction="outgoing"
               reviewedOrders={reviewedOrders}
               onReview={setReviewing}
