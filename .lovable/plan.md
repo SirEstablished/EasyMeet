@@ -1,31 +1,46 @@
-## Password show/hide + site-wide realtime updates
+## Seller analytics section on the dashboard
 
-### 1. Password eye toggle in `src/components/AuthModal.tsx`
-Wrap the password `<Input>` in a relative container and add an inline eye button. Toggle a local `showPassword` state to switch the input `type` between `"password"` and `"text"`. Use `Eye` / `EyeOff` from `lucide-react`.
+Add an `AnalyticsSection` to `/dashboard` visible only for `professional` and `business` roles (customers do not see it). It renders inline on the home page — no new route and no new mobile tab.
 
-- Add `const [showPassword, setShowPassword] = useState(false);` at the top of `AuthModal`.
-- Wrap the existing password `<Input>` (lines ~376-386) in `<div className="relative">`, add `pr-10` to the input, and place an absolutely-positioned `<button type="button" aria-label="Show/Hide password">` with the icon on the right.
-- Same treatment for the login-mode password input further down the file.
-- Reset `showPassword` back to `false` when the modal closes (extend the existing `reset()` helper — or use a `useEffect` on `open`).
+### 1. New component `src/components/AnalyticsSection.tsx`
+Client component. Fetches once with a `useCallback` `load` and subscribes via `useLiveData(["orders", "escrow", "reviews"], load)` so numbers refresh in realtime without a page reload.
 
-Purely presentational — no auth-flow changes.
+Data source (already in schema):
+- `orders`: `provider_id`, `amount` / `amount_ngn`, `service_title`, `service_id`, `customer_id`, `status`, `escrow_status`, `payout_amount`, `commission_amount`, `created_at`.
+- `escrow` joined on `order_id` for authoritative `released` / `completed` state.
+- `reviews`: `reviewed_id`, `rating`, `created_at`.
 
-### 2. Site-wide realtime auto-refresh
-The `useLiveData` hook (Supabase realtime + 10s polling fallback) already exists and is used by explore, feed, my-orders, my-services, my-products, my-bookings, TransactionsSection, and ProfileView. Extend the same pattern to the remaining data-driven surfaces so users never have to refresh.
+A row counts as an "earned/completed order" when `escrow.status IN ('released','completed')` OR `orders.status = 'completed'`. Revenue uses `payout_amount` when present, else `amount`.
 
-Add `useLiveData([...], reload)` to the fetch/reload function in each of these, wiring the tables each screen actually reads:
+Metrics rendered (each in a `glass-card` tile with the primary/accent gradient the rest of the dashboard uses):
 
-- `src/routes/_authenticated/messages.tsx` → `["messages", "conversations", "profiles"]` on the conversation list + active-thread refresh.
-- `src/routes/_authenticated/admin.disputes.tsx` → `["disputes", "orders", "escrow"]`.
-- `src/routes/_authenticated/staffs.tsx` → `["staff_invites", "profiles"]` (verify the actual table names in the file when editing).
-- `src/components/NotificationsBell.tsx` → `["notifications"]`.
-- `src/components/EscrowPanel.tsx` and `src/components/EscrowOrdersSection.tsx` → `["orders", "escrow"]`.
-- `src/components/PostCard.tsx` (like/comment counts) and `src/components/CommentsDrawer.tsx` → `["post_likes", "post_comments"]` scoped to the open post.
+1. **Total revenue (lifetime)** — sum of completed order payouts, `formatNgn`.
+2. **Revenue this month vs last month** — two figures + a small delta pill ("▲ 12%" green / "▼ 8%" red / "—") comparing sums bucketed by `created_at` in the seller's local month.
+3. **Completed orders** — count of completed orders lifetime + "(N this month)" secondary line.
+4. **Repeat customers** — distinct `customer_id`s that appear on 2+ completed orders.
+5. **Average rating trend** — current avg over last 30 days vs previous 30 days, with the same delta pill. Falls back to "No reviews yet" when the seller has none.
 
-For each file the change is: extract the existing load-from-Supabase logic into a `useCallback` `load` (if not already), then add `useLiveData(tables, load)` next to the initial `useEffect`. Do NOT toggle a visible loading spinner inside `load` after the first fetch (the hook contract) — introduce a `firstLoad` guard where the current code always sets `loading = true`.
+Charts (using existing `recharts` via `@/components/ui/chart`):
 
-Ensure the referenced tables are enabled in the `supabase_realtime` publication. Ship one migration that runs `ALTER PUBLICATION supabase_realtime ADD TABLE public.<t>` for every table above (wrapped so re-adding an already-published table is a no-op via `DO $$ … EXCEPTION WHEN duplicate_object … $$`).
+6. **Booking trends** — `<ChartContainer>` with a bar chart of completed-order count per week for the last 12 weeks (Sunday-anchored buckets), plus a toggle button ("Weekly" / "Monthly") that swaps to 12-month buckets.
+7. **Top performing services** — horizontal bar chart of top 5 services by revenue (group by `service_title`, fall back to service id when title is empty), each bar labeled with `formatNgn(revenue)`. Empty-state: "No completed sales yet."
+
+Layout: `grid gap-4 grid-cols-2 lg:grid-cols-4` for the metric tiles, then a single `grid gap-4 lg:grid-cols-2` row for the two charts. Mobile: charts collapse to full width and the height is capped so nothing pushes the fixed bottom nav.
+
+Loading: single `Loader2` spinner while the first fetch resolves; subsequent realtime refreshes are silent (per `useLiveData` contract).
+Errors: wrap the Supabase calls in `try/catch` and `toast.error(...)` — the section renders whatever it managed to load.
+
+### 2. Mount on dashboard `src/routes/_authenticated/dashboard.tsx`
+- Import `AnalyticsSection`.
+- Render it inside the existing right-column `<div className="space-y-5 sm:space-y-8">`, **after the Stat Cards row and before the Getting Started card**, gated by `role !== "customer"`.
+- No changes to `MobileBottomNav`, no new route file, no changes to `TransactionsSection`.
+
+### 3. No backend changes needed
+- `orders` and `escrow` are already readable by the signed-in provider via existing RLS (`orders parties read`).
+- `reviews` reads scoped to `reviewed_id = auth.uid()` already exist per current app usage; we only read the seller's own review rows.
+- The realtime publication for `orders`, `escrow`, and `reviews` was enabled in a prior migration; no new migration is required. If `reviews` is not yet in `supabase_realtime`, the section still works — `useLiveData`'s 10s polling fallback keeps it fresh.
 
 ### Out of scope
-- No changes to auth logic, RLS, table schemas, or the `useLiveData` hook itself.
-- No visual redesign — the eye button uses existing icons and Tailwind utilities.
+- No CSV export, no per-service detail drilldowns.
+- No changes to the mobile bottom nav or navigation.
+- No customer-side analytics.
