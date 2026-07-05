@@ -55,6 +55,7 @@ export function EscrowOrdersSection() {
     const ch = supabase
       .channel(`escrow-my-${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "escrow" }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => load())
       .subscribe();
     return () => {
       supabase.removeChannel(ch);
