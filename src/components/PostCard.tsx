@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/providers";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { VerificationTicks } from "./VerificationTicks";
-import { Heart, MessageCircle, MoreHorizontal, Trash2, Rocket, Bookmark, Share as ShareIcon, MapPin } from "lucide-react";
+import { Heart, MessageCircle, MoreHorizontal, Trash2, Rocket, Bookmark, Share as ShareIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
