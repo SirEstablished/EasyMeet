@@ -4,7 +4,16 @@ import { supabase, formatNgn, type Order } from "@/integrations/supabase/client"
 import { useAuth } from "@/lib/providers";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Loader2, Star, CheckCircle2, XCircle, Shield, Search, SlidersHorizontal, Package } from "lucide-react";
+import {
+  Loader2,
+  Star,
+  CheckCircle2,
+  XCircle,
+  Shield,
+  Search,
+  SlidersHorizontal,
+  Package,
+} from "lucide-react";
 import { ReviewOrderDialog } from "@/components/ReviewOrderDialog";
 import { RequestRefundDialog } from "@/components/RequestRefundDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -48,14 +57,14 @@ function MyOrdersPage() {
         { data: revData, error: revError },
         { data: prodRevData, error: prodRevError },
       ] = await Promise.all([
-          supabase
-            .from("orders")
-            .select("*")
-            .or(`customer_id.eq.${user.id},provider_id.eq.${user.id}`)
-            .order("created_at", { ascending: false }),
-          supabase.from("reviews").select("order_id").eq("reviewer_id", user.id),
-          supabase.from("product_reviews").select("product_id").eq("reviewer_id", user.id),
-        ]);
+        supabase
+          .from("orders")
+          .select("*")
+          .or(`customer_id.eq.${user.id},provider_id.eq.${user.id}`)
+          .order("created_at", { ascending: false }),
+        supabase.from("reviews").select("order_id").eq("reviewer_id", user.id),
+        supabase.from("product_reviews").select("product_id").eq("reviewer_id", user.id),
+      ]);
       if (allError) throw allError;
       if (revError) throw revError;
       if (prodRevError) throw prodRevError;
@@ -67,18 +76,30 @@ function MyOrdersPage() {
       const inOrderIds = (inData ?? []).map((o) => o.id);
       const allOrderIds = [...new Set([...outOrderIds, ...inOrderIds])];
       const allProviderIds = [
-        ...new Set([...(outData ?? []).map((o) => o.provider_id), ...(inData ?? []).map((o) => o.provider_id)]),
+        ...new Set([
+          ...(outData ?? []).map((o) => o.provider_id),
+          ...(inData ?? []).map((o) => o.provider_id),
+        ]),
       ];
       const allCustomerIds = [
-        ...new Set([...(outData ?? []).map((o) => o.customer_id), ...(inData ?? []).map((o) => o.customer_id)]),
+        ...new Set([
+          ...(outData ?? []).map((o) => o.customer_id),
+          ...(inData ?? []).map((o) => o.customer_id),
+        ]),
       ];
 
       const [{ data: providers }, { data: customers }, { data: escrowData }] = await Promise.all([
         allProviderIds.length > 0
-          ? supabase.from("profiles").select("id, full_name, username, avatar_url").in("id", allProviderIds)
+          ? supabase
+              .from("profiles")
+              .select("id, full_name, username, avatar_url")
+              .in("id", allProviderIds)
           : Promise.resolve({ data: [] }),
         allCustomerIds.length > 0
-          ? supabase.from("profiles").select("id, full_name, username, avatar_url").in("id", allCustomerIds)
+          ? supabase
+              .from("profiles")
+              .select("id, full_name, username, avatar_url")
+              .in("id", allCustomerIds)
           : Promise.resolve({ data: [] }),
         allOrderIds.length > 0
           ? supabase.from("escrow").select("*").in("order_id", allOrderIds)
@@ -107,7 +128,8 @@ function MyOrdersPage() {
         const escrow = order.escrow;
         return (
           escrow &&
-          ((order as OrderWithEscrow & { escrow_status?: string }).escrow_status !== escrow.status ||
+          ((order as OrderWithEscrow & { escrow_status?: string }).escrow_status !==
+            escrow.status ||
             (order as OrderWithEscrow & { escrow_stage?: string }).escrow_stage !== escrow.stage)
         );
       });
@@ -163,35 +185,42 @@ function MyOrdersPage() {
     if (!o.escrow || !user) return;
     setBusyId(o.id);
     try {
-      const { data: rpcData, error: rpcError } = await supabase.rpc("release_escrow_payment" as never, {
-        p_escrow_id: o.escrow.id,
-        p_order_id: o.id,
-      } as never);
+      const { data: rpcData, error: rpcError } = await supabase.rpc(
+        "release_escrow_payment" as never,
+        {
+          p_escrow_id: o.escrow.id,
+          p_order_id: o.id,
+        } as never,
+      );
       if (rpcError) throw rpcError;
 
-      const result = (rpcData ?? {}) as {
+      const releaseResult = (rpcData ?? {}) as {
         commission?: number;
         payout?: number;
         amount?: number;
         professional_id?: string;
         already_released?: boolean;
       };
-      const commission = Number(result.commission ?? o.escrow.commission_amount ?? 0);
-      const payout = Number(result.payout ?? (o.amount - commission));
+      const commission = Number(releaseResult.commission ?? o.escrow.commission_amount ?? 0);
+      const payout = Number(releaseResult.payout ?? o.amount - commission);
       const grossAmount = Number(
-        result.amount ??
+        releaseResult.amount ??
           (o.escrow as unknown as { amount_ngn?: number; amount?: number }).amount_ngn ??
           (o.escrow as unknown as { amount?: number }).amount ??
           o.amount ??
           0,
       );
-      const professionalId = result.professional_id ?? o.provider_id;
+      const professionalId = releaseResult.professional_id ?? o.provider_id;
 
       // Explicit wallet credit (paired with a notification + realtime refresh).
       // release_escrow_payment no longer credits internally, so this is the
       // single source of truth. Skip on `already_released` to avoid
       // double-crediting on re-clicks.
-      if (!result.already_released && professionalId) {
+      if (!releaseResult.already_released && professionalId) {
+        console.log("[wallet] crediting", {
+          amount: releaseResult.amount,
+          commission: releaseResult.commission,
+        });
         const { error: creditError } = await supabase.rpc(
           "credit_wallet_after_release" as never,
           {
@@ -363,7 +392,10 @@ function MyOrdersPage() {
           amount={Number(refunding.amount ?? refunding.escrow.amount_ngn ?? 0)}
           serviceTitle={refunding.service_title}
           customerName={
-            refunding.customer?.full_name || refunding.customer?.username || profile?.full_name || "Customer"
+            refunding.customer?.full_name ||
+            refunding.customer?.username ||
+            profile?.full_name ||
+            "Customer"
           }
           onSubmitted={() => {
             setOutgoing((cur) =>
@@ -475,8 +507,7 @@ function OrderList({
         const orderEscrowStatus = (o as OrderWithEscrow & { escrow_status?: string }).escrow_status;
         const alreadyRequested =
           orderStatus === "refund_requested" ||
-          (!!o.escrow?.refund_status &&
-            (o.escrow.refund_status as string) !== "none");
+          (!!o.escrow?.refund_status && (o.escrow.refund_status as string) !== "none");
         const isCancelled =
           escrowStatus === "cancelled" ||
           orderEscrowStatus === "cancelled" ||
@@ -508,18 +539,10 @@ function OrderList({
             className="rounded-2xl bg-card border border-border/60 p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:shadow-[0_10px_28px_-16px_rgba(108,76,246,0.25)] hover:border-primary/30 transition-all"
           >
             <div className="flex items-start gap-3.5">
-              <Link
-                to="/profile/$id"
-                params={{ id: otherId }}
-                className="shrink-0"
-              >
+              <Link to="/profile/$id" params={{ id: otherId }} className="shrink-0">
                 <div className="h-[68px] w-[68px] rounded-2xl overflow-hidden bg-muted grid place-items-center">
                   {other?.avatar_url ? (
-                    <img
-                      src={other.avatar_url}
-                      alt={name}
-                      className="h-full w-full object-cover"
-                    />
+                    <img src={other.avatar_url} alt={name} className="h-full w-full object-cover" />
                   ) : (
                     <Avatar className="h-full w-full rounded-none">
                       <AvatarFallback className="rounded-none bg-primary/10 text-primary font-bold text-lg">
@@ -546,8 +569,7 @@ function OrderList({
                     From {name}
                   </div>
                   {(() => {
-                    const isCompleted =
-                      o.status === "completed" || escrowStatus === "released";
+                    const isCompleted = o.status === "completed" || escrowStatus === "released";
                     if (isEscrow && escrowStatus === "holding") {
                       return (
                         <div className="text-[13px] font-semibold text-primary mt-1">
@@ -582,48 +604,54 @@ function OrderList({
                     {formatNgn(o.amount)}
                   </div>
                   {(() => {
-                const effective =
-                  escrowStatus === "cancelled" || o.status === "cancelled"
-                    ? "cancelled"
-                    : escrowStatus === "released" || escrowStatus === "completed" || o.status === "completed"
-                      ? "completed"
-                      : escrowStatus === "holding" || escrowStatus === "in_progress" || o.status === "confirmed"
-                        ? "in_escrow"
-                        : escrowStatus === "disputed"
-                          ? "disputed"
-                          : escrowStatus === "refunded"
-                            ? "refunded"
-                            : "pending";
-                const label =
-                  effective === "in_escrow"
-                    ? "In Progress"
-                    : effective === "completed"
-                      ? "Completed"
-                      : effective === "cancelled"
-                        ? "Cancelled"
-                        : effective === "disputed"
-                          ? "Disputed"
-                          : effective === "refunded"
-                            ? "Refunded"
-                            : "Pending";
-                const cls =
-                  effective === "in_escrow"
-                    ? "bg-primary/10 text-primary"
-                    : effective === "completed"
-                      ? "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400"
-                      : effective === "cancelled"
-                        ? "bg-red-500/12 text-red-600 dark:text-red-400"
-                        : effective === "disputed"
-                          ? "bg-orange-500/12 text-orange-600 dark:text-orange-400"
-                          : effective === "refunded"
-                            ? "bg-muted text-muted-foreground"
-                            : "bg-amber-500/12 text-amber-700 dark:text-amber-400";
-                return (
-                  <span className={`inline-block mt-2 px-2.5 py-1 rounded-full text-[11px] font-semibold ${cls}`}>
-                    {label}
-                  </span>
-                );
-              })()}
+                    const effective =
+                      escrowStatus === "cancelled" || o.status === "cancelled"
+                        ? "cancelled"
+                        : escrowStatus === "released" ||
+                            escrowStatus === "completed" ||
+                            o.status === "completed"
+                          ? "completed"
+                          : escrowStatus === "holding" ||
+                              escrowStatus === "in_progress" ||
+                              o.status === "confirmed"
+                            ? "in_escrow"
+                            : escrowStatus === "disputed"
+                              ? "disputed"
+                              : escrowStatus === "refunded"
+                                ? "refunded"
+                                : "pending";
+                    const label =
+                      effective === "in_escrow"
+                        ? "In Progress"
+                        : effective === "completed"
+                          ? "Completed"
+                          : effective === "cancelled"
+                            ? "Cancelled"
+                            : effective === "disputed"
+                              ? "Disputed"
+                              : effective === "refunded"
+                                ? "Refunded"
+                                : "Pending";
+                    const cls =
+                      effective === "in_escrow"
+                        ? "bg-primary/10 text-primary"
+                        : effective === "completed"
+                          ? "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400"
+                          : effective === "cancelled"
+                            ? "bg-red-500/12 text-red-600 dark:text-red-400"
+                            : effective === "disputed"
+                              ? "bg-orange-500/12 text-orange-600 dark:text-orange-400"
+                              : effective === "refunded"
+                                ? "bg-muted text-muted-foreground"
+                                : "bg-amber-500/12 text-amber-700 dark:text-amber-400";
+                    return (
+                      <span
+                        className={`inline-block mt-2 px-2.5 py-1 rounded-full text-[11px] font-semibold ${cls}`}
+                      >
+                        {label}
+                      </span>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
