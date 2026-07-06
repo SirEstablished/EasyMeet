@@ -57,12 +57,22 @@ export function computeAgreementFees(materials: number, labor: number, contingen
   const c = Math.max(0, Number(contingency) || 0);
   const subtotal = m + l + c;
   const commission = l >= 5000 ? Math.round(l * 0.03 * 100) / 100 : 0;
-  const paystackFee = subtotal > 0
-    ? Math.min(2000, Math.round((subtotal * 0.015 + (subtotal >= 2500 ? 100 : 0)) * 100) / 100)
-    : 0;
+  const paystackFee =
+    subtotal > 0
+      ? Math.min(2000, Math.round((subtotal * 0.015 + (subtotal >= 2500 ? 100 : 0)) * 100) / 100)
+      : 0;
   const totalPaid = subtotal + paystackFee;
   const professionalReceives = Math.max(0, m + l - commission);
-  return { materials: m, labor: l, contingency: c, subtotal, commission, paystackFee, totalPaid, professionalReceives };
+  return {
+    materials: m,
+    labor: l,
+    contingency: c,
+    subtotal,
+    commission,
+    paystackFee,
+    totalPaid,
+    professionalReceives,
+  };
 }
 
 interface Props {
@@ -133,7 +143,8 @@ function escrowFromLatestRow(row: Record<string, unknown> | null): EscrowOrder |
     agreement_id: (row.agreement_id as string | null) ?? null,
     product_id: (row.product_id as string | null) ?? null,
     quantity: (row.quantity as number | null) ?? null,
-    title: (row.title as string | undefined) ?? (row.service_title as string | undefined) ?? "Order",
+    title:
+      (row.title as string | undefined) ?? (row.service_title as string | undefined) ?? "Order",
     amount_ngn: amount,
     commission_amount: commission,
     payout_amount: Number(row.payout_amount ?? amount - commission),
@@ -206,22 +217,23 @@ export function EscrowPanel({
 
   const load = async () => {
     try {
-      const [{ data: ag, error: agError }, { data: latestEscrow, error: escrowError }] = await Promise.all([
-        supabase
-          .from("service_agreements")
-          .select("*")
-          .eq("conversation_id", conversationId)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-        supabase
-          .from("escrow")
-          .select("*")
-          .eq("conversation_id", conversationId)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-      ]);
+      const [{ data: ag, error: agError }, { data: latestEscrow, error: escrowError }] =
+        await Promise.all([
+          supabase
+            .from("service_agreements")
+            .select("*")
+            .eq("conversation_id", conversationId)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from("escrow")
+            .select("*")
+            .eq("conversation_id", conversationId)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+        ]);
       if (agError) throw new Error(agError.message);
       if (escrowError) throw new Error(escrowError.message);
 
@@ -236,7 +248,13 @@ export function EscrowPanel({
       const escrowReleasedAt = latestTime(escrowRaw, ["released_at", "updated_at", "created_at"]);
       const newestRecordAt = Math.max(
         agreementUpdatedAt,
-        latestTime(escrowRaw, ["created_at", "updated_at", "cancelled_at", "released_at", "refunded_at"]),
+        latestTime(escrowRaw, [
+          "created_at",
+          "updated_at",
+          "cancelled_at",
+          "released_at",
+          "refunded_at",
+        ]),
       );
 
       let nextAgreement: AgreementRow | null = null;
@@ -256,7 +274,9 @@ export function EscrowPanel({
         nextAgreement = agObj;
         nextOrder = odObj;
       } else if (
-        (odObj?.status === "released" || odObj?.status === "completed" || odObj?.status === "refunded") &&
+        (odObj?.status === "released" ||
+          odObj?.status === "completed" ||
+          odObj?.status === "refunded") &&
         !(agObj && agreementCreatedAt > escrowReleasedAt)
       ) {
         nextAgreement = agObj;
@@ -276,7 +296,10 @@ export function EscrowPanel({
       } else if (agObj?.status === "pending") {
         nextAgreement = agObj;
         nextOrder = null;
-      } else if (agObj?.status === "cancelled" && (!odObj || escrowCreatedAt <= agreementCreatedAt)) {
+      } else if (
+        agObj?.status === "cancelled" &&
+        (!odObj || escrowCreatedAt <= agreementCreatedAt)
+      ) {
         nextAgreement = agObj;
         nextOrder = null;
       }
@@ -304,7 +327,9 @@ export function EscrowPanel({
       }
 
       const visibleAgreement =
-        nextAgreement && nextAgreement.id === dismissedAgreementIdRef.current ? null : nextAgreement;
+        nextAgreement && nextAgreement.id === dismissedAgreementIdRef.current
+          ? null
+          : nextAgreement;
       setAgreement(visibleAgreement);
       setOrder((prev) => {
         const next = nextOrder && nextOrder.id === dismissedOrderIdRef.current ? null : nextOrder;
@@ -447,7 +472,17 @@ export function EscrowPanel({
     return () => {
       cancelled = true;
     };
-  }, [agreement, conversationId, loadedConversationId, loading, meId, meRole, order?.status, other, roleRefreshKey]);
+  }, [
+    agreement,
+    conversationId,
+    loadedConversationId,
+    loading,
+    meId,
+    meRole,
+    order?.status,
+    other,
+    roleRefreshKey,
+  ]);
 
   // Stage 6 → show completion summary for 5s, then hide the panel entirely.
   useEffect(() => {
@@ -741,9 +776,10 @@ export function EscrowPanel({
       const { error: messageError } = await supabase.from("messages").insert({
         conversation_id: conversationId,
         sender_id: meId,
-        body: materialsCost > 0
-          ? `💳 Payment of ${formatNgn(chargeAmount)} placed in escrow. ${formatNgn(materialsCost)} for materials released to professional. Work can begin.`
-          : `💳 Payment of ${formatNgn(chargeAmount)} placed in escrow. Work can begin.`,
+        body:
+          materialsCost > 0
+            ? `💳 Payment of ${formatNgn(chargeAmount)} placed in escrow. ${formatNgn(materialsCost)} for materials released to professional. Work can begin.`
+            : `💳 Payment of ${formatNgn(chargeAmount)} placed in escrow. Work can begin.`,
       });
       if (messageError) console.error("Escrow payment message failed", messageError);
 
@@ -800,17 +836,17 @@ export function EscrowPanel({
       // reports `already_released` — the wallet was credited on the first
       // successful call and we must not double-credit.
       if (!releaseResult.already_released && professionalId) {
-        console.log("[wallet] crediting", { amount: releaseResult.amount, commission: releaseResult.commission });
-        const { error: creditError } = await supabase.rpc(
-          "credit_wallet_after_release",
-          {
-            p_user_id: professionalId,
-            p_amount: grossAmount,
-            p_commission: commission,
-            p_order_id: order.order_id,
-            p_escrow_id: order.id,
-          },
-        );
+        console.log("[wallet] crediting", {
+          amount: releaseResult.amount,
+          commission: releaseResult.commission,
+        });
+        const { error: creditError } = await supabase.rpc("credit_wallet_after_release", {
+          p_user_id: professionalId,
+          p_amount: grossAmount,
+          p_commission: commission,
+          p_order_id: order.order_id,
+          p_escrow_id: order.id,
+        });
         if (creditError) console.error("Wallet credit failed", creditError);
       }
 
@@ -870,7 +906,7 @@ export function EscrowPanel({
     const cancellerName =
       cancelledBy && cancelledBy === meId
         ? "you"
-        : (other?.full_name || other?.username || "the other party");
+        : other?.full_name || other?.username || "the other party";
     const cancelledDate = cancelledAt
       ? new Date(cancelledAt).toLocaleString(undefined, {
           dateStyle: "medium",
@@ -888,12 +924,9 @@ export function EscrowPanel({
             </Badge>
           </div>
           <p className="text-sm text-foreground">
-            This deal was cancelled by{" "}
-            <span className="font-semibold">{cancellerName}</span>.
+            This deal was cancelled by <span className="font-semibold">{cancellerName}</span>.
           </p>
-          {cancelledDate && (
-            <p className="text-xs text-muted-foreground mt-1">{cancelledDate}</p>
-          )}
+          {cancelledDate && <p className="text-xs text-muted-foreground mt-1">{cancelledDate}</p>}
           <Button
             size="sm"
             onClick={startNewDeal}
@@ -993,14 +1026,16 @@ export function EscrowPanel({
             <span className="font-semibold">
               {(order as unknown as { cancelled_by?: string | null })?.cancelled_by === meId
                 ? "you"
-                : (other?.full_name || other?.username || "the other party")}
-            </span>.
+                : other?.full_name || other?.username || "the other party"}
+            </span>
+            .
           </p>
           {(order as unknown as { cancelled_at?: string | null })?.cancelled_at && (
             <p className="text-xs text-muted-foreground mt-1">
-              {new Date(
-                (order as unknown as { cancelled_at: string }).cancelled_at,
-              ).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
+              {new Date((order as unknown as { cancelled_at: string }).cancelled_at).toLocaleString(
+                undefined,
+                { dateStyle: "medium", timeStyle: "short" },
+              )}
             </p>
           )}
           <Button
@@ -1014,7 +1049,6 @@ export function EscrowPanel({
       )}
 
       <div className="flex flex-wrap gap-2">
-
         {/* Stage 2 — provider sends agreement (AI-detected role) */}
         {!isCancelled &&
           iAmProvider === true &&
@@ -1034,7 +1068,12 @@ export function EscrowPanel({
 
         {/* Stage 3 — pay into escrow */}
         {!isCancelled && iAmProvider === false && agreement?.status === "accepted" && !order && (
-          <Button size="sm" onClick={openPayBreakdown} disabled={paying} className="bg-gradient-brand">
+          <Button
+            size="sm"
+            onClick={openPayBreakdown}
+            disabled={paying}
+            className="bg-gradient-brand"
+          >
             {paying ? (
               <Loader2 className="h-4 w-4 mr-1 animate-spin" />
             ) : (
@@ -1061,11 +1100,13 @@ export function EscrowPanel({
           )}
 
         {/* Dispute */}
-        {!isCancelled && order && (order.status === "holding" || order.status === "in_progress") && (
-          <Button size="sm" variant="outline" onClick={() => setDisputeOpen(true)}>
-            <AlertTriangle className="h-4 w-4 mr-1" /> Open Dispute
-          </Button>
-        )}
+        {!isCancelled &&
+          order &&
+          (order.status === "holding" || order.status === "in_progress") && (
+            <Button size="sm" variant="outline" onClick={() => setDisputeOpen(true)}>
+              <AlertTriangle className="h-4 w-4 mr-1" /> Open Dispute
+            </Button>
+          )}
 
         {(order?.status === "released" || order?.status === "completed") && (
           <div className="w-full rounded-2xl bg-accent/10 border border-accent/20 p-4 sm:p-5 space-y-4">
@@ -1082,7 +1123,9 @@ export function EscrowPanel({
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="text-lg font-bold tracking-tight text-foreground">Deal Completed!</h3>
+                  <h3 className="text-lg font-bold tracking-tight text-foreground">
+                    Deal Completed!
+                  </h3>
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/12 border border-accent/20 px-2.5 py-1 text-xs font-medium text-accent">
                     <Shield className="h-3.5 w-3.5" />
                     Escrow Secured
@@ -1101,7 +1144,9 @@ export function EscrowPanel({
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs text-muted-foreground">Amount Paid</p>
-                  <p className="text-base font-bold text-foreground truncate">{formatNgn(order.amount_ngn)}</p>
+                  <p className="text-base font-bold text-foreground truncate">
+                    {formatNgn(order.amount_ngn)}
+                  </p>
                 </div>
               </div>
 
@@ -1111,7 +1156,9 @@ export function EscrowPanel({
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs text-muted-foreground">EasyMeet Commission (3%)</p>
-                  <p className="text-base font-bold text-foreground truncate">{formatNgn(order.commission_amount)}</p>
+                  <p className="text-base font-bold text-foreground truncate">
+                    {formatNgn(order.commission_amount)}
+                  </p>
                 </div>
               </div>
 
@@ -1121,7 +1168,9 @@ export function EscrowPanel({
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs text-muted-foreground">Professional Received</p>
-                  <p className="text-base font-bold text-accent truncate">{formatNgn(order.payout_amount)}</p>
+                  <p className="text-base font-bold text-accent truncate">
+                    {formatNgn(order.payout_amount)}
+                  </p>
                 </div>
               </div>
             </div>
@@ -1132,7 +1181,9 @@ export function EscrowPanel({
           <div className="w-full rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive flex items-center gap-2">
             <AlertTriangle className="h-4 w-4" />
             <span className="font-medium">Dispute Under Review</span>
-            <span className="text-destructive/80">— EasyMeet admin will review within 24–48 hours.</span>
+            <span className="text-destructive/80">
+              — EasyMeet admin will review within 24–48 hours.
+            </span>
           </div>
         )}
 
@@ -1254,7 +1305,7 @@ function PaymentBreakdownDialog({
   const labor = Number(ag.labor_cost ?? 0);
   const contingency = Number(ag.contingency_cost ?? 0);
   const fallback = computeAgreementFees(materials, labor, contingency);
-  const subtotal = Number(ag.total_amount ?? (materials + labor + contingency)) || agreement.price;
+  const subtotal = Number(ag.total_amount ?? materials + labor + contingency) || agreement.price;
   const commission = Number(ag.commission_amount ?? fallback.commission);
   const paystackFee = Number(ag.paystack_fee ?? fallback.paystackFee);
   const total = subtotal + paystackFee;
@@ -1266,13 +1317,19 @@ function PaymentBreakdownDialog({
           <DialogTitle>Confirm payment breakdown</DialogTitle>
         </DialogHeader>
         <div className="rounded-lg border border-border/60 bg-background/40 p-3 space-y-1 text-sm">
-          {materials > 0 && <SummaryRow label="Materials (released immediately)" value={materials} />}
+          {materials > 0 && (
+            <SummaryRow label="Materials (released immediately)" value={materials} />
+          )}
           {labor > 0 && <SummaryRow label="Labor (held in escrow)" value={labor} />}
           {contingency > 0 && <SummaryRow label="Contingency (buffer)" value={contingency} />}
           {materials === 0 && labor === 0 && contingency === 0 && (
             <SummaryRow label="Escrow amount" value={subtotal} />
           )}
-          <SummaryRow label="EasyMeet commission (deducted at completion)" value={commission} muted />
+          <SummaryRow
+            label="EasyMeet commission (deducted at completion)"
+            value={commission}
+            muted
+          />
           <SummaryRow label="Paystack fee" value={paystackFee} muted />
           <div className="border-t border-border/50 my-1" />
           <SummaryRow label="Total you pay" value={total} bold />
@@ -1283,7 +1340,11 @@ function PaymentBreakdownDialog({
             Cancel
           </Button>
           <Button onClick={onConfirm} disabled={paying} className="bg-gradient-brand">
-            {paying ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <CreditCard className="h-4 w-4 mr-1" />}
+            {paying ? (
+              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+            ) : (
+              <CreditCard className="h-4 w-4 mr-1" />
+            )}
             Confirm & Pay {formatNgn(total)}
           </Button>
         </DialogFooter>
@@ -1345,11 +1406,26 @@ function SendAgreementDialog({
       case "service":
         return { immediate: 0, held: n(serviceFee), contingency: 0, commissionable: n(serviceFee) };
       case "material_labor":
-        return { immediate: n(materials), held: n(labor), contingency: n(contingency), commissionable: n(labor) };
+        return {
+          immediate: n(materials),
+          held: n(labor),
+          contingency: n(contingency),
+          commissionable: n(labor),
+        };
       case "product_sale":
-        return { immediate: n(productPrice) + n(productDeliveryFee), held: 0, contingency: 0, commissionable: 0 };
+        return {
+          immediate: n(productPrice) + n(productDeliveryFee),
+          held: 0,
+          contingency: 0,
+          commissionable: 0,
+        };
       case "supply":
-        return { immediate: n(supplyCost) + n(supplyDeliveryFee), held: 0, contingency: 0, commissionable: 0 };
+        return {
+          immediate: n(supplyCost) + n(supplyDeliveryFee),
+          held: 0,
+          contingency: 0,
+          commissionable: 0,
+        };
       case "delivery":
         return { immediate: 0, held: n(deliveryFee), contingency: 0, commissionable: 0 };
       case "milestone": {
@@ -1411,16 +1487,23 @@ function SendAgreementDialog({
   }, [open, conversationId]);
 
   const titleLabel =
-    agreementType === "product_sale" ? "Product name" :
-    agreementType === "milestone" ? "Project title" :
-    "Job title";
+    agreementType === "product_sale"
+      ? "Product name"
+      : agreementType === "milestone"
+        ? "Project title"
+        : "Job title";
   const descLabel =
-    agreementType === "product_sale" ? "Product description" :
-    agreementType === "supply" ? "Supply description" :
-    agreementType === "delivery" ? "Item description" :
-    agreementType === "milestone" ? "Project description" :
-    agreementType === "service" ? "Service description" :
-    "Description";
+    agreementType === "product_sale"
+      ? "Product description"
+      : agreementType === "supply"
+        ? "Supply description"
+        : agreementType === "delivery"
+          ? "Item description"
+          : agreementType === "milestone"
+            ? "Project description"
+            : agreementType === "service"
+              ? "Service description"
+              : "Description";
   const dateLabel = agreementType === "milestone" ? "Project end date" : "Delivery date";
   const showTitle = agreementType !== "delivery" && agreementType !== "supply";
 
@@ -1444,12 +1527,13 @@ function SendAgreementDialog({
       extras.push(`Drop-off: ${dropoffLocation.trim()}`);
     }
     if (agreementType === "milestone") {
-      if (m1Desc.trim() || m1Amt) extras.push(`Milestone 1: ${m1Desc.trim()} — ${formatNgn(Number(m1Amt) || 0)}`);
-      if (m2Desc.trim() || m2Amt) extras.push(`Milestone 2: ${m2Desc.trim()} — ${formatNgn(Number(m2Amt) || 0)}`);
+      if (m1Desc.trim() || m1Amt)
+        extras.push(`Milestone 1: ${m1Desc.trim()} — ${formatNgn(Number(m1Amt) || 0)}`);
+      if (m2Desc.trim() || m2Amt)
+        extras.push(`Milestone 2: ${m2Desc.trim()} — ${formatNgn(Number(m2Amt) || 0)}`);
       if (finalPayment) extras.push(`Final payment: ${formatNgn(Number(finalPayment) || 0)}`);
     }
-    const termsFinal =
-      [terms.trim(), extras.join("\n")].filter(Boolean).join("\n\n") || null;
+    const termsFinal = [terms.trim(), extras.join("\n")].filter(Boolean).join("\n\n") || null;
 
     const payload: Record<string, unknown> = {
       conversation_id: conversationId,
@@ -1469,9 +1553,7 @@ function SendAgreementDialog({
       commission_amount: commission,
       paystack_fee: fees.paystackFee,
     };
-    const { error } = await supabase
-      .from("service_agreements")
-      .insert(payload as never);
+    const { error } = await supabase.from("service_agreements").insert(payload as never);
     if (!error) {
       await supabase.from("messages").insert({
         conversation_id: conversationId,
@@ -1503,10 +1585,14 @@ function SendAgreementDialog({
           <div>
             <Label>Agreement type</Label>
             <Select value={agreementType} onValueChange={setAgreementType}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 {AGREEMENT_TYPES.map((t) => (
-                  <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                  <SelectItem key={t.value} value={t.value}>
+                    {t.label}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -1541,9 +1627,20 @@ function SendAgreementDialog({
 
           {agreementType === "service" && (
             <div>
-              <Label>Labor / Service fee (₦) <span className="text-destructive">*</span></Label>
-              <Input type="number" min="0" step="1" value={serviceFee} onChange={(e) => setServiceFee(e.target.value)} placeholder="0" />
-              <p className="text-[11px] text-muted-foreground mt-1">Released after job completion.</p>
+              <Label>
+                Labor / Service fee (₦) <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                type="number"
+                min="0"
+                step="1"
+                value={serviceFee}
+                onChange={(e) => setServiceFee(e.target.value)}
+                placeholder="0"
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Released after job completion.
+              </p>
             </div>
           )}
 
@@ -1551,18 +1648,45 @@ function SendAgreementDialog({
             <>
               <div>
                 <Label>Materials cost (₦)</Label>
-                <Input type="number" min="0" step="1" value={materials} onChange={(e) => setMaterials(e.target.value)} placeholder="0" />
-                <p className="text-[11px] text-muted-foreground mt-1">Released immediately upon acceptance.</p>
+                <Input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={materials}
+                  onChange={(e) => setMaterials(e.target.value)}
+                  placeholder="0"
+                />
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Released immediately upon acceptance.
+                </p>
               </div>
               <div>
                 <Label>Labor fee (₦)</Label>
-                <Input type="number" min="0" step="1" value={labor} onChange={(e) => setLabor(e.target.value)} placeholder="0" />
-                <p className="text-[11px] text-muted-foreground mt-1">Released after job completion.</p>
+                <Input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={labor}
+                  onChange={(e) => setLabor(e.target.value)}
+                  placeholder="0"
+                />
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Released after job completion.
+                </p>
               </div>
               <div>
                 <Label>Contingency (₦)</Label>
-                <Input type="number" min="0" step="1" value={contingency} onChange={(e) => setContingency(e.target.value)} placeholder="0" />
-                <p className="text-[11px] text-muted-foreground mt-1">Optional buffer — refunded if unused.</p>
+                <Input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={contingency}
+                  onChange={(e) => setContingency(e.target.value)}
+                  placeholder="0"
+                />
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Optional buffer — refunded if unused.
+                </p>
               </div>
             </>
           )}
@@ -1570,13 +1694,31 @@ function SendAgreementDialog({
           {agreementType === "product_sale" && (
             <>
               <div>
-                <Label>Product price (₦) <span className="text-destructive">*</span></Label>
-                <Input type="number" min="0" step="1" value={productPrice} onChange={(e) => setProductPrice(e.target.value)} placeholder="0" />
-                <p className="text-[11px] text-muted-foreground mt-1">Released immediately on delivery confirmation.</p>
+                <Label>
+                  Product price (₦) <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={productPrice}
+                  onChange={(e) => setProductPrice(e.target.value)}
+                  placeholder="0"
+                />
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Released immediately on delivery confirmation.
+                </p>
               </div>
               <div>
                 <Label>Delivery fee (₦)</Label>
-                <Input type="number" min="0" step="1" value={productDeliveryFee} onChange={(e) => setProductDeliveryFee(e.target.value)} placeholder="0" />
+                <Input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={productDeliveryFee}
+                  onChange={(e) => setProductDeliveryFee(e.target.value)}
+                  placeholder="0"
+                />
                 <p className="text-[11px] text-muted-foreground mt-1">Released immediately.</p>
               </div>
             </>
@@ -1585,13 +1727,29 @@ function SendAgreementDialog({
           {agreementType === "supply" && (
             <>
               <div>
-                <Label>Supply / materials cost (₦) <span className="text-destructive">*</span></Label>
-                <Input type="number" min="0" step="1" value={supplyCost} onChange={(e) => setSupplyCost(e.target.value)} placeholder="0" />
+                <Label>
+                  Supply / materials cost (₦) <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={supplyCost}
+                  onChange={(e) => setSupplyCost(e.target.value)}
+                  placeholder="0"
+                />
                 <p className="text-[11px] text-muted-foreground mt-1">Released immediately.</p>
               </div>
               <div>
                 <Label>Delivery fee (₦)</Label>
-                <Input type="number" min="0" step="1" value={supplyDeliveryFee} onChange={(e) => setSupplyDeliveryFee(e.target.value)} placeholder="0" />
+                <Input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={supplyDeliveryFee}
+                  onChange={(e) => setSupplyDeliveryFee(e.target.value)}
+                  placeholder="0"
+                />
                 <p className="text-[11px] text-muted-foreground mt-1">Released immediately.</p>
               </div>
             </>
@@ -1600,17 +1758,40 @@ function SendAgreementDialog({
           {agreementType === "delivery" && (
             <>
               <div>
-                <Label>Pickup location <span className="text-destructive">*</span></Label>
-                <Input value={pickupLocation} onChange={(e) => setPickupLocation(e.target.value)} maxLength={200} />
+                <Label>
+                  Pickup location <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  value={pickupLocation}
+                  onChange={(e) => setPickupLocation(e.target.value)}
+                  maxLength={200}
+                />
               </div>
               <div>
-                <Label>Delivery location <span className="text-destructive">*</span></Label>
-                <Input value={dropoffLocation} onChange={(e) => setDropoffLocation(e.target.value)} maxLength={200} />
+                <Label>
+                  Delivery location <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  value={dropoffLocation}
+                  onChange={(e) => setDropoffLocation(e.target.value)}
+                  maxLength={200}
+                />
               </div>
               <div>
-                <Label>Delivery fee (₦) <span className="text-destructive">*</span></Label>
-                <Input type="number" min="0" step="1" value={deliveryFee} onChange={(e) => setDeliveryFee(e.target.value)} placeholder="0" />
-                <p className="text-[11px] text-muted-foreground mt-1">Released after delivery confirmed.</p>
+                <Label>
+                  Delivery fee (₦) <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={deliveryFee}
+                  onChange={(e) => setDeliveryFee(e.target.value)}
+                  placeholder="0"
+                />
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Released after delivery confirmed.
+                </p>
               </div>
             </>
           )}
@@ -1620,27 +1801,58 @@ function SendAgreementDialog({
               <div className="grid grid-cols-[1fr_140px] gap-2">
                 <div>
                   <Label>Milestone 1 description</Label>
-                  <Input value={m1Desc} onChange={(e) => setM1Desc(e.target.value)} maxLength={160} />
+                  <Input
+                    value={m1Desc}
+                    onChange={(e) => setM1Desc(e.target.value)}
+                    maxLength={160}
+                  />
                 </div>
                 <div>
                   <Label>Amount (₦)</Label>
-                  <Input type="number" min="0" step="1" value={m1Amt} onChange={(e) => setM1Amt(e.target.value)} placeholder="0" />
+                  <Input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={m1Amt}
+                    onChange={(e) => setM1Amt(e.target.value)}
+                    placeholder="0"
+                  />
                 </div>
               </div>
               <div className="grid grid-cols-[1fr_140px] gap-2">
                 <div>
                   <Label>Milestone 2 description</Label>
-                  <Input value={m2Desc} onChange={(e) => setM2Desc(e.target.value)} maxLength={160} />
+                  <Input
+                    value={m2Desc}
+                    onChange={(e) => setM2Desc(e.target.value)}
+                    maxLength={160}
+                  />
                 </div>
                 <div>
                   <Label>Amount (₦)</Label>
-                  <Input type="number" min="0" step="1" value={m2Amt} onChange={(e) => setM2Amt(e.target.value)} placeholder="0" />
+                  <Input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={m2Amt}
+                    onChange={(e) => setM2Amt(e.target.value)}
+                    placeholder="0"
+                  />
                 </div>
               </div>
               <div>
                 <Label>Final payment (₦)</Label>
-                <Input type="number" min="0" step="1" value={finalPayment} onChange={(e) => setFinalPayment(e.target.value)} placeholder="0" />
-                <p className="text-[11px] text-muted-foreground mt-1">Released after full completion.</p>
+                <Input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={finalPayment}
+                  onChange={(e) => setFinalPayment(e.target.value)}
+                  placeholder="0"
+                />
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Released after full completion.
+                </p>
               </div>
             </>
           )}
@@ -1649,7 +1861,11 @@ function SendAgreementDialog({
             <Label>
               {dateLabel} <span className="text-destructive">*</span>
             </Label>
-            <Input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} />
+            <Input
+              type="date"
+              value={deliveryDate}
+              onChange={(e) => setDeliveryDate(e.target.value)}
+            />
           </div>
 
           {agreementType !== "delivery" && (
@@ -1665,7 +1881,9 @@ function SendAgreementDialog({
           )}
 
           <div className="rounded-lg border border-border/60 bg-background/40 p-3 space-y-1 text-sm">
-            <div className="text-xs font-bold uppercase tracking-wide text-gradient-tri mb-1">Payment summary</div>
+            <div className="text-xs font-bold uppercase tracking-wide text-gradient-tri mb-1">
+              Payment summary
+            </div>
             {mapped.immediate > 0 && (
               <SummaryRow label="Released immediately" value={mapped.immediate} />
             )}
@@ -1675,8 +1893,14 @@ function SendAgreementDialog({
                 value={mapped.held}
               />
             )}
-            {mapped.contingency > 0 && <SummaryRow label="Contingency" value={mapped.contingency} />}
-            <SummaryRow label="EasyMeet commission (3% of labor/service)" value={commission} muted />
+            {mapped.contingency > 0 && (
+              <SummaryRow label="Contingency" value={mapped.contingency} />
+            )}
+            <SummaryRow
+              label="EasyMeet commission (3% of labor/service)"
+              value={commission}
+              muted
+            />
             <SummaryRow label="Paystack fee" value={fees.paystackFee} muted />
             <div className="border-t border-border/50 my-1" />
             <SummaryRow label="Total customer pays" value={fees.totalPaid} bold />
