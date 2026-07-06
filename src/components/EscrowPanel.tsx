@@ -836,14 +836,15 @@ export function EscrowPanel({
       // reports `already_released` — the wallet was credited on the first
       // successful call and we must not double-credit.
       if (!releaseResult.already_released && professionalId) {
+        console.log("[wallet] release result:", releaseResult);
         console.log("[wallet] crediting", {
-          amount: releaseResult.amount,
-          commission: releaseResult.commission,
+          amount: payout,
+          commission: commission,
         });
         const { error: creditError } = await supabase.rpc("credit_wallet_after_release", {
           p_user_id: professionalId,
-          p_amount: grossAmount,
-          p_commission: commission,
+          p_amount: payout, // NET amount professional receives
+          p_commission: commission, // commission EasyMeet took
           p_order_id: order.order_id,
           p_escrow_id: order.id,
         });

@@ -217,16 +217,17 @@ function MyOrdersPage() {
       // single source of truth. Skip on `already_released` to avoid
       // double-crediting on re-clicks.
       if (!releaseResult.already_released && professionalId) {
+        console.log("[wallet] release result:", releaseResult);
         console.log("[wallet] crediting", {
-          amount: releaseResult.amount,
-          commission: releaseResult.commission,
+          amount: payout,
+          commission: commission,
         });
         const { error: creditError } = await supabase.rpc(
           "credit_wallet_after_release" as never,
           {
             p_user_id: professionalId,
-            p_amount: grossAmount,
-            p_commission: commission,
+            p_amount: payout, // NET amount professional receives
+            p_commission: commission, // commission EasyMeet took
             p_order_id: o.id,
             p_escrow_id: o.escrow.id,
           } as never,
