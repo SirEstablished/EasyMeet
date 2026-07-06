@@ -169,29 +169,30 @@ function MyOrdersPage() {
       } as never);
       if (rpcError) throw rpcError;
 
-      const result = (rpcData ?? {}) as {
+      const releaseResult = (rpcData ?? {}) as {
         commission?: number;
         payout?: number;
         amount?: number;
         professional_id?: string;
         already_released?: boolean;
       };
-      const commission = Number(result.commission ?? o.escrow.commission_amount ?? 0);
-      const payout = Number(result.payout ?? (o.amount - commission));
+      const commission = Number(releaseResult.commission ?? o.escrow.commission_amount ?? 0);
+      const payout = Number(releaseResult.payout ?? (o.amount - commission));
       const grossAmount = Number(
-        result.amount ??
+        releaseResult.amount ??
           (o.escrow as unknown as { amount_ngn?: number; amount?: number }).amount_ngn ??
           (o.escrow as unknown as { amount?: number }).amount ??
           o.amount ??
           0,
       );
-      const professionalId = result.professional_id ?? o.provider_id;
+      const professionalId = releaseResult.professional_id ?? o.provider_id;
 
       // Explicit wallet credit (paired with a notification + realtime refresh).
       // release_escrow_payment no longer credits internally, so this is the
       // single source of truth. Skip on `already_released` to avoid
       // double-crediting on re-clicks.
-      if (!result.already_released && professionalId) {
+      if (!releaseResult.already_released && professionalId) {
+        console.log("[wallet] crediting", { amount: releaseResult.amount, commission: releaseResult.commission });
         const { error: creditError } = await supabase.rpc(
           "credit_wallet_after_release" as never,
           {

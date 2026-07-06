@@ -781,7 +781,7 @@ export function EscrowPanel({
         p_order_id: order.order_id,
       });
       if (rpcError) throw new Error(rpcError.message || "Could not release payment");
-      const result = (rpcResult ?? {}) as {
+      const releaseResult = (rpcResult ?? {}) as {
         ok?: boolean;
         commission?: number;
         payout?: number;
@@ -789,17 +789,18 @@ export function EscrowPanel({
         professional_id?: string;
         already_released?: boolean;
       };
-      const commission = Number(result.commission ?? 0);
-      const payout = Number(result.payout ?? order.amount_ngn - commission);
-      const grossAmount = Number(result.amount ?? order.amount_ngn ?? 0);
-      const professionalId = result.professional_id ?? order.professional_id;
+      const commission = Number(releaseResult.commission ?? 0);
+      const payout = Number(releaseResult.payout ?? order.amount_ngn - commission);
+      const grossAmount = Number(releaseResult.amount ?? order.amount_ngn ?? 0);
+      const professionalId = releaseResult.professional_id ?? order.professional_id;
 
       // Credit the professional's EasyMeet Wallet. release_escrow_payment
       // intentionally no longer credits internally so we can pair the credit
       // with a notification + realtime refresh here. Skip when the RPC
       // reports `already_released` — the wallet was credited on the first
       // successful call and we must not double-credit.
-      if (!result.already_released && professionalId) {
+      if (!releaseResult.already_released && professionalId) {
+        console.log("[wallet] crediting", { amount: releaseResult.amount, commission: releaseResult.commission });
         const { error: creditError } = await supabase.rpc(
           "credit_wallet_after_release",
           {
