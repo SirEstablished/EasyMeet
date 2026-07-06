@@ -189,7 +189,16 @@ function WalletPage() {
         ) : (
           <ul className="divide-y divide-border/60">
             {shownTxs.map((t) => {
-              const positive = t.type === "credit" || t.type === "refund";
+              const negativeTypes = new Set([
+                "withdrawal",
+                "debit",
+                "fee",
+                "transfer_out",
+                "payment",
+                "payout",
+                "charge",
+              ]);
+              const positive = !negativeTypes.has(t.type);
               return (
                 <li key={t.id} className="py-3 flex items-center gap-3">
                   <div className="flex-1 min-w-0">
