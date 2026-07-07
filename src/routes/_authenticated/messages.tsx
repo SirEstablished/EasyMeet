@@ -30,6 +30,7 @@ import {
 import { containsPhone, PHONE_BLOCK_MESSAGE } from "@/lib/phoneCheck";
 import { cn } from "@/lib/utils";
 import { EscrowPanel } from "@/components/EscrowPanel";
+import { EscrowChatCard, parseCardMessage } from "@/components/EscrowChatCards";
 
 const searchSchema = z.object({ c: z.string().optional(), m: z.string().optional() });
 
@@ -581,7 +582,12 @@ function Thread({
               </span>
             </div>
           ) : (
-            <MessageBubble key={it.msg.id} m={it.msg} mine={it.msg.sender_id === meId} />
+            <MessageBubble
+              key={it.msg.id}
+              m={it.msg}
+              mine={it.msg.sender_id === meId}
+              meId={meId}
+            />
           ),
         )}
         {messages.length === 0 && (
@@ -635,7 +641,18 @@ function Thread({
   );
 }
 
-function MessageBubble({ m, mine }: { m: Message; mine: boolean }) {
+function MessageBubble({ m, mine, meId }: { m: Message; mine: boolean; meId: string }) {
+  const card = parseCardMessage(m.body);
+  if (card) {
+    return (
+      <div className={cn("flex flex-col mt-2", mine ? "items-end" : "items-start")}>
+        <EscrowChatCard kind={card.kind} payload={card.payload} meId={meId} mine={mine} />
+        <span className="text-[10px] text-muted-foreground mt-1 px-1">
+          {formatTime(m.created_at)}
+        </span>
+      </div>
+    );
+  }
   return (
     <div className={cn("flex flex-col mt-2", mine ? "items-end" : "items-start")}>
       <div

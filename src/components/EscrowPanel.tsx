@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import { payWithPaystack } from "@/lib/paystack";
 import { detectEscrowRoles, suggestAgreement } from "@/lib/escrow-ai.functions";
+import { encodeCard } from "@/components/EscrowChatCards";
 
 const AGREEMENT_TYPES = [
   { value: "service", label: "Service Agreement" },
@@ -774,10 +775,23 @@ export function EscrowPanel({
       const { error: messageError } = await supabase.from("messages").insert({
         conversation_id: conversationId,
         sender_id: meId,
-        body:
+        body: encodeCard(
+          "payment",
+          {
+            escrow_id: escrowId ?? undefined,
+            order_id: paidOrder.order_id ?? undefined,
+            amount: chargeAmount,
+            materials_released: materialsCost,
+            release_condition:
+              (paymentAgreement as unknown as { agreement_type?: string } | null)
+                ?.agreement_type === "delivery"
+                ? "Funds are released to the professional after the customer confirms delivery."
+                : "Funds are released to the professional when the customer marks the job as complete.",
+          },
           materialsCost > 0
-            ? `💳 Payment of ${formatNgn(chargeAmount)} placed in escrow. ${formatNgn(materialsCost)} for materials released to professional. Work can begin.`
-            : `💳 Payment of ${formatNgn(chargeAmount)} placed in escrow. Work can begin.`,
+            ? `💳 Payment of ${formatNgn(chargeAmount)} placed in escrow. ${formatNgn(materialsCost)} for materials released to professional.`
+            : `💳 Payment of ${formatNgn(chargeAmount)} placed in escrow.`,
+        ),
       });
       if (messageError) console.error("Escrow payment message failed", messageError);
 
@@ -859,12 +873,51 @@ export function EscrowPanel({
       };
       setOrder(completed);
       setCompleteOpen(false);
+      const releasedAtIso = completed.released_at ?? new Date().toISOString();
+      const paystackFeeApprox = (() => {
+        const s = grossAmount;
+        if (!s) return 0;
+        return Math.min(2000, Math.round((s * 0.015 + (s >= 2500 ? 100 : 0)) * 100) / 100);
+      })();
       const { error: messageError } = await supabase.from("messages").insert({
         conversation_id: conversationId,
         sender_id: meId,
-        body: `✅ Marked as complete. ${formatNgn(payout)} released to professional${commission > 0 ? " (3% labor commission held by EasyMeet)" : ""}.`,
+        body: encodeCard(
+          "completion",
+          {
+            amount: grossAmount,
+            protection_fee: commission,
+            payout,
+            released_at: releasedAtIso,
+          },
+          `✅ Deal completed. ${formatNgn(payout)} released to professional${commission > 0 ? " (EasyMeet Protection Fee applied)" : ""}.`,
+        ),
       });
       if (messageError) console.error("Completion message failed", messageError);
+      // Persistent Deal Summary card (replaces the temporary popup).
+      await supabase.from("messages").insert({
+        conversation_id: conversationId,
+        sender_id: meId,
+        body: encodeCard(
+          "deal_summary",
+          {
+            agreement_id: order.agreement_id ?? undefined,
+            order_id: order.order_id ?? undefined,
+            escrow_id: order.id,
+            title: agreement?.job_title ?? order.title ?? "Deal",
+            agreement_type:
+              (agreement as unknown as { agreement_type?: string } | null)?.agreement_type ??
+              order.agreement_type ??
+              "service",
+            total: grossAmount,
+            protection_fee: commission,
+            paystack_fee: paystackFeeApprox,
+            released: payout,
+            status: "completed",
+          },
+          `Deal completed — ${formatNgn(payout)} released.`,
+        ),
+      });
       toast.success("Payment released");
       // Wallet-credit notification to the professional.
       try {
@@ -962,7 +1015,7 @@ export function EscrowPanel({
               <span className="font-semibold">{formatNgn(order.amount_ngn)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">EasyMeet commission</span>
+              <span className="text-muted-foreground">EasyMeet Protection Fee</span>
               <span className="font-semibold">{formatNgn(order.commission_amount)}</span>
             </div>
             <div className="flex justify-between">
@@ -1154,7 +1207,7 @@ export function EscrowPanel({
                   <Percent className="h-5 w-5" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground">EasyMeet Commission (3%)</p>
+                  <p className="text-xs text-muted-foreground">EasyMeet Protection Fee</p>
                   <p className="text-base font-bold text-foreground truncate">
                     {formatNgn(order.commission_amount)}
                   </p>
@@ -1405,8 +1458,8 @@ function PaymentBreakdownDialog({
 
   const commissionLabel =
     commissionable > 0
-      ? "EasyMeet commission (tiered, deducted at completion)"
-      : "EasyMeet commission (0%)";
+      ? "EasyMeet Protection Fee"
+      : "EasyMeet Protection Fee";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -1530,7 +1583,24 @@ function SendAgreementDialog({
     }
   })();
   const baseFees = computeAgreementFees(mapped.immediate, mapped.held, mapped.contingency);
-  const commission = Math.round(mapped.commissionable * 0.03);
+  const [commission, setCommission] = useState<number>(
+    fallbackCommission(mapped.commissionable),
+  );
+  const [commissionLoading, setCommissionLoading] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    setCommissionLoading(true);
+    fetchTieredCommission(mapped.commissionable)
+      .then((c) => {
+        if (!cancelled) setCommission(c);
+      })
+      .finally(() => {
+        if (!cancelled) setCommissionLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [mapped.commissionable]);
   const professionalReceives = Math.max(0, mapped.immediate + mapped.held - commission);
   const fees = { ...baseFees, commission, professionalReceives };
 
@@ -1638,12 +1708,27 @@ function SendAgreementDialog({
       commission_amount: commission,
       paystack_fee: fees.paystackFee,
     };
-    const { error } = await supabase.from("service_agreements").insert(payload as never);
+    const { data: inserted, error } = await supabase
+      .from("service_agreements")
+      .insert(payload as never)
+      .select("id")
+      .single();
     if (!error) {
+      const agreementId = (inserted as { id: string } | null)?.id ?? "";
       await supabase.from("messages").insert({
         conversation_id: conversationId,
         sender_id: professionalId,
-        body: `📄 Agreement sent: "${jobTitle}" — ${formatNgn(fees.subtotal)}. Please review and accept.`,
+        body: encodeCard(
+          "agreement",
+          {
+            agreement_id: agreementId,
+            title: jobTitle,
+            agreement_type: agreementType,
+            amount: fees.subtotal,
+            sender_id: professionalId,
+          },
+          `📄 Agreement sent: "${jobTitle}" — ${formatNgn(fees.subtotal)}. Please review and accept.`,
+        ),
       });
     }
     setBusy(false);
@@ -1982,7 +2067,7 @@ function SendAgreementDialog({
               <SummaryRow label="Contingency" value={mapped.contingency} />
             )}
             <SummaryRow
-              label="EasyMeet commission (3% of labor/service)"
+              label={"EasyMeet Protection Fee" + (commissionLoading ? " • calculating…" : "")}
               value={commission}
               muted
             />

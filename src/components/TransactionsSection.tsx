@@ -379,7 +379,7 @@ function TxDetails({ t, className }: { t: Tx; className?: string }) {
       </div>
       <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
         <DetailRow label="Amount" value={formatNgn(t.amount)} />
-        <DetailRow label="Commission" value={formatNgn(t.commission)} />
+        <DetailRow label="EasyMeet Protection Fee" value={formatNgn(t.commission)} />
         <DetailRow label="Payout" value={formatNgn(t.payout)} />
         <DetailRow label="Payment ref" value={t.payment_ref || "—"} mono />
         <DetailRow label="Date" value={new Date(t.created_at).toLocaleString()} />
