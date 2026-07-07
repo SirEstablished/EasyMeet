@@ -216,7 +216,14 @@ function MessagesPage() {
           <div className="mt-3 flex items-center gap-2 overflow-x-auto no-scrollbar -mx-1 px-1">
             {(["all", "unread", "active", "deals"] as const).map((t) => {
               const active = tab === t;
-              const label = t === "all" ? "All" : t === "unread" ? "Unread" : t === "active" ? "Active" : "Deals";
+              const label =
+                t === "all"
+                  ? "All"
+                  : t === "unread"
+                    ? "Unread"
+                    : t === "active"
+                      ? "Active"
+                      : "Deals";
               return (
                 <button
                   key={t}
@@ -261,7 +268,8 @@ function MessagesPage() {
                   className={cn(
                     "group relative w-full text-left rounded-2xl bg-card border border-border/60 px-4 py-3.5 transition",
                     "shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:shadow-[0_8px_24px_-16px_rgba(108,76,246,0.25)] hover:border-primary/30",
-                    isSelected && "border-primary/40 shadow-[0_8px_24px_-16px_rgba(108,76,246,0.35)]",
+                    isSelected &&
+                      "border-primary/40 shadow-[0_8px_24px_-16px_rgba(108,76,246,0.35)]",
                   )}
                 >
                   <div className="flex items-start gap-3">
@@ -276,7 +284,9 @@ function MessagesPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex items-center gap-1">
-                          <span className="truncate text-[15px] font-bold text-foreground">{name}</span>
+                          <span className="truncate text-[15px] font-bold text-foreground">
+                            {name}
+                          </span>
                           <VerificationTicks
                             blue={c.other?.blue_tick}
                             white={c.other?.white_tick}
@@ -284,7 +294,10 @@ function MessagesPage() {
                             size="sm"
                           />
                           <FoundingMemberBadge
-                            active={(c.other as unknown as { is_founding_member?: boolean } | null)?.is_founding_member}
+                            active={
+                              (c.other as unknown as { is_founding_member?: boolean } | null)
+                                ?.is_founding_member
+                            }
                             size="sm"
                           />
                         </div>
@@ -293,7 +306,9 @@ function MessagesPage() {
                         </span>
                       </div>
                       {role && (
-                        <div className="text-xs text-muted-foreground capitalize mt-0.5">{role}</div>
+                        <div className="text-xs text-muted-foreground capitalize mt-0.5">
+                          {role}
+                        </div>
                       )}
                       <div className="mt-2 flex items-end justify-between gap-2">
                         <p
@@ -530,7 +545,11 @@ function Thread({
     };
   }, [conversation.id, meId, otherId]);
 
-  const send = async (extra?: { media_url?: string; media_type?: string; overrideBody?: string }) => {
+  const send = async (extra?: {
+    media_url?: string;
+    media_type?: string;
+    overrideBody?: string;
+  }) => {
     const body = text.trim();
     const finalBody = extra?.overrideBody ?? body;
     const hasMedia = !!extra?.media_url;
@@ -653,7 +672,9 @@ function Thread({
                 size="sm"
               />
               <FoundingMemberBadge
-                active={(other as unknown as { is_founding_member?: boolean } | null)?.is_founding_member}
+                active={
+                  (other as unknown as { is_founding_member?: boolean } | null)?.is_founding_member
+                }
                 size="sm"
               />
             </div>
@@ -681,7 +702,10 @@ function Thread({
       </div>
 
       {/* Scrollable body */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto bg-muted/30 px-4 pt-4 pb-2 space-y-1.5">
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto bg-muted/30 px-4 pt-4 pb-2 space-y-1.5"
+      >
         {/* Escrow protection banner */}
         <div className="flex items-center gap-3 rounded-2xl bg-card border border-border/60 px-3.5 py-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
           <div className="h-9 w-9 rounded-full bg-primary/10 grid place-items-center shrink-0">
@@ -823,12 +847,7 @@ function MessageBubble({ m, mine, meId }: { m: ChatMessage; mine: boolean; meId:
           </a>
         )}
         {mediaUrl && mediaType === "video" && (
-          <video
-            src={mediaUrl}
-            controls
-            className="max-h-72 w-full"
-            preload="metadata"
-          >
+          <video src={mediaUrl} controls className="max-h-72 w-full" preload="metadata">
             <track kind="captions" />
           </video>
         )}
@@ -848,10 +867,7 @@ function MessageBubble({ m, mine, meId }: { m: ChatMessage; mine: boolean; meId:
         {formatTime(m.created_at)}
         {mine && (
           <span
-            className={cn(
-              "inline-flex",
-              isRead ? "text-primary" : "text-muted-foreground",
-            )}
+            className={cn("inline-flex", isRead ? "text-primary" : "text-muted-foreground")}
             aria-label={isRead ? "Read" : isDelivered ? "Delivered" : "Sent"}
           >
             {isDelivered || isRead ? (
