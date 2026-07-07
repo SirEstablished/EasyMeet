@@ -7,6 +7,7 @@ export interface AdminDisputeRow {
   order_id: string | null;
   customer_id: string;
   provider_id: string;
+  conversation_id: string | null;
   amount: number;
   status: string;
   dispute_reason: string | null;
@@ -84,12 +85,16 @@ export const getDisputedEscrows = createServerFn({ method: "GET" }).middleware([
     return rows.map((r) => {
       const o = oMap.get(r.order_id);
       const providerId = r.professional_id ?? r.provider_id;
+      const amount = Number(
+        o?.amount ?? r.amount_ngn ?? r.amount ?? 0,
+      );
       return {
         id: r.id,
         order_id: r.order_id,
         customer_id: r.customer_id,
         provider_id: providerId,
-        amount: Number(r.amount_ngn ?? r.amount ?? o?.amount ?? 0),
+        conversation_id: r.conversation_id ?? null,
+        amount,
         status: r.status,
         dispute_reason: r.dispute_reason,
         dispute_evidence: Array.isArray(r.dispute_evidence) ? r.dispute_evidence : null,
@@ -97,7 +102,7 @@ export const getDisputedEscrows = createServerFn({ method: "GET" }).middleware([
         payment_ref: r.payment_ref ?? null,
         paystack_reference: r.payment_ref ?? r.paystack_reference ?? null,
         service_title: o?.service_title ?? "Order",
-        order_amount: Number(o?.amount ?? r.amount_ngn ?? r.amount ?? 0),
+        order_amount: amount,
         customer_name: nameOf(r.customer_id),
         provider_name: providerId ? nameOf(providerId) : "Unknown",
       };
