@@ -45,10 +45,8 @@ import { detectEscrowRoles, suggestAgreement } from "@/lib/escrow-ai.functions";
 const AGREEMENT_TYPES = [
   { value: "service", label: "Service Agreement" },
   { value: "product_sale", label: "Product Sale Agreement" },
-  { value: "supply", label: "Supply Agreement" },
   { value: "material_labor", label: "Material + Labor Agreement" },
   { value: "delivery", label: "Delivery Agreement" },
-  { value: "milestone", label: "Milestone Agreement" },
 ] as const;
 
 export function computeAgreementFees(materials: number, labor: number, contingency: number) {
