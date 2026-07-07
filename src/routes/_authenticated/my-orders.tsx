@@ -487,6 +487,41 @@ function OrderList({
       </div>
     );
   }
+  return <OrderCardList
+    orders={orders}
+    direction={direction}
+    reviewedOrders={reviewedOrders}
+    onReview={onReview}
+    onUpdateStatus={onUpdateStatus}
+    onMarkComplete={onMarkComplete}
+    onRequestRefund={onRequestRefund}
+    busyId={busyId}
+    currentUserId={currentUserId}
+  />;
+}
+
+function OrderCardList({
+  orders,
+  direction,
+  reviewedOrders,
+  onReview,
+  onUpdateStatus,
+  onMarkComplete,
+  onRequestRefund,
+  busyId,
+  currentUserId,
+}: {
+  orders: OrderWithEscrow[];
+  direction: "incoming" | "outgoing";
+  reviewedOrders: Set<string>;
+  onReview: (o: Order) => void;
+  onUpdateStatus?: (o: Order, status: Order["status"]) => void;
+  onMarkComplete: (o: OrderWithEscrow) => void;
+  onRequestRefund?: (o: OrderWithEscrow) => void;
+  busyId: string | null;
+  currentUserId: string | null;
+}) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   return (
     <div className="space-y-3">
       {orders.map((o) => {
@@ -535,12 +570,24 @@ function OrderList({
           !canMarkComplete &&
           (o.status === "completed" || escrowStatus === "released");
 
+        const isExpanded = expandedId === o.id;
+        const paymentRef = o.escrow?.payment_ref || o.payment_ref || "—";
+        const commission = Number(o.escrow?.commission_amount ?? o.commission_amount ?? 0);
+        const payout = Number(o.escrow?.payout_amount ?? o.payout_amount ?? 0);
+        const agreementType = o.escrow?.agreement_type || "—";
+        const escrowStage = o.escrow?.stage || o.escrow?.status || "—";
+
         return (
           <div
             key={o.id}
             className="rounded-2xl bg-card border border-border/60 p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:shadow-[0_10px_28px_-16px_rgba(108,76,246,0.25)] hover:border-primary/30 transition-all"
           >
-            <div className="flex items-start gap-3.5">
+            <button
+              type="button"
+              onClick={() => setExpandedId((cur) => (cur === o.id ? null : o.id))}
+              className="w-full text-left flex items-start gap-3.5"
+              aria-expanded={isExpanded}
+            >
               <Link to="/profile/$id" params={{ id: otherId }} className="shrink-0">
                 <div className="h-[68px] w-[68px] rounded-2xl overflow-hidden bg-muted grid place-items-center">
                   {other?.avatar_url ? (
@@ -654,9 +701,26 @@ function OrderList({
                       </span>
                     );
                   })()}
+                  <ChevronDown
+                    className={`h-4 w-4 mt-2 ml-auto text-muted-foreground transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+                  />
                 </div>
               </div>
-            </div>
+            </button>
+
+            {isExpanded && (
+              <div className="mt-3 pt-3 border-t border-border/60 grid grid-cols-2 gap-x-4 gap-y-2 text-xs animate-accordion-down">
+                <Detail label="Service" value={o.service_title} />
+                <Detail label={direction === "outgoing" ? "Provider" : "Customer"} value={name} />
+                <Detail label="Amount" value={formatNgn(o.amount)} />
+                <Detail label="Commission" value={formatNgn(commission)} />
+                <Detail label="Payout" value={formatNgn(payout)} />
+                <Detail label="Payment ref" value={paymentRef} mono />
+                <Detail label="Date" value={new Date(o.created_at).toLocaleString()} />
+                <Detail label="Escrow stage" value={String(escrowStage)} />
+                <Detail label="Agreement type" value={String(agreementType).replace(/_/g, " ")} />
+              </div>
+            )}
 
             {canMarkComplete && (
               <div className="mt-3 pt-3 border-t border-border/60">
@@ -735,6 +799,20 @@ function OrderList({
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function Detail({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="min-w-0">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div
+        className={`text-[12px] font-medium text-foreground truncate ${mono ? "font-mono" : ""}`}
+        title={value}
+      >
+        {value}
+      </div>
     </div>
   );
 }
