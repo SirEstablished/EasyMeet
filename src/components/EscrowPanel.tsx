@@ -873,12 +873,51 @@ export function EscrowPanel({
       };
       setOrder(completed);
       setCompleteOpen(false);
+      const releasedAtIso = completed.released_at ?? new Date().toISOString();
+      const paystackFeeApprox = (() => {
+        const s = grossAmount;
+        if (!s) return 0;
+        return Math.min(2000, Math.round((s * 0.015 + (s >= 2500 ? 100 : 0)) * 100) / 100);
+      })();
       const { error: messageError } = await supabase.from("messages").insert({
         conversation_id: conversationId,
         sender_id: meId,
-        body: `✅ Marked as complete. ${formatNgn(payout)} released to professional${commission > 0 ? " (3% labor commission held by EasyMeet)" : ""}.`,
+        body: encodeCard(
+          "completion",
+          {
+            amount: grossAmount,
+            protection_fee: commission,
+            payout,
+            released_at: releasedAtIso,
+          },
+          `✅ Deal completed. ${formatNgn(payout)} released to professional${commission > 0 ? " (EasyMeet Protection Fee applied)" : ""}.`,
+        ),
       });
       if (messageError) console.error("Completion message failed", messageError);
+      // Persistent Deal Summary card (replaces the temporary popup).
+      await supabase.from("messages").insert({
+        conversation_id: conversationId,
+        sender_id: meId,
+        body: encodeCard(
+          "deal_summary",
+          {
+            agreement_id: order.agreement_id ?? undefined,
+            order_id: order.order_id ?? undefined,
+            escrow_id: order.id,
+            title: agreement?.job_title ?? order.title ?? "Deal",
+            agreement_type:
+              (agreement as unknown as { agreement_type?: string } | null)?.agreement_type ??
+              order.agreement_type ??
+              "service",
+            total: grossAmount,
+            protection_fee: commission,
+            paystack_fee: paystackFeeApprox,
+            released: payout,
+            status: "completed",
+          },
+          `Deal completed — ${formatNgn(payout)} released.`,
+        ),
+      });
       toast.success("Payment released");
       // Wallet-credit notification to the professional.
       try {
