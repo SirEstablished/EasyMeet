@@ -1278,6 +1278,32 @@ export function EscrowPanel({
   );
 }
 
+// Client-side fallback that mirrors the DB `calculate_commission` tiers.
+function fallbackCommission(labor: number): number {
+  const n = Math.max(0, Number(labor) || 0);
+  if (n < 5000) return 0;
+  if (n <= 100_000) return Math.min(3000, Math.round(n * 0.03));
+  if (n <= 500_000) return Math.min(10_000, Math.round(n * 0.02));
+  if (n <= 2_000_000) return Math.min(30_000, Math.round(n * 0.015));
+  if (n <= 10_000_000) return Math.min(100_000, Math.round(n * 0.01));
+  return Math.max(100_000, Math.round(n * 0.001));
+}
+
+async function fetchTieredCommission(labor: number): Promise<number> {
+  if (!labor || labor <= 0) return 0;
+  try {
+    const { data, error } = await supabase.rpc("calculate_commission" as never, {
+      labor_amount: labor,
+    } as never);
+    if (error) throw error;
+    const n = Number(data);
+    if (Number.isFinite(n)) return n;
+  } catch (e) {
+    console.warn("calculate_commission RPC failed, using local fallback", e);
+  }
+  return fallbackCommission(labor);
+}
+
 function PaymentBreakdownDialog({
   open,
   onOpenChange,
@@ -1291,24 +1317,97 @@ function PaymentBreakdownDialog({
   paying: boolean;
   onConfirm: () => void;
 }) {
-  if (!agreement) return null;
-  const ag = agreement as ServiceAgreement & {
-    materials_cost?: number | null;
-    labor_cost?: number | null;
-    contingency_cost?: number | null;
-    total_amount?: number | null;
-    paystack_fee?: number | null;
-    commission_amount?: number | null;
-  };
-  const materials = Number(ag.materials_cost ?? 0);
-  const labor = Number(ag.labor_cost ?? 0);
-  const contingency = Number(ag.contingency_cost ?? 0);
-  const fallback = computeAgreementFees(materials, labor, contingency);
-  const subtotal = Number(ag.total_amount ?? materials + labor + contingency) || agreement.price;
-  const commission = Number(ag.commission_amount ?? fallback.commission);
-  const paystackFee = Number(ag.paystack_fee ?? fallback.paystackFee);
+  const ag = agreement as
+    | (ServiceAgreement & {
+        materials_cost?: number | null;
+        labor_cost?: number | null;
+        contingency_cost?: number | null;
+        total_amount?: number | null;
+        paystack_fee?: number | null;
+        commission_amount?: number | null;
+        agreement_type?: string | null;
+      })
+    | null;
+  const materials = Number(ag?.materials_cost ?? 0);
+  const labor = Number(ag?.labor_cost ?? 0);
+  const contingency = Number(ag?.contingency_cost ?? 0);
+  const subtotal =
+    Number(ag?.total_amount ?? materials + labor + contingency) || Number(ag?.price ?? 0);
+  const type = (ag?.agreement_type ?? "service") as
+    | "service"
+    | "material_labor"
+    | "product_sale"
+    | "delivery"
+    | string;
+
+  // Commissionable amount by agreement type. Products & delivery = 0.
+  const commissionable =
+    type === "service"
+      ? labor || subtotal
+      : type === "material_labor"
+        ? labor
+        : 0;
+
+  const [commission, setCommission] = useState<number>(
+    Number(ag?.commission_amount ?? fallbackCommission(commissionable)),
+  );
+  const [commissionLoading, setCommissionLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open || !ag) return;
+    let cancelled = false;
+    setCommissionLoading(true);
+    fetchTieredCommission(commissionable)
+      .then((c) => {
+        if (!cancelled) setCommission(c);
+      })
+      .finally(() => {
+        if (!cancelled) setCommissionLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, commissionable, ag?.id]);
+
+  if (!agreement || !ag) return null;
+
+  const paystackFee = Number(
+    ag.paystack_fee ??
+      (subtotal > 0
+        ? Math.min(2000, Math.round((subtotal * 0.015 + (subtotal >= 2500 ? 100 : 0)) * 100) / 100)
+        : 0),
+  );
   const total = subtotal + paystackFee;
-  const professionalReceives = Math.max(0, materials + labor - commission);
+  const professionalReceives = Math.max(0, subtotal - commission);
+
+  const rows: Array<{ label: string; value: number; muted?: boolean }> = [];
+  if (type === "service") {
+    rows.push({ label: "Labor / Service fee", value: labor || subtotal });
+  } else if (type === "material_labor") {
+    if (materials > 0) rows.push({ label: "Materials (released immediately)", value: materials });
+    rows.push({ label: "Labor fee (held in escrow)", value: labor });
+    if (contingency > 0) rows.push({ label: "Contingency (buffer)", value: contingency });
+  } else if (type === "product_sale") {
+    // Send flow currently stores product+delivery combined; show combined if we
+    // cannot split, otherwise use the split when available.
+    if (contingency > 0) {
+      rows.push({ label: "Product price", value: materials });
+      rows.push({ label: "Delivery fee", value: contingency });
+    } else {
+      rows.push({ label: "Product + delivery", value: subtotal });
+    }
+  } else if (type === "delivery") {
+    rows.push({ label: "Delivery fee", value: labor || subtotal });
+  } else {
+    rows.push({ label: "Escrow amount", value: subtotal });
+  }
+
+  const commissionLabel =
+    commissionable > 0
+      ? "EasyMeet commission (tiered, deducted at completion)"
+      : "EasyMeet commission (0%)";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -1316,16 +1415,11 @@ function PaymentBreakdownDialog({
           <DialogTitle>Confirm payment breakdown</DialogTitle>
         </DialogHeader>
         <div className="rounded-lg border border-border/60 bg-background/40 p-3 space-y-1 text-sm">
-          {materials > 0 && (
-            <SummaryRow label="Materials (released immediately)" value={materials} />
-          )}
-          {labor > 0 && <SummaryRow label="Labor (held in escrow)" value={labor} />}
-          {contingency > 0 && <SummaryRow label="Contingency (buffer)" value={contingency} />}
-          {materials === 0 && labor === 0 && contingency === 0 && (
-            <SummaryRow label="Escrow amount" value={subtotal} />
-          )}
+          {rows.map((r) => (
+            <SummaryRow key={r.label} label={r.label} value={r.value} muted={r.muted} />
+          ))}
           <SummaryRow
-            label="EasyMeet commission (deducted at completion)"
+            label={commissionLabel + (commissionLoading ? " • calculating…" : "")}
             value={commission}
             muted
           />
