@@ -62,6 +62,7 @@ function AdminDisputesPage() {
             order_id: r.order_id,
             customer_id: r.customer_id,
             provider_id: r.provider_id,
+            conversation_id: r.conversation_id ?? null,
             amount,
             status: r.status,
             dispute_reason: r.dispute_reason,
