@@ -27,7 +27,6 @@ import {
   CheckCheck,
   ImageIcon,
   Loader2,
-  Play,
 } from "lucide-react";
 import { containsPhone, PHONE_BLOCK_MESSAGE } from "@/lib/phoneCheck";
 import { cn } from "@/lib/utils";
