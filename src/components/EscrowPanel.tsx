@@ -1530,7 +1530,24 @@ function SendAgreementDialog({
     }
   })();
   const baseFees = computeAgreementFees(mapped.immediate, mapped.held, mapped.contingency);
-  const commission = Math.round(mapped.commissionable * 0.03);
+  const [commission, setCommission] = useState<number>(
+    fallbackCommission(mapped.commissionable),
+  );
+  const [commissionLoading, setCommissionLoading] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    setCommissionLoading(true);
+    fetchTieredCommission(mapped.commissionable)
+      .then((c) => {
+        if (!cancelled) setCommission(c);
+      })
+      .finally(() => {
+        if (!cancelled) setCommissionLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [mapped.commissionable]);
   const professionalReceives = Math.max(0, mapped.immediate + mapped.held - commission);
   const fees = { ...baseFees, commission, professionalReceives };
 
@@ -1638,12 +1655,27 @@ function SendAgreementDialog({
       commission_amount: commission,
       paystack_fee: fees.paystackFee,
     };
-    const { error } = await supabase.from("service_agreements").insert(payload as never);
+    const { data: inserted, error } = await supabase
+      .from("service_agreements")
+      .insert(payload as never)
+      .select("id")
+      .single();
     if (!error) {
+      const agreementId = (inserted as { id: string } | null)?.id ?? "";
       await supabase.from("messages").insert({
         conversation_id: conversationId,
         sender_id: professionalId,
-        body: `📄 Agreement sent: "${jobTitle}" — ${formatNgn(fees.subtotal)}. Please review and accept.`,
+        body: encodeCard(
+          "agreement",
+          {
+            agreement_id: agreementId,
+            title: jobTitle,
+            agreement_type: agreementType,
+            amount: fees.subtotal,
+            sender_id: professionalId,
+          },
+          `📄 Agreement sent: "${jobTitle}" — ${formatNgn(fees.subtotal)}. Please review and accept.`,
+        ),
       });
     }
     setBusy(false);
@@ -1982,7 +2014,7 @@ function SendAgreementDialog({
               <SummaryRow label="Contingency" value={mapped.contingency} />
             )}
             <SummaryRow
-              label="EasyMeet commission (3% of labor/service)"
+              label={"EasyMeet Protection Fee" + (commissionLoading ? " • calculating…" : "")}
               value={commission}
               muted
             />
