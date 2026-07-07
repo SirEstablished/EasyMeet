@@ -962,7 +962,7 @@ export function EscrowPanel({
               <span className="font-semibold">{formatNgn(order.amount_ngn)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">EasyMeet commission</span>
+              <span className="text-muted-foreground">EasyMeet Protection Fee</span>
               <span className="font-semibold">{formatNgn(order.commission_amount)}</span>
             </div>
             <div className="flex justify-between">
@@ -1154,7 +1154,7 @@ export function EscrowPanel({
                   <Percent className="h-5 w-5" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground">EasyMeet Commission (3%)</p>
+                  <p className="text-xs text-muted-foreground">EasyMeet Protection Fee</p>
                   <p className="text-base font-bold text-foreground truncate">
                     {formatNgn(order.commission_amount)}
                   </p>
@@ -1405,8 +1405,8 @@ function PaymentBreakdownDialog({
 
   const commissionLabel =
     commissionable > 0
-      ? "EasyMeet commission (tiered, deducted at completion)"
-      : "EasyMeet commission (0%)";
+      ? "EasyMeet Protection Fee"
+      : "EasyMeet Protection Fee";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
