@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import { payWithPaystack } from "@/lib/paystack";
 import { detectEscrowRoles, suggestAgreement } from "@/lib/escrow-ai.functions";
+import { encodeCard } from "@/components/EscrowChatCards";
 
 const AGREEMENT_TYPES = [
   { value: "service", label: "Service Agreement" },
