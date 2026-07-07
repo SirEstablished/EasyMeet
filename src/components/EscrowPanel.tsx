@@ -1485,26 +1485,18 @@ function SendAgreementDialog({
     };
   }, [open, conversationId]);
 
-  const titleLabel =
-    agreementType === "product_sale"
-      ? "Product name"
-      : agreementType === "milestone"
-        ? "Project title"
-        : "Job title";
+  const titleLabel = agreementType === "product_sale" ? "Product name" : "Job title";
   const descLabel =
     agreementType === "product_sale"
       ? "Product description"
-      : agreementType === "supply"
-        ? "Supply description"
-        : agreementType === "delivery"
-          ? "Item description"
-          : agreementType === "milestone"
-            ? "Project description"
-            : agreementType === "service"
-              ? "Service description"
-              : "Description";
-  const dateLabel = agreementType === "milestone" ? "Project end date" : "Delivery date";
-  const showTitle = agreementType !== "delivery" && agreementType !== "supply";
+      : agreementType === "delivery"
+        ? "Item description"
+        : "Description";
+  const dateLabel =
+    agreementType === "service" || agreementType === "material_labor"
+      ? "Completion date"
+      : "Delivery date";
+  const showTitle = agreementType !== "delivery";
 
   const submit = async () => {
     const jobDescription = description.trim();
