@@ -355,3 +355,55 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
     </div>
   );
 }
+
+function TxDetails({ t, className }: { t: Tx; className?: string }) {
+  const initials = (t.counterparty_name || "?")
+    .split(" ")
+    .map((s) => s[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+  return (
+    <div className={`animate-accordion-down ${className ?? ""}`}>
+      <div className="flex items-center gap-3 mb-3">
+        <Avatar className="h-9 w-9">
+          {t.counterparty_avatar && <AvatarImage src={t.counterparty_avatar} alt={t.counterparty_name} />}
+          <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
+            {initials}
+          </AvatarFallback>
+        </Avatar>
+        <div className="min-w-0">
+          <div className="text-sm font-semibold truncate">{t.counterparty_name}</div>
+          <div className="text-[11px] text-muted-foreground truncate">{t.service_title}</div>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+        <DetailRow label="Amount" value={formatNgn(t.amount)} />
+        <DetailRow label="Commission" value={formatNgn(t.commission)} />
+        <DetailRow label="Payout" value={formatNgn(t.payout)} />
+        <DetailRow label="Payment ref" value={t.payment_ref || "—"} mono />
+        <DetailRow label="Date" value={new Date(t.created_at).toLocaleString()} />
+        <DetailRow label="Escrow stage" value={t.escrow_stage || t.escrow_status || "—"} />
+        <DetailRow
+          label="Agreement type"
+          value={(t.agreement_type || "—").replace(/_/g, " ")}
+        />
+        <DetailRow label="Direction" value={t.is_outgoing ? "Spent" : "Earned"} />
+      </div>
+    </div>
+  );
+}
+
+function DetailRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="min-w-0">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div
+        className={`text-[12px] font-medium text-foreground truncate ${mono ? "font-mono" : ""}`}
+        title={value}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
