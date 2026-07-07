@@ -775,10 +775,23 @@ export function EscrowPanel({
       const { error: messageError } = await supabase.from("messages").insert({
         conversation_id: conversationId,
         sender_id: meId,
-        body:
+        body: encodeCard(
+          "payment",
+          {
+            escrow_id: escrowId ?? undefined,
+            order_id: paidOrder.order_id ?? undefined,
+            amount: chargeAmount,
+            materials_released: materialsCost,
+            release_condition:
+              (paymentAgreement as unknown as { agreement_type?: string } | null)
+                ?.agreement_type === "delivery"
+                ? "Funds are released to the professional after the customer confirms delivery."
+                : "Funds are released to the professional when the customer marks the job as complete.",
+          },
           materialsCost > 0
-            ? `💳 Payment of ${formatNgn(chargeAmount)} placed in escrow. ${formatNgn(materialsCost)} for materials released to professional. Work can begin.`
-            : `💳 Payment of ${formatNgn(chargeAmount)} placed in escrow. Work can begin.`,
+            ? `💳 Payment of ${formatNgn(chargeAmount)} placed in escrow. ${formatNgn(materialsCost)} for materials released to professional.`
+            : `💳 Payment of ${formatNgn(chargeAmount)} placed in escrow.`,
+        ),
       });
       if (messageError) console.error("Escrow payment message failed", messageError);
 
