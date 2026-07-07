@@ -74,6 +74,8 @@ export function TransactionsSection() {
   const [txs, setTxs] = useState<Tx[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>("all");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const toggle = (id: string) => setExpandedId((cur) => (cur === id ? null : id));
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -247,23 +249,35 @@ export function TransactionsSection() {
         <ul className="sm:hidden space-y-2">
           {filtered.map((t) => {
             const s = statusLabel(t.bucket);
+            const open = expandedId === t.id;
             return (
               <li key={t.id} className="rounded-xl border border-border p-3 bg-background/40">
-                <div className="flex items-start justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={() => toggle(t.id)}
+                  aria-expanded={open}
+                  className="w-full text-left flex items-start justify-between gap-2"
+                >
                   <div className="min-w-0">
                     <div className="font-semibold text-sm truncate">{t.service_title}</div>
                     <div className="text-xs text-muted-foreground truncate mt-0.5">
                       {isCustomer ? "To" : "From"} {t.counterparty_name}
                     </div>
                   </div>
-                  <Badge variant={s.variant} className="shrink-0 text-[10px]">{s.label}</Badge>
-                </div>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <Badge variant={s.variant} className="text-[10px]">{s.label}</Badge>
+                    <ChevronDown
+                      className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+                    />
+                  </div>
+                </button>
                 <div className="flex items-end justify-between mt-2">
                   <span className="text-[11px] text-muted-foreground">
                     {new Date(t.created_at).toLocaleDateString()}
                   </span>
                   <span className="font-bold text-sm whitespace-nowrap">{formatNgn(t.amount)}</span>
                 </div>
+                {open && <TxDetails t={t} className="mt-3 pt-3 border-t border-border/60" />}
               </li>
             );
           })}
@@ -279,13 +293,21 @@ export function TransactionsSection() {
                 <TableHead>{isCustomer ? "Provider" : "Customer"}</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="w-8"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.map((t) => {
                 const s = statusLabel(t.bucket);
+                const open = expandedId === t.id;
                 return (
-                  <TableRow key={t.id}>
+                  <>
+                  <TableRow
+                    key={t.id}
+                    onClick={() => toggle(t.id)}
+                    className="cursor-pointer"
+                    aria-expanded={open}
+                  >
                     <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
                       {new Date(t.created_at).toLocaleDateString()}
                     </TableCell>
@@ -297,7 +319,20 @@ export function TransactionsSection() {
                     <TableCell>
                       <Badge variant={s.variant}>{s.label}</Badge>
                     </TableCell>
+                    <TableCell className="text-right">
+                      <ChevronDown
+                        className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+                      />
+                    </TableCell>
                   </TableRow>
+                  {open && (
+                    <TableRow key={t.id + "-details"}>
+                      <TableCell colSpan={6} className="bg-muted/30">
+                        <TxDetails t={t} />
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  </>
                 );
               })}
             </TableBody>
