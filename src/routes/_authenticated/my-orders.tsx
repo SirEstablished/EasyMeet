@@ -713,7 +713,7 @@ function OrderCardList({
                 <Detail label="Service" value={o.service_title} />
                 <Detail label={direction === "outgoing" ? "Provider" : "Customer"} value={name} />
                 <Detail label="Amount" value={formatNgn(o.amount)} />
-                <Detail label="Commission" value={formatNgn(commission)} />
+                <Detail label="EasyMeet Protection Fee" value={formatNgn(commission)} />
                 <Detail label="Payout" value={formatNgn(payout)} />
                 <Detail label="Payment ref" value={paymentRef} mono />
                 <Detail label="Date" value={new Date(o.created_at).toLocaleString()} />
