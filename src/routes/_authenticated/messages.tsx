@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
 import {
   supabase,
@@ -20,12 +20,13 @@ import {
   Search,
   Send,
   SlidersHorizontal,
-  Phone,
-  Info,
-  MoreVertical,
   Paperclip,
   Shield,
   ChevronRight,
+  Check,
+  CheckCheck,
+  ImageIcon,
+  Loader2,
 } from "lucide-react";
 import { containsPhone, PHONE_BLOCK_MESSAGE } from "@/lib/phoneCheck";
 import { cn } from "@/lib/utils";
@@ -215,7 +216,14 @@ function MessagesPage() {
           <div className="mt-3 flex items-center gap-2 overflow-x-auto no-scrollbar -mx-1 px-1">
             {(["all", "unread", "active", "deals"] as const).map((t) => {
               const active = tab === t;
-              const label = t === "all" ? "All" : t === "unread" ? "Unread" : t === "active" ? "Active" : "Deals";
+              const label =
+                t === "all"
+                  ? "All"
+                  : t === "unread"
+                    ? "Unread"
+                    : t === "active"
+                      ? "Active"
+                      : "Deals";
               return (
                 <button
                   key={t}
@@ -260,7 +268,8 @@ function MessagesPage() {
                   className={cn(
                     "group relative w-full text-left rounded-2xl bg-card border border-border/60 px-4 py-3.5 transition",
                     "shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:shadow-[0_8px_24px_-16px_rgba(108,76,246,0.25)] hover:border-primary/30",
-                    isSelected && "border-primary/40 shadow-[0_8px_24px_-16px_rgba(108,76,246,0.35)]",
+                    isSelected &&
+                      "border-primary/40 shadow-[0_8px_24px_-16px_rgba(108,76,246,0.35)]",
                   )}
                 >
                   <div className="flex items-start gap-3">
@@ -275,7 +284,9 @@ function MessagesPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex items-center gap-1">
-                          <span className="truncate text-[15px] font-bold text-foreground">{name}</span>
+                          <span className="truncate text-[15px] font-bold text-foreground">
+                            {name}
+                          </span>
                           <VerificationTicks
                             blue={c.other?.blue_tick}
                             white={c.other?.white_tick}
@@ -283,7 +294,10 @@ function MessagesPage() {
                             size="sm"
                           />
                           <FoundingMemberBadge
-                            active={(c.other as unknown as { is_founding_member?: boolean } | null)?.is_founding_member}
+                            active={
+                              (c.other as unknown as { is_founding_member?: boolean } | null)
+                                ?.is_founding_member
+                            }
                             size="sm"
                           />
                         </div>
@@ -292,7 +306,9 @@ function MessagesPage() {
                         </span>
                       </div>
                       {role && (
-                        <div className="text-xs text-muted-foreground capitalize mt-0.5">{role}</div>
+                        <div className="text-xs text-muted-foreground capitalize mt-0.5">
+                          {role}
+                        </div>
                       )}
                       <div className="mt-2 flex items-end justify-between gap-2">
                         <p
@@ -346,6 +362,15 @@ function MessagesPage() {
   );
 }
 
+// Extended local message type (columns not yet in generated types)
+type ChatMessage = Message & {
+  status?: string | null;
+  delivered_at?: string | null;
+  read_at?: string | null;
+  media_url?: string | null;
+  media_type?: string | null;
+};
+
 function Thread({
   conversation,
   meId,
@@ -362,12 +387,16 @@ function Thread({
   onConsumedInitialText?: () => void;
 }) {
   const { user, profile } = useAuth();
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState(initialText ?? "");
   const [warn, setWarn] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [otherOnline, setOtherOnline] = useState(false);
+  const [otherLastSeen, setOtherLastSeen] = useState<string | null>(null);
   const [escrowRefreshKey, setEscrowRefreshKey] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (initialText) {
@@ -385,9 +414,13 @@ function Thread({
   };
 
   const markRead = async () => {
+    const nowIso = new Date().toISOString();
     await supabase
       .from("messages")
-      .update({ is_read: true })
+      .update({
+        is_read: true,
+        ...({ status: "read", read_at: nowIso, delivered_at: nowIso } as Record<string, unknown>),
+      } as never)
       .eq("conversation_id", conversation.id)
       .neq("sender_id", meId)
       .eq("is_read", false);
@@ -403,7 +436,7 @@ function Thread({
         .eq("conversation_id", conversation.id)
         .order("created_at", { ascending: true });
       if (cancelled) return;
-      setMessages((data as Message[]) ?? []);
+      setMessages((data as ChatMessage[]) ?? []);
       scrollToBottom();
       markRead();
     })();
@@ -419,10 +452,23 @@ function Thread({
           filter: `conversation_id=eq.${conversation.id}`,
         },
         (payload) => {
-          const m = payload.new as Message;
+          const m = payload.new as ChatMessage;
           setMessages((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]));
           scrollToBottom();
           if (m.sender_id !== meId) markRead();
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "messages",
+          filter: `conversation_id=eq.${conversation.id}`,
+        },
+        (payload) => {
+          const m = payload.new as ChatMessage;
+          setMessages((prev) => prev.map((x) => (x.id === m.id ? { ...x, ...m } : x)));
         },
       )
       .on(
@@ -454,27 +500,127 @@ function Thread({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversation.id]);
 
-  const send = async () => {
+  // Scroll to bottom whenever the message list length changes (initial load,
+  // new incoming message, or sent message).
+  useLayoutEffect(() => {
+    scrollToBottom();
+    // Second pass after images/cards mount and change layout height.
+    const t = setTimeout(scrollToBottom, 80);
+    return () => clearTimeout(t);
+  }, [messages.length]);
+
+  // Presence: track this user online in a shared conversation channel and
+  // read the other party's online state from presence events. No schema
+  // changes needed — Supabase Realtime Presence handles it.
+  const otherId = conversation.other?.id ?? null;
+  useEffect(() => {
+    if (!otherId) return;
+    const ch = supabase.channel(`presence:convo:${conversation.id}`, {
+      config: { presence: { key: meId } },
+    });
+    const readState = () => {
+      const state = ch.presenceState() as Record<string, { user_id?: string; at?: string }[]>;
+      const online = Object.keys(state).includes(otherId);
+      setOtherOnline(online);
+      if (!online) {
+        // Persist last_seen locally so we can show it while the socket lasts.
+        setOtherLastSeen((cur) => cur ?? new Date().toISOString());
+      }
+    };
+    ch.on("presence", { event: "sync" }, readState)
+      .on("presence", { event: "join" }, readState)
+      .on("presence", { event: "leave" }, (payload) => {
+        readState();
+        if (payload.key === otherId) {
+          setOtherLastSeen(new Date().toISOString());
+        }
+      })
+      .subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+          await ch.track({ user_id: meId, at: new Date().toISOString() });
+        }
+      });
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [conversation.id, meId, otherId]);
+
+  const send = async (extra?: {
+    media_url?: string;
+    media_type?: string;
+    overrideBody?: string;
+  }) => {
     const body = text.trim();
-    if (!body || sending) return;
-    if (containsPhone(body)) {
+    const finalBody = extra?.overrideBody ?? body;
+    const hasMedia = !!extra?.media_url;
+    if ((!finalBody && !hasMedia) || sending) return;
+    if (finalBody && containsPhone(finalBody)) {
       setWarn(PHONE_BLOCK_MESSAGE);
       return;
     }
     setWarn(null);
     setSending(true);
-    const { error } = await supabase.from("messages").insert({
+    const nowIso = new Date().toISOString();
+    const payload: Record<string, unknown> = {
       conversation_id: conversation.id,
       sender_id: meId,
-      body,
-    });
+      body: finalBody,
+      status: "sent",
+      delivered_at: nowIso,
+    };
+    if (extra?.media_url) payload.media_url = extra.media_url;
+    if (extra?.media_type) payload.media_type = extra.media_type;
+    const { error } = await supabase.from("messages").insert(payload as never);
     setSending(false);
     if (error) {
       setWarn(error.message);
       return;
     }
-    setText("");
+    if (!extra?.overrideBody) setText("");
     onMessagesChanged();
+  };
+
+  const openFilePicker = () => fileInputRef.current?.click();
+
+  const onFileChosen = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const isImage = file.type.startsWith("image/");
+    const isVideo = file.type.startsWith("video/");
+    if (!isImage && !isVideo) {
+      setWarn("Only image or video files are supported");
+      return;
+    }
+    const maxMb = isVideo ? 30 : 8;
+    if (file.size > maxMb * 1024 * 1024) {
+      setWarn(`File is too large (max ${maxMb} MB)`);
+      return;
+    }
+    setUploading(true);
+    setWarn(null);
+    try {
+      const ext = file.name.split(".").pop() || (isVideo ? "mp4" : "jpg");
+      const path = `${conversation.id}/${meId}-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("message-media")
+        .upload(path, file, { contentType: file.type, upsert: false });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from("message-media").getPublicUrl(path);
+      const url = pub?.publicUrl;
+      if (!url) throw new Error("Could not get public URL");
+      await send({
+        media_url: url,
+        media_type: isVideo ? "video" : "image",
+        overrideBody: text.trim(),
+      });
+      setText("");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Upload failed";
+      setWarn(msg + " — make sure the 'message-media' bucket exists and is public.");
+    } finally {
+      setUploading(false);
+    }
   };
 
   const other = conversation.other;
@@ -512,7 +658,9 @@ function Thread({
                 {initials(name)}
               </AvatarFallback>
             </Avatar>
-            <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-card" />
+            {otherOnline && (
+              <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-card" />
+            )}
           </div>
           <div className="min-w-0 flex flex-col items-start">
             <div className="flex items-center gap-1">
@@ -524,7 +672,9 @@ function Thread({
                 size="sm"
               />
               <FoundingMemberBadge
-                active={(other as unknown as { is_founding_member?: boolean } | null)?.is_founding_member}
+                active={
+                  (other as unknown as { is_founding_member?: boolean } | null)?.is_founding_member
+                }
                 size="sm"
               />
             </div>
@@ -534,28 +684,28 @@ function Thread({
                   {other.role}
                 </span>
               )}
-              <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                Active now
-              </span>
+              {otherOnline ? (
+                <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  Active now
+                </span>
+              ) : otherLastSeen ? (
+                <span className="text-[11px] text-muted-foreground">
+                  Last seen {formatTime(otherLastSeen)}
+                </span>
+              ) : (
+                <span className="text-[11px] text-muted-foreground">Offline</span>
+              )}
             </div>
           </div>
         </Link>
-        <div className="flex items-center gap-1 text-muted-foreground">
-          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full">
-            <Phone className="h-[18px] w-[18px]" />
-          </Button>
-          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full">
-            <Info className="h-[18px] w-[18px]" />
-          </Button>
-          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full">
-            <MoreVertical className="h-[18px] w-[18px]" />
-          </Button>
-        </div>
       </div>
 
       {/* Scrollable body */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto bg-muted/30 px-4 pt-4 pb-2 space-y-1.5">
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto bg-muted/30 px-4 pt-4 pb-2 space-y-1.5"
+      >
         {/* Escrow protection banner */}
         <div className="flex items-center gap-3 rounded-2xl bg-card border border-border/60 px-3.5 py-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
           <div className="h-9 w-9 rounded-full bg-primary/10 grid place-items-center shrink-0">
@@ -611,7 +761,26 @@ function Thread({
         {warn && <div className="text-xs text-destructive mb-2 px-1">{warn}</div>}
         <div className="flex items-center gap-2">
           <div className="flex-1 flex items-center gap-1.5 h-12 rounded-full bg-muted/60 border border-border/60 px-2 pl-3">
-            <Paperclip className="h-[18px] w-[18px] text-muted-foreground shrink-0" />
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,video/*"
+              className="hidden"
+              onChange={onFileChosen}
+            />
+            <button
+              type="button"
+              onClick={openFilePicker}
+              disabled={uploading}
+              aria-label="Attach photo or video"
+              className="h-8 w-8 rounded-full grid place-items-center text-muted-foreground hover:text-primary hover:bg-primary/10 transition disabled:opacity-50 shrink-0"
+            >
+              {uploading ? (
+                <Loader2 className="h-[18px] w-[18px] animate-spin" />
+              ) : (
+                <Paperclip className="h-[18px] w-[18px]" />
+              )}
+            </button>
             <Input
               value={text}
               onChange={(e) => {
@@ -629,8 +798,8 @@ function Thread({
             />
           </div>
           <Button
-            onClick={send}
-            disabled={!text.trim() || sending}
+            onClick={() => send()}
+            disabled={!text.trim() || sending || uploading}
             className="h-12 w-12 p-0 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-[0_8px_24px_-10px_color-mix(in_oklab,var(--primary)_60%,transparent)]"
           >
             <Send className="h-[18px] w-[18px]" />
@@ -641,7 +810,7 @@ function Thread({
   );
 }
 
-function MessageBubble({ m, mine, meId }: { m: Message; mine: boolean; meId: string }) {
+function MessageBubble({ m, mine, meId }: { m: ChatMessage; mine: boolean; meId: string }) {
   const card = parseCardMessage(m.body);
   if (card) {
     return (
@@ -653,20 +822,61 @@ function MessageBubble({ m, mine, meId }: { m: Message; mine: boolean; meId: str
       </div>
     );
   }
+  const isRead = m.is_read || m.status === "read" || !!m.read_at;
+  const isDelivered = isRead || !!m.delivered_at || m.status === "delivered" || !!m.id;
+  const mediaUrl = m.media_url ?? null;
+  const mediaType = m.media_type ?? null;
   return (
     <div className={cn("flex flex-col mt-2", mine ? "items-end" : "items-start")}>
       <div
         className={cn(
-          "max-w-[78%] px-4 py-2.5 text-[14px] leading-snug whitespace-pre-wrap break-words",
+          "max-w-[78%] text-[14px] leading-snug whitespace-pre-wrap break-words overflow-hidden",
           mine
             ? "bg-primary text-primary-foreground rounded-[20px] rounded-br-md shadow-[0_6px_18px_-10px_color-mix(in_oklab,var(--primary)_60%,transparent)]"
             : "bg-card text-foreground rounded-[20px] rounded-bl-md border border-border/60 shadow-[0_1px_2px_rgba(15,23,42,0.04)]",
         )}
       >
-        {m.body}
+        {mediaUrl && mediaType === "image" && (
+          <a href={mediaUrl} target="_blank" rel="noreferrer" className="block">
+            <img
+              src={mediaUrl}
+              alt="attachment"
+              className="max-h-72 w-full object-cover"
+              loading="lazy"
+            />
+          </a>
+        )}
+        {mediaUrl && mediaType === "video" && (
+          <video src={mediaUrl} controls className="max-h-72 w-full" preload="metadata">
+            <track kind="captions" />
+          </video>
+        )}
+        {mediaUrl && mediaType !== "image" && mediaType !== "video" && (
+          <a
+            href={mediaUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-2 px-4 py-2.5 underline"
+          >
+            <ImageIcon className="h-4 w-4" /> Attachment
+          </a>
+        )}
+        {m.body ? <div className="px-4 py-2.5">{m.body}</div> : null}
       </div>
-      <span className="text-[10px] text-muted-foreground mt-1 px-1">
+      <span className="text-[10px] text-muted-foreground mt-1 px-1 flex items-center gap-1">
         {formatTime(m.created_at)}
+        {mine && (
+          <span
+            className={cn("inline-flex", isRead ? "text-primary" : "text-muted-foreground")}
+            aria-label={isRead ? "Read" : isDelivered ? "Delivered" : "Sent"}
+          >
+            {isDelivered || isRead ? (
+              <CheckCheck className="h-3.5 w-3.5" />
+            ) : (
+              <Check className="h-3.5 w-3.5" />
+            )}
+          </span>
+        )}
       </span>
     </div>
   );
