@@ -45,10 +45,8 @@ import { detectEscrowRoles, suggestAgreement } from "@/lib/escrow-ai.functions";
 const AGREEMENT_TYPES = [
   { value: "service", label: "Service Agreement" },
   { value: "product_sale", label: "Product Sale Agreement" },
-  { value: "supply", label: "Supply Agreement" },
   { value: "material_labor", label: "Material + Labor Agreement" },
   { value: "delivery", label: "Delivery Agreement" },
-  { value: "milestone", label: "Milestone Agreement" },
 ] as const;
 
 export function computeAgreementFees(materials: number, labor: number, contingency: number) {
@@ -1487,26 +1485,18 @@ function SendAgreementDialog({
     };
   }, [open, conversationId]);
 
-  const titleLabel =
-    agreementType === "product_sale"
-      ? "Product name"
-      : agreementType === "milestone"
-        ? "Project title"
-        : "Job title";
+  const titleLabel = agreementType === "product_sale" ? "Product name" : "Job title";
   const descLabel =
     agreementType === "product_sale"
       ? "Product description"
-      : agreementType === "supply"
-        ? "Supply description"
-        : agreementType === "delivery"
-          ? "Item description"
-          : agreementType === "milestone"
-            ? "Project description"
-            : agreementType === "service"
-              ? "Service description"
-              : "Description";
-  const dateLabel = agreementType === "milestone" ? "Project end date" : "Delivery date";
-  const showTitle = agreementType !== "delivery" && agreementType !== "supply";
+      : agreementType === "delivery"
+        ? "Item description"
+        : "Description";
+  const dateLabel =
+    agreementType === "service" || agreementType === "material_labor"
+      ? "Completion date"
+      : "Delivery date";
+  const showTitle = agreementType !== "delivery";
 
   const submit = async () => {
     const jobDescription = description.trim();

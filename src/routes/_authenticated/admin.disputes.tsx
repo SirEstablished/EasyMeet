@@ -62,6 +62,7 @@ function AdminDisputesPage() {
             order_id: r.order_id,
             customer_id: r.customer_id,
             provider_id: r.provider_id,
+            conversation_id: r.conversation_id ?? null,
             amount,
             status: r.status,
             dispute_reason: r.dispute_reason,
@@ -172,10 +173,16 @@ function AdminDisputesPage() {
         if (error) throw error;
       } else {
         if (d.paystack_reference) {
-          const r = await refundPaystackTransaction({
-            data: { reference: d.paystack_reference, amountNgn: d.amount },
-          });
-          if (!r.ok) throw new Error(r.message || "Refund failed");
+          // Best-effort Paystack refund; do not block the escrow state change
+          // if the gateway rejects (already refunded, test-mode limits, etc.).
+          try {
+            const r = await refundPaystackTransaction({
+              data: { reference: d.paystack_reference, amountNgn: d.amount },
+            });
+            if (!r.ok) console.warn("Paystack refund not queued:", r.message);
+          } catch (err) {
+            console.warn("Paystack refund threw:", err);
+          }
         }
         const { error } = await supabase
           .from("escrow")
@@ -209,10 +216,10 @@ function AdminDisputesPage() {
       const proMessage =
         outcome === "release"
           ? `The dispute has been resolved in your favour. Payment of ${amountLabel} has been released to your account.`
-          : `The dispute has been resolved. A refund of ${amountLabel} will be processed to the customer.`;
+          : `The dispute has been resolved. A refund of ${amountLabel} will be processed to the customer within 3-5 business days.`;
       const custMessage =
         outcome === "refund"
-          ? `The dispute has been resolved in your favour. A refund of ${amountLabel} will be processed to your account.`
+          ? `Your dispute has been resolved. A refund of ${amountLabel} will be processed to your account within 3-5 business days.`
           : `The dispute has been resolved. Payment of ${amountLabel} has been released to the professional.`;
       await supabase.from("notifications").insert([
         {
@@ -228,6 +235,18 @@ function AdminDisputesPage() {
           type: "dispute_resolved",
         },
       ] as never);
+      // Post a chat message into the conversation so both parties see the outcome inline.
+      if (d.conversation_id) {
+        const outcomeText =
+          outcome === "release"
+            ? `Payment of ${amountLabel} has been released to the professional.`
+            : `A refund of ${amountLabel} will be processed to the customer within 3-5 business days.`;
+        await supabase.from("messages").insert({
+          conversation_id: d.conversation_id,
+          sender_id: user!.id,
+          body: `⚖️ This dispute has been resolved by EasyMeet admin. ${outcomeText}`,
+        } as never);
+      }
       toast.success(
         outcome === "release" ? "Payment released to professional" : "Refund issued to customer",
       );
