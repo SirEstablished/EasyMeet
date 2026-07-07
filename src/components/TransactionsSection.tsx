@@ -13,7 +13,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Download, Loader2, Wallet, CheckCircle2, Shield } from "lucide-react";
+import { Download, Loader2, Wallet, CheckCircle2, Shield, ChevronDown } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 
 type Filter = "all" | "completed" | "in_escrow" | "cancelled" | "refunded";
@@ -25,11 +26,17 @@ interface Tx {
   amount: number;
   counterparty_id: string;
   counterparty_name: string;
+  counterparty_avatar: string | null;
   is_outgoing: boolean;
   status: string;
   escrow_status: string | null;
   order_status: string;
   bucket: Exclude<Filter, "all">;
+  commission: number;
+  payout: number;
+  payment_ref: string | null;
+  escrow_stage: string | null;
+  agreement_type: string | null;
 }
 
 function bucketize(order_status: string, escrow_status: string | null): Tx["bucket"] {
@@ -87,21 +94,30 @@ export function TransactionsSection() {
 
       const [{ data: profiles }, { data: escrows }] = await Promise.all([
         counterpartyIds.length
-          ? supabase.from("profiles").select("id, full_name, username").in("id", counterpartyIds)
+          ? supabase
+              .from("profiles")
+              .select("id, full_name, username, avatar_url")
+              .in("id", counterpartyIds)
           : Promise.resolve({ data: [] as any[] }),
         orderIds.length
-          ? supabase.from("escrow").select("order_id, status").in("order_id", orderIds)
+          ? supabase
+              .from("escrow")
+              .select(
+                "order_id, status, stage, commission_amount, payout_amount, payment_ref, agreement_type",
+              )
+              .in("order_id", orderIds)
           : Promise.resolve({ data: [] as any[] }),
       ]);
 
       const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
-      const escrowMap = new Map((escrows ?? []).map((e: any) => [e.order_id, e.status]));
+      const escrowMap = new Map((escrows ?? []).map((e: any) => [e.order_id, e]));
 
       const list: Tx[] = rows.map((r: any) => {
         const isOut = r.customer_id === user.id;
         const cpId = isOut ? r.provider_id : r.customer_id;
         const cp = profileMap.get(cpId) as any;
-        const escrow_status = escrowMap.get(r.id) ?? r.escrow_status ?? null;
+        const esc = escrowMap.get(r.id) as any | undefined;
+        const escrow_status = esc?.status ?? r.escrow_status ?? null;
         const bucket = bucketize(r.status, escrow_status);
         return {
           id: r.id,
@@ -110,11 +126,17 @@ export function TransactionsSection() {
           amount: Number(r.amount || 0),
           counterparty_id: cpId,
           counterparty_name: cp?.full_name || cp?.username || "—",
+          counterparty_avatar: cp?.avatar_url ?? null,
           is_outgoing: isOut,
           status: bucket,
           escrow_status,
           order_status: r.status,
           bucket,
+          commission: Number(esc?.commission_amount ?? r.commission_amount ?? 0),
+          payout: Number(esc?.payout_amount ?? r.payout_amount ?? 0),
+          payment_ref: esc?.payment_ref ?? r.payment_ref ?? null,
+          escrow_stage: esc?.stage ?? r.escrow_stage ?? null,
+          agreement_type: esc?.agreement_type ?? null,
         };
       });
       setTxs(list);
