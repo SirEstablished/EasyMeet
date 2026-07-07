@@ -173,10 +173,16 @@ function AdminDisputesPage() {
         if (error) throw error;
       } else {
         if (d.paystack_reference) {
-          const r = await refundPaystackTransaction({
-            data: { reference: d.paystack_reference, amountNgn: d.amount },
-          });
-          if (!r.ok) throw new Error(r.message || "Refund failed");
+          // Best-effort Paystack refund; do not block the escrow state change
+          // if the gateway rejects (already refunded, test-mode limits, etc.).
+          try {
+            const r = await refundPaystackTransaction({
+              data: { reference: d.paystack_reference, amountNgn: d.amount },
+            });
+            if (!r.ok) console.warn("Paystack refund not queued:", r.message);
+          } catch (err) {
+            console.warn("Paystack refund threw:", err);
+          }
         }
         const { error } = await supabase
           .from("escrow")
