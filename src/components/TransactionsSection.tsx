@@ -13,7 +13,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Download, Loader2, Wallet, CheckCircle2, Shield } from "lucide-react";
+import { Download, Loader2, Wallet, CheckCircle2, Shield, ChevronDown } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 
 type Filter = "all" | "completed" | "in_escrow" | "cancelled" | "refunded";
@@ -25,11 +26,17 @@ interface Tx {
   amount: number;
   counterparty_id: string;
   counterparty_name: string;
+  counterparty_avatar: string | null;
   is_outgoing: boolean;
   status: string;
   escrow_status: string | null;
   order_status: string;
   bucket: Exclude<Filter, "all">;
+  commission: number;
+  payout: number;
+  payment_ref: string | null;
+  escrow_stage: string | null;
+  agreement_type: string | null;
 }
 
 function bucketize(order_status: string, escrow_status: string | null): Tx["bucket"] {
@@ -67,6 +74,8 @@ export function TransactionsSection() {
   const [txs, setTxs] = useState<Tx[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>("all");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const toggle = (id: string) => setExpandedId((cur) => (cur === id ? null : id));
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -87,21 +96,30 @@ export function TransactionsSection() {
 
       const [{ data: profiles }, { data: escrows }] = await Promise.all([
         counterpartyIds.length
-          ? supabase.from("profiles").select("id, full_name, username").in("id", counterpartyIds)
+          ? supabase
+              .from("profiles")
+              .select("id, full_name, username, avatar_url")
+              .in("id", counterpartyIds)
           : Promise.resolve({ data: [] as any[] }),
         orderIds.length
-          ? supabase.from("escrow").select("order_id, status").in("order_id", orderIds)
+          ? supabase
+              .from("escrow")
+              .select(
+                "order_id, status, stage, commission_amount, payout_amount, payment_ref, agreement_type",
+              )
+              .in("order_id", orderIds)
           : Promise.resolve({ data: [] as any[] }),
       ]);
 
       const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
-      const escrowMap = new Map((escrows ?? []).map((e: any) => [e.order_id, e.status]));
+      const escrowMap = new Map((escrows ?? []).map((e: any) => [e.order_id, e]));
 
       const list: Tx[] = rows.map((r: any) => {
         const isOut = r.customer_id === user.id;
         const cpId = isOut ? r.provider_id : r.customer_id;
         const cp = profileMap.get(cpId) as any;
-        const escrow_status = escrowMap.get(r.id) ?? r.escrow_status ?? null;
+        const esc = escrowMap.get(r.id) as any | undefined;
+        const escrow_status = esc?.status ?? r.escrow_status ?? null;
         const bucket = bucketize(r.status, escrow_status);
         return {
           id: r.id,
@@ -110,11 +128,17 @@ export function TransactionsSection() {
           amount: Number(r.amount || 0),
           counterparty_id: cpId,
           counterparty_name: cp?.full_name || cp?.username || "—",
+          counterparty_avatar: cp?.avatar_url ?? null,
           is_outgoing: isOut,
           status: bucket,
           escrow_status,
           order_status: r.status,
           bucket,
+          commission: Number(esc?.commission_amount ?? r.commission_amount ?? 0),
+          payout: Number(esc?.payout_amount ?? r.payout_amount ?? 0),
+          payment_ref: esc?.payment_ref ?? r.payment_ref ?? null,
+          escrow_stage: esc?.stage ?? r.escrow_stage ?? null,
+          agreement_type: esc?.agreement_type ?? null,
         };
       });
       setTxs(list);
@@ -225,23 +249,35 @@ export function TransactionsSection() {
         <ul className="sm:hidden space-y-2">
           {filtered.map((t) => {
             const s = statusLabel(t.bucket);
+            const open = expandedId === t.id;
             return (
               <li key={t.id} className="rounded-xl border border-border p-3 bg-background/40">
-                <div className="flex items-start justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={() => toggle(t.id)}
+                  aria-expanded={open}
+                  className="w-full text-left flex items-start justify-between gap-2"
+                >
                   <div className="min-w-0">
                     <div className="font-semibold text-sm truncate">{t.service_title}</div>
                     <div className="text-xs text-muted-foreground truncate mt-0.5">
                       {isCustomer ? "To" : "From"} {t.counterparty_name}
                     </div>
                   </div>
-                  <Badge variant={s.variant} className="shrink-0 text-[10px]">{s.label}</Badge>
-                </div>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <Badge variant={s.variant} className="text-[10px]">{s.label}</Badge>
+                    <ChevronDown
+                      className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+                    />
+                  </div>
+                </button>
                 <div className="flex items-end justify-between mt-2">
                   <span className="text-[11px] text-muted-foreground">
                     {new Date(t.created_at).toLocaleDateString()}
                   </span>
                   <span className="font-bold text-sm whitespace-nowrap">{formatNgn(t.amount)}</span>
                 </div>
+                {open && <TxDetails t={t} className="mt-3 pt-3 border-t border-border/60" />}
               </li>
             );
           })}
@@ -257,13 +293,21 @@ export function TransactionsSection() {
                 <TableHead>{isCustomer ? "Provider" : "Customer"}</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="w-8"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.map((t) => {
                 const s = statusLabel(t.bucket);
+                const open = expandedId === t.id;
                 return (
-                  <TableRow key={t.id}>
+                  <>
+                  <TableRow
+                    key={t.id}
+                    onClick={() => toggle(t.id)}
+                    className="cursor-pointer"
+                    aria-expanded={open}
+                  >
                     <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
                       {new Date(t.created_at).toLocaleDateString()}
                     </TableCell>
@@ -275,7 +319,20 @@ export function TransactionsSection() {
                     <TableCell>
                       <Badge variant={s.variant}>{s.label}</Badge>
                     </TableCell>
+                    <TableCell className="text-right">
+                      <ChevronDown
+                        className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+                      />
+                    </TableCell>
                   </TableRow>
+                  {open && (
+                    <TableRow key={t.id + "-details"}>
+                      <TableCell colSpan={6} className="bg-muted/30">
+                        <TxDetails t={t} />
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  </>
                 );
               })}
             </TableBody>
@@ -295,6 +352,58 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
         <span className="truncate">{label}</span>
       </div>
       <div className="mt-1 sm:mt-2 text-sm sm:text-2xl font-extrabold tracking-tight text-gradient-brand truncate">{value}</div>
+    </div>
+  );
+}
+
+function TxDetails({ t, className }: { t: Tx; className?: string }) {
+  const initials = (t.counterparty_name || "?")
+    .split(" ")
+    .map((s) => s[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+  return (
+    <div className={`animate-accordion-down ${className ?? ""}`}>
+      <div className="flex items-center gap-3 mb-3">
+        <Avatar className="h-9 w-9">
+          {t.counterparty_avatar && <AvatarImage src={t.counterparty_avatar} alt={t.counterparty_name} />}
+          <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
+            {initials}
+          </AvatarFallback>
+        </Avatar>
+        <div className="min-w-0">
+          <div className="text-sm font-semibold truncate">{t.counterparty_name}</div>
+          <div className="text-[11px] text-muted-foreground truncate">{t.service_title}</div>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+        <DetailRow label="Amount" value={formatNgn(t.amount)} />
+        <DetailRow label="Commission" value={formatNgn(t.commission)} />
+        <DetailRow label="Payout" value={formatNgn(t.payout)} />
+        <DetailRow label="Payment ref" value={t.payment_ref || "—"} mono />
+        <DetailRow label="Date" value={new Date(t.created_at).toLocaleString()} />
+        <DetailRow label="Escrow stage" value={t.escrow_stage || t.escrow_status || "—"} />
+        <DetailRow
+          label="Agreement type"
+          value={(t.agreement_type || "—").replace(/_/g, " ")}
+        />
+        <DetailRow label="Direction" value={t.is_outgoing ? "Spent" : "Earned"} />
+      </div>
+    </div>
+  );
+}
+
+function DetailRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="min-w-0">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div
+        className={`text-[12px] font-medium text-foreground truncate ${mono ? "font-mono" : ""}`}
+        title={value}
+      >
+        {value}
+      </div>
     </div>
   );
 }
