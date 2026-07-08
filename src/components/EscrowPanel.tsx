@@ -190,6 +190,9 @@ export function EscrowPanel({
   const [showSummary, setShowSummary] = useState(false);
   const [payBreakdownOpen, setPayBreakdownOpen] = useState(false);
   const [payAgreement, setPayAgreement] = useState<ServiceAgreement | null>(null);
+  const [typePickerOpen, setTypePickerOpen] = useState(false);
+  const [initialType, setInitialType] = useState<string>("service");
+  const [editAgreementId, setEditAgreementId] = useState<string | null>(null);
   const [hidden, setHidden] = useState(false);
   const [roleRefreshKey, setRoleRefreshKey] = useState(0);
   const [loadedConversationId, setLoadedConversationId] = useState<string | null>(null);
