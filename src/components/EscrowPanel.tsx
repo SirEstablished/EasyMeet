@@ -1291,13 +1291,28 @@ export function EscrowPanel({
       {sendOpen && other && (
         <SendAgreementDialog
           open={sendOpen}
-          onOpenChange={setSendOpen}
+          onOpenChange={(v) => {
+            setSendOpen(v);
+            if (!v) setEditAgreementId(null);
+          }}
           conversationId={conversationId}
           professionalId={meId}
           customerId={other.id}
+          initialType={initialType}
+          editAgreementId={editAgreementId}
           onSent={load}
         />
       )}
+      <AgreementTypeSheet
+        open={typePickerOpen}
+        onOpenChange={setTypePickerOpen}
+        onPick={(t) => {
+          setInitialType(t);
+          setTypePickerOpen(false);
+          setEditAgreementId(null);
+          setSendOpen(true);
+        }}
+      />
       {askRoleOpen && other && !isCancelled && (
         <AskRoleDialog
           open={askRoleOpen}
