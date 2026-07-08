@@ -1812,12 +1812,26 @@ function SendAgreementDialog({
       commission_amount: commission,
       paystack_fee: fees.paystackFee,
     };
-    const { data: inserted, error } = await supabase
-      .from("service_agreements")
-      .insert(payload as never)
-      .select("id")
-      .single();
-    if (!error) {
+    let inserted: { id: string } | null = null;
+    let error: { message: string } | null = null;
+    if (editAgreementId) {
+      // Update in place — do not push a duplicate agreement card.
+      const { error: upErr } = await supabase
+        .from("service_agreements")
+        .update(payload as never)
+        .eq("id", editAgreementId);
+      error = upErr as { message: string } | null;
+      inserted = { id: editAgreementId };
+    } else {
+      const res = await supabase
+        .from("service_agreements")
+        .insert(payload as never)
+        .select("id")
+        .single();
+      inserted = (res.data as { id: string } | null) ?? null;
+      error = (res.error as { message: string } | null) ?? null;
+    }
+    if (!error && !editAgreementId) {
       const agreementId = (inserted as { id: string } | null)?.id ?? "";
       await supabase.from("messages").insert({
         conversation_id: conversationId,
@@ -1837,7 +1851,7 @@ function SendAgreementDialog({
     }
     setBusy(false);
     if (error) return toast.error(error.message);
-    toast.success("Agreement sent");
+    toast.success(editAgreementId ? "Agreement updated" : "Agreement sent");
     onSent();
     onOpenChange(false);
   };
