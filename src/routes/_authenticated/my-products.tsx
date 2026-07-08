@@ -68,7 +68,7 @@ function MyProductsPage() {
   if (!profile) return null;
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+    <div className="max-w-5xl mx-auto px-5 sm:px-8 lg:px-12 py-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-3xl sm:text-4xl font-extrabold text-gradient-tri">My Products</h1>

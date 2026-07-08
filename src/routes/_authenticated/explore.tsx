@@ -98,7 +98,7 @@ function Explore() {
   }, [profiles, q, filter, userCoords]);
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-4 pb-28 md:pb-10">
+    <div className="max-w-6xl mx-auto px-5 sm:px-8 lg:px-12 pt-4 pb-28 md:pb-10">
       <h1 className="text-4xl font-extrabold tracking-tight text-foreground">Explore</h1>
 
       {/* Search */}

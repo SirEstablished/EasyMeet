@@ -19,7 +19,7 @@ function MyProfilePage() {
 
   if (!profile) {
     return (
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10 text-muted-foreground">
+      <div className="max-w-3xl mx-auto px-5 sm:px-8 lg:px-12 py-10 text-muted-foreground">
         Loading profile…
       </div>
     );
@@ -41,7 +41,7 @@ function MyProfilePage() {
       />
 
       {(isBusiness || isProfessional) && (
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 pb-16">
+        <div className="max-w-5xl mx-auto px-5 sm:px-8 lg:px-12 pb-16">
           <div className="rounded-3xl glass-card p-6">
             <h2 className="font-extrabold text-xl text-gradient-tri">Get Verified</h2>
             <p className="text-sm text-muted-foreground mt-1">

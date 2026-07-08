@@ -121,7 +121,7 @@ function RootShell({ children }: { children: ReactNode }) {
           }}
         />
       </head>
-      <body className="bg-background text-foreground">
+      <body className="bg-background text-foreground overflow-x-hidden">
         {children}
         <Scripts />
       </body>
