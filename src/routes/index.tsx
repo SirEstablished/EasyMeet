@@ -16,6 +16,12 @@ import {
 } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -87,13 +93,13 @@ function Landing() {
       {/* HERO */}
       <section className="relative overflow-hidden min-h-[80vh] sm:min-h-[92vh] flex flex-col items-center justify-center">
         {/* Decorative blurs — all clipped by section overflow-hidden */}
-        <div className="absolute inset-0 -z-10 bg-mesh-brand opacity-[0.28] dark:opacity-[0.45]" />
-        <div className="absolute -top-32 -left-32 -z-10 h-96 w-96 rounded-full bg-primary/30 blur-3xl float-soft" />
-        <div className="absolute -bottom-32 -right-32 -z-10 h-[28rem] w-[28rem] rounded-full bg-accent/30 blur-3xl float-soft-slow" />
-        <div className="absolute top-1/3 right-1/4 -z-10 h-72 w-72 rounded-full bg-coral/25 blur-3xl float-soft-delayed" />
+        <div className="absolute inset-0 -z-10 bg-mesh-brand opacity-[0.25] dark:opacity-[0.4]" />
+        <div className="absolute -top-32 -left-32 -z-10 h-96 w-96 rounded-full bg-primary/20 dark:bg-primary/25 blur-3xl float-soft" />
+        <div className="absolute -bottom-32 -right-32 -z-10 h-112 w-md rounded-full bg-accent/20 dark:bg-accent/25 blur-3xl float-soft-slow" />
+        <div className="absolute top-1/3 right-1/4 -z-10 h-72 w-72 rounded-full bg-coral/15 dark:bg-coral/20 blur-3xl float-soft-delayed" />
 
         {/* Floating profile cards (desktop only, contained within section) */}
-        <div className="hidden lg:block pointer-events-none absolute inset-0 -z-[5]">
+        <div className="hidden lg:block pointer-events-none absolute inset-0 z-[-5]">
           <FloatingProfile
             className="left-[6%] top-[22%] float-soft"
             name="Adaeze O."
@@ -147,8 +153,10 @@ function Landing() {
             <Button
               size="lg"
               variant="outline"
-              className="h-12 px-8 rounded-full glass-card border-white/40 hover:bg-primary/5 w-full sm:w-auto"
-              onClick={() => openModal("signup")}
+              className="h-12 px-8 rounded-full glass-card border-border hover:bg-primary/5 w-full sm:w-auto"
+              onClick={() =>
+                document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" })
+              }
             >
               See How It Works
             </Button>
@@ -189,13 +197,13 @@ function Landing() {
 
       {/* STATS */}
       <section className="relative overflow-hidden border-b border-border/60">
-        <div className="absolute inset-0 -z-10 bg-[radial-gradient(color-mix(in_oklab,var(--primary)_22%,transparent)_1px,transparent_1px)] [background-size:24px_24px] opacity-30" />
-        <div className="absolute inset-0 -z-10 bg-gradient-to-br from-primary/10 via-transparent to-accent/10" />
+        <div className="absolute inset-0 -z-10 bg-[radial-gradient(color-mix(in_oklab,var(--primary)_22%,transparent)_1px,transparent_1px)] bg-size-[24px_24px] opacity-30" />
+        <div className="absolute inset-0 -z-10 bg-linear-to-br from-primary/10 via-transparent to-accent/10" />
         <div className="max-w-7xl mx-auto px-5 sm:px-8 lg:px-12 py-20 sm:py-24 grid gap-8 sm:grid-cols-3 text-center">
           {[
-            { num: "10,000+", label: "Professionals" },
-            { num: "50,000+", label: "Customers" },
-            { num: "₦500M+", label: "Transactions" },
+            { num: "100+", label: "Professionals" },
+            { num: "500+", label: "Customers" },
+            { num: "₦50,000+", label: "Transactions" },
           ].map((s) => (
             <div
               key={s.label}
@@ -321,8 +329,8 @@ function Landing() {
       </section>
 
       {/* HOW IT WORKS */}
-      <section className="border-y border-border/60 relative overflow-hidden">
-        <div className="absolute inset-0 -z-10 bg-gradient-to-br from-primary/5 via-transparent to-accent/5" />
+      <section id="how-it-works" className="border-y border-border/60 relative overflow-hidden">
+        <div className="absolute inset-0 -z-10 bg-linear-to-br from-primary/5 via-transparent to-accent/5" />
         <div className="max-w-7xl mx-auto px-5 sm:px-8 lg:px-12 py-24 sm:py-32">
           <div className="text-center max-w-2xl mx-auto mb-12">
             <h2 className="text-3xl sm:text-4xl font-bold">
@@ -487,34 +495,53 @@ function Landing() {
       <section className="border-y border-border/60 bg-muted/30">
         <div className="max-w-7xl mx-auto px-5 sm:px-8 lg:px-12 py-24 sm:py-32">
           <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl font-bold">Frequently asked questions</h2>
+            <h2 className="text-3xl sm:text-4xl font-bold">
+              Frequently asked <span className="text-primary">questions</span>
+            </h2>
             <p className="text-muted-foreground mt-2">
               Everything you need to know about EasyMeet.
             </p>
           </div>
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2">
             {[
               {
                 q: "Is EasyMeet free to use?",
-                a: "Yes! Creating an account and browsing professionals is completely free. You only pay when you book a service.",
+                a: "Yes! Creating an account and browsing professionals is completely free. You only pay when you book a service. There are no hidden fees or subscription costs for customers.",
               },
               {
                 q: "How are professionals verified?",
-                a: "Every professional goes through a verification process including identity check and portfolio review before their profile goes live.",
+                a: "Every professional goes through a rigorous verification process including identity verification, portfolio review, and background checks before their profile goes live on the platform.",
               },
               {
                 q: "What if I'm not satisfied with a service?",
-                a: "We have a dispute resolution system and escrow protection. If you're not satisfied, you can request a refund through the platform.",
+                a: "We have a comprehensive dispute resolution system and escrow protection. If you're not satisfied with the service, you can request a refund through the platform and our support team will assist you.",
               },
               {
                 q: "Can I use EasyMeet for my business?",
-                a: "Absolutely! EasyMeet supports individual professionals, businesses, and organizations. You can offer both products and services.",
+                a: "Absolutely! EasyMeet supports individual professionals, small businesses, and large organizations. You can offer both products and services, manage your team, and grow your customer base.",
               },
-            ].map(({ q, a }) => (
-              <div key={q} className="rounded-xl border border-border bg-card p-5">
-                <h3 className="font-semibold">{q}</h3>
-                <p className="text-sm text-muted-foreground mt-2">{a}</p>
-              </div>
+              {
+                q: "How do payments work?",
+                a: "Payments are held in escrow until the service is completed. Once you confirm satisfaction, the funds are released to the professional. This protects both parties and ensures fair transactions.",
+              },
+              {
+                q: "What areas does EasyMeet cover?",
+                a: "EasyMeet currently operates in major Nigerian cities including Lagos, Abuja, Port Harcourt, and Ibadan. We're constantly expanding to new locations across the country.",
+              },
+            ].map(({ q, a }, i) => (
+              <Accordion key={i} type="single" collapsible>
+                <AccordionItem
+                  value={`item-${i}`}
+                  className="rounded-xl border border-border bg-card px-5 data-[state=open]:border-primary/30"
+                >
+                  <AccordionTrigger className="text-base font-semibold py-5 hover:no-underline hover:text-primary">
+                    {q}
+                  </AccordionTrigger>
+                  <AccordionContent className="text-sm text-muted-foreground leading-relaxed pb-5">
+                    {a}
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
             ))}
           </div>
         </div>
@@ -523,7 +550,7 @@ function Landing() {
       {/* CTA */}
       <section className="max-w-7xl mx-auto px-5 sm:px-8 lg:px-12 pb-20 pt-16">
         <div className="rounded-3xl bg-primary p-10 sm:p-14 text-center text-primary-foreground relative overflow-hidden">
-          <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(white_1px,transparent_1px)] [background-size:18px_18px]" />
+          <div className="absolute inset-0 opacity-20 bg-[radial-gradient(white_1px,transparent_1px)] bg-size-[18px_18px]" />
           <h2 className="relative text-3xl sm:text-5xl font-bold">Ready to meet your match?</h2>
           <p className="relative mt-3 opacity-90">
             Join thousands of Nigerians using EasyMeet every day.
@@ -570,7 +597,7 @@ function FloatingProfile({
     <div
       className={`absolute glass-card rounded-2xl p-3 pr-5 flex items-center gap-3 shadow-xl w-56 ${className ?? ""}`}
     >
-      <span className="inline-block rounded-full p-[2px] bg-primary">
+      <span className="inline-block rounded-full p-0.5 bg-primary">
         <span className="h-10 w-10 rounded-full bg-card flex items-center justify-center text-xs font-bold text-primary border-2 border-background">
           {initials}
         </span>

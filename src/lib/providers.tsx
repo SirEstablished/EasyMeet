@@ -18,8 +18,8 @@ interface ThemeCtx {
 const ThemeContext = createContext<ThemeCtx | null>(null);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  // Dark is the default; users can switch and the preference persists.
-  const [theme, setThemeState] = useState<Theme>("dark");
+  // Light is the default; users can switch and the preference persists.
+  const [theme, setThemeState] = useState<Theme>("light");
 
   useEffect(() => {
     try {
