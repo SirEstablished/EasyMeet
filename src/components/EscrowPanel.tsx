@@ -1628,6 +1628,129 @@ function PaymentBreakdownDialog({
   );
 }
 
+function NewDealFab({ onClick }: { onClick: () => void }) {
+  return (
+    <div className="relative">
+      <span className="absolute inset-0 rounded-full bg-primary/40 animate-ping" aria-hidden />
+      <button
+        type="button"
+        onClick={onClick}
+        className="relative flex flex-col items-center justify-center gap-0.5 h-16 w-16 rounded-full
+          bg-gradient-to-br from-[#6C47FF] to-[#8E5BFF] text-white shadow-xl shadow-primary/40
+          hover:scale-105 active:scale-95 transition-transform"
+        aria-label="Start new deal"
+      >
+        <Handshake className="h-6 w-6" strokeWidth={2.2} />
+        <span className="text-[9px] font-semibold leading-none">New Deal</span>
+      </button>
+    </div>
+  );
+}
+
+function AgreementTypeSheet({
+  open,
+  onOpenChange,
+  onPick,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onPick: (type: string) => void;
+}) {
+  const cards = [
+    {
+      value: "service",
+      label: "Service Agreement",
+      desc: "Labor-only work, released after completion.",
+      icon: <Briefcase className="h-5 w-5" />,
+      accent: "from-primary/15 to-primary/5 text-primary",
+    },
+    {
+      value: "product_sale",
+      label: "Product Sale",
+      desc: "Product + delivery, released on confirmation.",
+      icon: <Package className="h-5 w-5" />,
+      accent: "from-accent/15 to-accent/5 text-accent",
+    },
+    {
+      value: "material_labor",
+      label: "Material + Labor",
+      desc: "Materials released now, labor after completion.",
+      icon: <Wrench className="h-5 w-5" />,
+      accent: "from-coral/15 to-coral/5 text-coral",
+    },
+    {
+      value: "delivery",
+      label: "Delivery Agreement",
+      desc: "Delivery fee held until delivery confirmed.",
+      icon: <Truck className="h-5 w-5" />,
+      accent: "from-primary/15 to-accent/10 text-primary",
+    },
+  ];
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className="p-0 gap-0 border-0 overflow-hidden max-w-full sm:max-w-md w-full
+          sm:rounded-3xl rounded-t-[24px] rounded-b-none
+          max-h-[85vh] flex flex-col
+          data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom-8
+          sm:data-[state=open]:zoom-in-95 sm:data-[state=open]:slide-in-from-bottom-0
+          fixed bottom-0 left-0 right-0 top-auto translate-x-0 translate-y-0
+          sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:bottom-auto sm:right-auto"
+      >
+        <div className="relative bg-gradient-to-br from-[#1a1030] via-[#2b1655] to-[#3b1e78] text-white px-5 pt-5 pb-5">
+          <div className="sm:hidden absolute top-1.5 left-1/2 -translate-x-1/2 h-1 w-10 rounded-full bg-white/30" />
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="h-9 w-9 grid place-items-center rounded-full bg-white/10 hover:bg-white/20"
+              aria-label="Back"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+            <span className="text-[11px] uppercase tracking-widest font-semibold text-white/80">
+              Choose deal type
+            </span>
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="h-9 w-9 grid place-items-center rounded-full bg-white/10 hover:bg-white/20"
+              aria-label="Close"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <DialogTitle className="text-xl font-extrabold mt-3 text-white">
+            Start a New Deal
+          </DialogTitle>
+          <p className="text-xs text-white/70 mt-1">
+            Pick the agreement type that fits your work.
+          </p>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 py-4 grid grid-cols-1 sm:grid-cols-2 gap-3 bg-background">
+          {cards.map((c) => (
+            <button
+              key={c.value}
+              type="button"
+              onClick={() => onPick(c.value)}
+              className="text-left rounded-2xl border border-border/60 bg-card p-4 hover:border-primary/40 hover:shadow-md hover:-translate-y-0.5 transition group"
+            >
+              <div
+                className={`h-10 w-10 rounded-xl bg-gradient-to-br ${c.accent} grid place-items-center mb-3`}
+              >
+                {c.icon}
+              </div>
+              <div className="font-semibold text-sm text-foreground">{c.label}</div>
+              <p className="text-[11px] text-muted-foreground mt-1 leading-snug">{c.desc}</p>
+            </button>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function SendAgreementDialog({
   open,
   onOpenChange,
