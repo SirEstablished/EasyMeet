@@ -1509,39 +1509,120 @@ function PaymentBreakdownDialog({
       ? "EasyMeet Protection Fee"
       : "EasyMeet Protection Fee";
 
+  const typeLabel =
+    AGREEMENT_TYPES.find((t) => t.value === type)?.label ?? "Escrow Agreement";
+
+  const iconFor = (label: string) => {
+    if (/material|product/i.test(label)) return <Package className="h-4 w-4" />;
+    if (/labor|service/i.test(label)) return <Briefcase className="h-4 w-4" />;
+    if (/deliver/i.test(label)) return <Truck className="h-4 w-4" />;
+    if (/conting/i.test(label)) return <Wallet className="h-4 w-4" />;
+    return <Wallet className="h-4 w-4" />;
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Confirm payment breakdown</DialogTitle>
-        </DialogHeader>
-        <div className="rounded-lg border border-border/60 bg-background/40 p-3 space-y-1 text-sm">
-          {rows.map((r) => (
-            <SummaryRow key={r.label} label={r.label} value={r.value} muted={r.muted} />
-          ))}
-          <SummaryRow
-            label={commissionLabel + (commissionLoading ? " • calculating…" : "")}
-            value={commission}
-            muted
-          />
-          <SummaryRow label="Paystack fee" value={paystackFee} muted />
-          <div className="border-t border-border/50 my-1" />
-          <SummaryRow label="Total you pay" value={total} bold />
-          <SummaryRow label="Professional receives" value={professionalReceives} accent />
+      <DialogContent
+        className="p-0 gap-0 border-0 overflow-hidden max-w-full sm:max-w-md w-full
+          sm:rounded-3xl rounded-t-[24px] rounded-b-none
+          max-h-[92vh] flex flex-col
+          data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom-8
+          sm:data-[state=open]:zoom-in-95 sm:data-[state=open]:slide-in-from-bottom-0
+          fixed bottom-0 left-0 right-0 top-auto translate-x-0 translate-y-0
+          sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:bottom-auto sm:right-auto"
+      >
+        <div className="relative bg-gradient-to-br from-[#1a1030] via-[#2b1655] to-[#3b1e78] text-white px-5 pt-5 pb-5">
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="h-9 w-9 grid place-items-center rounded-full bg-white/10 hover:bg-white/20 transition"
+              aria-label="Back"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 backdrop-blur px-3 py-1 text-[11px] font-semibold">
+              <Shield className="h-3 w-3" /> {typeLabel}
+            </span>
+            <div className="h-9 w-9" />
+          </div>
+          <div className="mt-3">
+            <DialogTitle className="text-lg font-extrabold tracking-tight text-white">
+              Payment Breakdown
+            </DialogTitle>
+            {ag.job_title && (
+              <p className="text-xs text-white/70 mt-0.5 truncate">{ag.job_title as string}</p>
+            )}
+          </div>
+          <div className="sm:hidden absolute top-1.5 left-1/2 -translate-x-1/2 h-1 w-10 rounded-full bg-white/30" />
         </div>
-        <DialogFooter>
-          <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={paying}>
-            Cancel
-          </Button>
-          <Button onClick={onConfirm} disabled={paying} className="bg-gradient-brand">
+
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 bg-background">
+          <div className="rounded-2xl border border-border/60 bg-card/60 divide-y divide-border/50">
+            {rows.map((r) => (
+              <div key={r.label} className="flex items-center gap-3 px-4 py-3">
+                <span className="h-8 w-8 rounded-lg bg-primary/10 text-primary grid place-items-center">
+                  {iconFor(r.label)}
+                </span>
+                <span className="flex-1 text-sm text-foreground">{r.label}</span>
+                <span className="font-semibold text-sm">{formatNgn(r.value)}</span>
+              </div>
+            ))}
+            <div className="flex items-center gap-3 px-4 py-3">
+              <span className="h-8 w-8 rounded-lg bg-accent/15 text-accent grid place-items-center">
+                <Shield className="h-4 w-4" />
+              </span>
+              <span className="flex-1 text-sm text-muted-foreground">
+                {commissionLabel}
+                {commissionLoading && " • calculating…"}
+              </span>
+              <span className="font-semibold text-sm">{formatNgn(commission)}</span>
+            </div>
+            <div className="flex items-center gap-3 px-4 py-3">
+              <span className="h-8 w-8 rounded-lg bg-muted text-muted-foreground grid place-items-center">
+                <CreditCard className="h-4 w-4" />
+              </span>
+              <span className="flex-1 text-sm text-muted-foreground">Paystack fee</span>
+              <span className="font-semibold text-sm">{formatNgn(paystackFee)}</span>
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/20 p-4 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Total you pay</span>
+              <span className="text-2xl font-extrabold text-gradient-brand">
+                {formatNgn(total)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Professional receives</span>
+              <span className="font-semibold text-accent">{formatNgn(professionalReceives)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-5 py-4 border-t border-border bg-card/80 backdrop-blur space-y-2">
+          <Button
+            onClick={onConfirm}
+            disabled={paying}
+            className="w-full h-12 text-base font-semibold bg-gradient-to-r from-[#6C47FF] to-[#8E5BFF] hover:opacity-95 shadow-lg shadow-primary/30"
+          >
             {paying ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             ) : (
-              <CreditCard className="h-4 w-4 mr-1" />
+              <CreditCard className="h-4 w-4 mr-2" />
             )}
             Confirm & Pay {formatNgn(total)}
           </Button>
-        </DialogFooter>
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            disabled={paying}
+            className="w-full text-sm text-muted-foreground hover:text-foreground py-1.5 disabled:opacity-50"
+          >
+            Go Back
+          </button>
+        </div>
       </DialogContent>
     </Dialog>
   );
