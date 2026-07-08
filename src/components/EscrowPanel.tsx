@@ -1704,6 +1704,55 @@ function SendAgreementDialog({
     };
   }, [open, conversationId]);
 
+  // Prefill fields when editing an existing pending agreement.
+  useEffect(() => {
+    if (!open || !editAgreementId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("service_agreements")
+        .select("*")
+        .eq("id", editAgreementId)
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const a = data as Record<string, unknown>;
+      const t = (a.agreement_type as string) ?? "service";
+      setAgreementType(t);
+      setTitle((a.job_title as string) ?? "");
+      setDescription((a.job_description as string) ?? "");
+      setTerms((a.terms as string) ?? "");
+      const mat = Number(a.materials_cost ?? 0);
+      const lab = Number(a.labor_cost ?? 0);
+      const cont = Number(a.contingency_cost ?? 0);
+      if (t === "service") setServiceFee(String(lab || Number(a.price ?? 0)));
+      if (t === "material_labor") {
+        setMaterials(String(mat));
+        setLabor(String(lab));
+        setContingency(cont ? String(cont) : "");
+      }
+      if (t === "product_sale") {
+        setProductPrice(String(mat || Number(a.price ?? 0)));
+        setProductDeliveryFee(cont ? String(cont) : "");
+      }
+      if (t === "delivery") {
+        setDeliveryFee(String(lab || Number(a.price ?? 0)));
+        // Try to recover pickup/dropoff from terms lines.
+        const terms = (a.terms as string) ?? "";
+        const pu = terms.match(/Pickup:\s*(.+)/);
+        const dp = terms.match(/Drop-off:\s*(.+)/);
+        if (pu) setPickupLocation(pu[1].trim());
+        if (dp) setDropoffLocation(dp[1].trim());
+      }
+      if (a.delivery_date) {
+        const d = new Date(a.delivery_date as string).toISOString().slice(0, 10);
+        setDeliveryDate(d);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, editAgreementId]);
+
   const titleLabel = agreementType === "product_sale" ? "Product name" : "Job title";
   const descLabel =
     agreementType === "product_sale"
