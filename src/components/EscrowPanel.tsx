@@ -38,6 +38,13 @@ import {
   Wallet,
   Percent,
   User,
+  Handshake,
+  ArrowLeft,
+  X,
+  Package,
+  Wrench,
+  Truck,
+  Briefcase,
 } from "lucide-react";
 import { payWithPaystack } from "@/lib/paystack";
 import { detectEscrowRoles, suggestAgreement } from "@/lib/escrow-ai.functions";
@@ -183,6 +190,9 @@ export function EscrowPanel({
   const [showSummary, setShowSummary] = useState(false);
   const [payBreakdownOpen, setPayBreakdownOpen] = useState(false);
   const [payAgreement, setPayAgreement] = useState<ServiceAgreement | null>(null);
+  const [typePickerOpen, setTypePickerOpen] = useState(false);
+  const [initialType, setInitialType] = useState<string>("service");
+  const [editAgreementId, setEditAgreementId] = useState<string | null>(null);
   const [hidden, setHidden] = useState(false);
   const [roleRefreshKey, setRoleRefreshKey] = useState(0);
   const [loadedConversationId, setLoadedConversationId] = useState<string | null>(null);
@@ -526,6 +536,31 @@ export function EscrowPanel({
     setIAmProvider(null);
     latestEscrowStatusRef.current = null;
     setRoleRefreshKey((k) => k + 1);
+  };
+
+  // Listen for "Edit" clicks fired from agreement chat cards.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const ce = e as CustomEvent<{ agreement_id: string; conversation_id?: string }>;
+      const detail = ce.detail;
+      if (!detail?.agreement_id) return;
+      if (detail.conversation_id && detail.conversation_id !== conversationId) return;
+      setEditAgreementId(detail.agreement_id);
+      setSendOpen(true);
+    };
+    window.addEventListener("escrow:edit-agreement", handler);
+    return () => window.removeEventListener("escrow:edit-agreement", handler);
+  }, [conversationId]);
+
+  const openNewDealFlow = () => {
+    // Full reset then open the type picker sheet.
+    startNewDeal();
+    setEditAgreementId(null);
+    setTypePickerOpen(true);
+  };
+  const openSendFlow = () => {
+    setEditAgreementId(null);
+    setTypePickerOpen(true);
   };
 
   const cancelDeal = async (reason: string) => {
@@ -981,10 +1016,10 @@ export function EscrowPanel({
           {cancelledDate && <p className="text-xs text-muted-foreground mt-1">{cancelledDate}</p>}
           <Button
             size="sm"
-            onClick={startNewDeal}
+            onClick={openNewDealFlow}
             className="bg-gradient-brand mt-3 w-full sm:w-auto"
           >
-            <Sparkles className="h-3.5 w-3.5 mr-1" /> Start New Deal
+            <Handshake className="h-3.5 w-3.5 mr-1" /> Start New Deal
           </Button>
         </div>
       </div>
@@ -993,10 +1028,8 @@ export function EscrowPanel({
 
   if (hidden) {
     return (
-      <div className="border-t border-border bg-card/60 backdrop-blur p-3 flex justify-center">
-        <Button size="sm" onClick={startNewDeal} className="bg-gradient-brand">
-          <Sparkles className="h-3.5 w-3.5 mr-1" /> Start New Deal
-        </Button>
+      <div className="border-t border-border bg-card/60 backdrop-blur p-3 flex justify-end relative">
+        <NewDealFab onClick={openNewDealFlow} />
       </div>
     );
   }
@@ -1092,10 +1125,10 @@ export function EscrowPanel({
           )}
           <Button
             size="sm"
-            onClick={startNewDeal}
+            onClick={openNewDealFlow}
             className="bg-gradient-brand mt-3 w-full sm:w-auto"
           >
-            <Sparkles className="h-3.5 w-3.5 mr-1" /> Start New Deal
+            <Handshake className="h-3.5 w-3.5 mr-1" /> Start New Deal
           </Button>
         </div>
       )}
@@ -1106,8 +1139,8 @@ export function EscrowPanel({
           iAmProvider === true &&
           !order &&
           (!agreement || agreement.status === "rejected" || agreement.status === "cancelled") && (
-            <Button size="sm" onClick={() => setSendOpen(true)} className="bg-gradient-brand">
-              <Sparkles className="h-3.5 w-3.5 mr-1" /> Send Agreement
+            <Button size="sm" onClick={openSendFlow} className="bg-gradient-brand shadow-lg shadow-primary/30">
+              <Handshake className="h-3.5 w-3.5 mr-1" /> Send Agreement
             </Button>
           )}
 
@@ -1258,13 +1291,28 @@ export function EscrowPanel({
       {sendOpen && other && (
         <SendAgreementDialog
           open={sendOpen}
-          onOpenChange={setSendOpen}
+          onOpenChange={(v) => {
+            setSendOpen(v);
+            if (!v) setEditAgreementId(null);
+          }}
           conversationId={conversationId}
           professionalId={meId}
           customerId={other.id}
+          initialType={initialType}
+          editAgreementId={editAgreementId}
           onSent={load}
         />
       )}
+      <AgreementTypeSheet
+        open={typePickerOpen}
+        onOpenChange={setTypePickerOpen}
+        onPick={(t) => {
+          setInitialType(t);
+          setTypePickerOpen(false);
+          setEditAgreementId(null);
+          setSendOpen(true);
+        }}
+      />
       {askRoleOpen && other && !isCancelled && (
         <AskRoleDialog
           open={askRoleOpen}
@@ -1461,39 +1509,243 @@ function PaymentBreakdownDialog({
       ? "EasyMeet Protection Fee"
       : "EasyMeet Protection Fee";
 
+  const typeLabel =
+    AGREEMENT_TYPES.find((t) => t.value === type)?.label ?? "Escrow Agreement";
+
+  const iconFor = (label: string) => {
+    if (/material|product/i.test(label)) return <Package className="h-4 w-4" />;
+    if (/labor|service/i.test(label)) return <Briefcase className="h-4 w-4" />;
+    if (/deliver/i.test(label)) return <Truck className="h-4 w-4" />;
+    if (/conting/i.test(label)) return <Wallet className="h-4 w-4" />;
+    return <Wallet className="h-4 w-4" />;
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Confirm payment breakdown</DialogTitle>
-        </DialogHeader>
-        <div className="rounded-lg border border-border/60 bg-background/40 p-3 space-y-1 text-sm">
-          {rows.map((r) => (
-            <SummaryRow key={r.label} label={r.label} value={r.value} muted={r.muted} />
-          ))}
-          <SummaryRow
-            label={commissionLabel + (commissionLoading ? " • calculating…" : "")}
-            value={commission}
-            muted
-          />
-          <SummaryRow label="Paystack fee" value={paystackFee} muted />
-          <div className="border-t border-border/50 my-1" />
-          <SummaryRow label="Total you pay" value={total} bold />
-          <SummaryRow label="Professional receives" value={professionalReceives} accent />
+      <DialogContent
+        className="p-0 gap-0 border-0 overflow-hidden max-w-full sm:max-w-md w-full
+          sm:rounded-3xl rounded-t-[24px] rounded-b-none
+          max-h-[92vh] flex flex-col
+          data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom-8
+          sm:data-[state=open]:zoom-in-95 sm:data-[state=open]:slide-in-from-bottom-0
+          fixed bottom-0 left-0 right-0 top-auto translate-x-0 translate-y-0
+          sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:bottom-auto sm:right-auto"
+      >
+        <div className="relative bg-gradient-to-br from-[#1a1030] via-[#2b1655] to-[#3b1e78] text-white px-5 pt-5 pb-5">
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="h-9 w-9 grid place-items-center rounded-full bg-white/10 hover:bg-white/20 transition"
+              aria-label="Back"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 backdrop-blur px-3 py-1 text-[11px] font-semibold">
+              <Shield className="h-3 w-3" /> {typeLabel}
+            </span>
+            <div className="h-9 w-9" />
+          </div>
+          <div className="mt-3">
+            <DialogTitle className="text-lg font-extrabold tracking-tight text-white">
+              Payment Breakdown
+            </DialogTitle>
+            {ag.job_title && (
+              <p className="text-xs text-white/70 mt-0.5 truncate">{ag.job_title as string}</p>
+            )}
+          </div>
+          <div className="sm:hidden absolute top-1.5 left-1/2 -translate-x-1/2 h-1 w-10 rounded-full bg-white/30" />
         </div>
-        <DialogFooter>
-          <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={paying}>
-            Cancel
-          </Button>
-          <Button onClick={onConfirm} disabled={paying} className="bg-gradient-brand">
+
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 bg-background">
+          <div className="rounded-2xl border border-border/60 bg-card/60 divide-y divide-border/50">
+            {rows.map((r) => (
+              <div key={r.label} className="flex items-center gap-3 px-4 py-3">
+                <span className="h-8 w-8 rounded-lg bg-primary/10 text-primary grid place-items-center">
+                  {iconFor(r.label)}
+                </span>
+                <span className="flex-1 text-sm text-foreground">{r.label}</span>
+                <span className="font-semibold text-sm">{formatNgn(r.value)}</span>
+              </div>
+            ))}
+            <div className="flex items-center gap-3 px-4 py-3">
+              <span className="h-8 w-8 rounded-lg bg-accent/15 text-accent grid place-items-center">
+                <Shield className="h-4 w-4" />
+              </span>
+              <span className="flex-1 text-sm text-muted-foreground">
+                {commissionLabel}
+                {commissionLoading && " • calculating…"}
+              </span>
+              <span className="font-semibold text-sm">{formatNgn(commission)}</span>
+            </div>
+            <div className="flex items-center gap-3 px-4 py-3">
+              <span className="h-8 w-8 rounded-lg bg-muted text-muted-foreground grid place-items-center">
+                <CreditCard className="h-4 w-4" />
+              </span>
+              <span className="flex-1 text-sm text-muted-foreground">Paystack fee</span>
+              <span className="font-semibold text-sm">{formatNgn(paystackFee)}</span>
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/20 p-4 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Total you pay</span>
+              <span className="text-2xl font-extrabold text-gradient-brand">
+                {formatNgn(total)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Professional receives</span>
+              <span className="font-semibold text-accent">{formatNgn(professionalReceives)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-5 py-4 border-t border-border bg-card/80 backdrop-blur space-y-2">
+          <Button
+            onClick={onConfirm}
+            disabled={paying}
+            className="w-full h-12 text-base font-semibold bg-gradient-to-r from-[#6C47FF] to-[#8E5BFF] hover:opacity-95 shadow-lg shadow-primary/30"
+          >
             {paying ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             ) : (
-              <CreditCard className="h-4 w-4 mr-1" />
+              <CreditCard className="h-4 w-4 mr-2" />
             )}
             Confirm & Pay {formatNgn(total)}
           </Button>
-        </DialogFooter>
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            disabled={paying}
+            className="w-full text-sm text-muted-foreground hover:text-foreground py-1.5 disabled:opacity-50"
+          >
+            Go Back
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function NewDealFab({ onClick }: { onClick: () => void }) {
+  return (
+    <div className="relative">
+      <span className="absolute inset-0 rounded-full bg-primary/40 animate-ping" aria-hidden />
+      <button
+        type="button"
+        onClick={onClick}
+        className="relative flex flex-col items-center justify-center gap-0.5 h-16 w-16 rounded-full
+          bg-gradient-to-br from-[#6C47FF] to-[#8E5BFF] text-white shadow-xl shadow-primary/40
+          hover:scale-105 active:scale-95 transition-transform"
+        aria-label="Start new deal"
+      >
+        <Handshake className="h-6 w-6" strokeWidth={2.2} />
+        <span className="text-[9px] font-semibold leading-none">New Deal</span>
+      </button>
+    </div>
+  );
+}
+
+function AgreementTypeSheet({
+  open,
+  onOpenChange,
+  onPick,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onPick: (type: string) => void;
+}) {
+  const cards = [
+    {
+      value: "service",
+      label: "Service Agreement",
+      desc: "Labor-only work, released after completion.",
+      icon: <Briefcase className="h-5 w-5" />,
+      accent: "from-primary/15 to-primary/5 text-primary",
+    },
+    {
+      value: "product_sale",
+      label: "Product Sale",
+      desc: "Product + delivery, released on confirmation.",
+      icon: <Package className="h-5 w-5" />,
+      accent: "from-accent/15 to-accent/5 text-accent",
+    },
+    {
+      value: "material_labor",
+      label: "Material + Labor",
+      desc: "Materials released now, labor after completion.",
+      icon: <Wrench className="h-5 w-5" />,
+      accent: "from-coral/15 to-coral/5 text-coral",
+    },
+    {
+      value: "delivery",
+      label: "Delivery Agreement",
+      desc: "Delivery fee held until delivery confirmed.",
+      icon: <Truck className="h-5 w-5" />,
+      accent: "from-primary/15 to-accent/10 text-primary",
+    },
+  ];
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className="p-0 gap-0 border-0 overflow-hidden max-w-full sm:max-w-md w-full
+          sm:rounded-3xl rounded-t-[24px] rounded-b-none
+          max-h-[85vh] flex flex-col
+          data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom-8
+          sm:data-[state=open]:zoom-in-95 sm:data-[state=open]:slide-in-from-bottom-0
+          fixed bottom-0 left-0 right-0 top-auto translate-x-0 translate-y-0
+          sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:bottom-auto sm:right-auto"
+      >
+        <div className="relative bg-gradient-to-br from-[#1a1030] via-[#2b1655] to-[#3b1e78] text-white px-5 pt-5 pb-5">
+          <div className="sm:hidden absolute top-1.5 left-1/2 -translate-x-1/2 h-1 w-10 rounded-full bg-white/30" />
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="h-9 w-9 grid place-items-center rounded-full bg-white/10 hover:bg-white/20"
+              aria-label="Back"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+            <span className="text-[11px] uppercase tracking-widest font-semibold text-white/80">
+              Choose deal type
+            </span>
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="h-9 w-9 grid place-items-center rounded-full bg-white/10 hover:bg-white/20"
+              aria-label="Close"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <DialogTitle className="text-xl font-extrabold mt-3 text-white">
+            Start a New Deal
+          </DialogTitle>
+          <p className="text-xs text-white/70 mt-1">
+            Pick the agreement type that fits your work.
+          </p>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 py-4 grid grid-cols-1 sm:grid-cols-2 gap-3 bg-background">
+          {cards.map((c) => (
+            <button
+              key={c.value}
+              type="button"
+              onClick={() => onPick(c.value)}
+              className="text-left rounded-2xl border border-border/60 bg-card p-4 hover:border-primary/40 hover:shadow-md hover:-translate-y-0.5 transition group"
+            >
+              <div
+                className={`h-10 w-10 rounded-xl bg-gradient-to-br ${c.accent} grid place-items-center mb-3`}
+              >
+                {c.icon}
+              </div>
+              <div className="font-semibold text-sm text-foreground">{c.label}</div>
+              <p className="text-[11px] text-muted-foreground mt-1 leading-snug">{c.desc}</p>
+            </button>
+          ))}
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -1505,6 +1757,8 @@ function SendAgreementDialog({
   conversationId,
   professionalId,
   customerId,
+  initialType,
+  editAgreementId,
   onSent,
 }: {
   open: boolean;
@@ -1512,9 +1766,14 @@ function SendAgreementDialog({
   conversationId: string;
   professionalId: string;
   customerId: string;
+  initialType?: string;
+  editAgreementId?: string | null;
   onSent: () => void;
 }) {
-  const [agreementType, setAgreementType] = useState<string>("service");
+  const [agreementType, setAgreementType] = useState<string>(initialType ?? "service");
+  useEffect(() => {
+    if (open && initialType) setAgreementType(initialType);
+  }, [open, initialType]);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   // material_labor
@@ -1649,6 +1908,55 @@ function SendAgreementDialog({
     };
   }, [open, conversationId]);
 
+  // Prefill fields when editing an existing pending agreement.
+  useEffect(() => {
+    if (!open || !editAgreementId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("service_agreements")
+        .select("*")
+        .eq("id", editAgreementId)
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const a = data as Record<string, unknown>;
+      const t = (a.agreement_type as string) ?? "service";
+      setAgreementType(t);
+      setTitle((a.job_title as string) ?? "");
+      setDescription((a.job_description as string) ?? "");
+      setTerms((a.terms as string) ?? "");
+      const mat = Number(a.materials_cost ?? 0);
+      const lab = Number(a.labor_cost ?? 0);
+      const cont = Number(a.contingency_cost ?? 0);
+      if (t === "service") setServiceFee(String(lab || Number(a.price ?? 0)));
+      if (t === "material_labor") {
+        setMaterials(String(mat));
+        setLabor(String(lab));
+        setContingency(cont ? String(cont) : "");
+      }
+      if (t === "product_sale") {
+        setProductPrice(String(mat || Number(a.price ?? 0)));
+        setProductDeliveryFee(cont ? String(cont) : "");
+      }
+      if (t === "delivery") {
+        setDeliveryFee(String(lab || Number(a.price ?? 0)));
+        // Try to recover pickup/dropoff from terms lines.
+        const terms = (a.terms as string) ?? "";
+        const pu = terms.match(/Pickup:\s*(.+)/);
+        const dp = terms.match(/Drop-off:\s*(.+)/);
+        if (pu) setPickupLocation(pu[1].trim());
+        if (dp) setDropoffLocation(dp[1].trim());
+      }
+      if (a.delivery_date) {
+        const d = new Date(a.delivery_date as string).toISOString().slice(0, 10);
+        setDeliveryDate(d);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, editAgreementId]);
+
   const titleLabel = agreementType === "product_sale" ? "Product name" : "Job title";
   const descLabel =
     agreementType === "product_sale"
@@ -1708,12 +2016,26 @@ function SendAgreementDialog({
       commission_amount: commission,
       paystack_fee: fees.paystackFee,
     };
-    const { data: inserted, error } = await supabase
-      .from("service_agreements")
-      .insert(payload as never)
-      .select("id")
-      .single();
-    if (!error) {
+    let inserted: { id: string } | null = null;
+    let error: { message: string } | null = null;
+    if (editAgreementId) {
+      // Update in place — do not push a duplicate agreement card.
+      const { error: upErr } = await supabase
+        .from("service_agreements")
+        .update(payload as never)
+        .eq("id", editAgreementId);
+      error = upErr as { message: string } | null;
+      inserted = { id: editAgreementId };
+    } else {
+      const res = await supabase
+        .from("service_agreements")
+        .insert(payload as never)
+        .select("id")
+        .single();
+      inserted = (res.data as { id: string } | null) ?? null;
+      error = (res.error as { message: string } | null) ?? null;
+    }
+    if (!error && !editAgreementId) {
       const agreementId = (inserted as { id: string } | null)?.id ?? "";
       await supabase.from("messages").insert({
         conversation_id: conversationId,
@@ -1733,25 +2055,65 @@ function SendAgreementDialog({
     }
     setBusy(false);
     if (error) return toast.error(error.message);
-    toast.success("Agreement sent");
+    toast.success(editAgreementId ? "Agreement updated" : "Agreement sent");
     onSent();
     onOpenChange(false);
   };
 
+  const agreementLabel =
+    AGREEMENT_TYPES.find((t) => t.value === agreementType)?.label ?? "Agreement";
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            Send Escrow Agreement
+      <DialogContent
+        className="p-0 gap-0 border-0 overflow-hidden max-w-full sm:max-w-lg
+          w-full sm:rounded-3xl rounded-t-[24px] rounded-b-none
+          max-h-[92vh] flex flex-col
+          data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom-8
+          sm:data-[state=open]:zoom-in-95 sm:data-[state=open]:slide-in-from-bottom-0
+          fixed bottom-0 left-0 right-0 top-auto translate-x-0 translate-y-0
+          sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:bottom-auto sm:right-auto"
+      >
+        {/* Dark premium header */}
+        <div className="relative bg-gradient-to-br from-[#1a1030] via-[#2b1655] to-[#3b1e78] text-white px-5 pt-5 pb-6">
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="h-9 w-9 grid place-items-center rounded-full bg-white/10 hover:bg-white/20 transition"
+              aria-label="Back"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 backdrop-blur px-3 py-1 text-[11px] font-semibold">
+              <Shield className="h-3 w-3" /> {agreementLabel}
+            </span>
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="h-9 w-9 grid place-items-center rounded-full bg-white/10 hover:bg-white/20 transition"
+              aria-label="Close"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="mt-4">
+            <DialogTitle className="text-xl font-extrabold tracking-tight text-white">
+              {editAgreementId ? "Edit Agreement" : "New Escrow Agreement"}
+            </DialogTitle>
+            <p className="text-xs text-white/70 mt-1">
+              Funds are held safely until the work is completed.
+            </p>
             {suggesting && (
-              <span className="text-xs font-normal text-muted-foreground flex items-center gap-1">
-                <Sparkles className="h-3 w-3" /> AI drafting…
+              <span className="mt-2 inline-flex text-[11px] font-medium text-white/80 items-center gap-1">
+                <Sparkles className="h-3 w-3" /> AI drafting from your chat…
               </span>
             )}
-          </DialogTitle>
-        </DialogHeader>
-        <div className="space-y-3">
+          </div>
+          {/* subtle sheet handle */}
+          <div className="sm:hidden absolute top-1.5 left-1/2 -translate-x-1/2 h-1 w-10 rounded-full bg-white/30" />
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 bg-background">
           <div>
             <Label>Agreement type</Label>
             <Select value={agreementType} onValueChange={setAgreementType}>
@@ -2077,14 +2439,16 @@ function SendAgreementDialog({
             <SummaryRow label="Professional receives" value={professionalReceives} accent />
           </div>
         </div>
-        <DialogFooter>
-          <Button variant="secondary" onClick={() => onOpenChange(false)}>
-            Cancel
+        <div className="px-5 py-4 border-t border-border bg-card/80 backdrop-blur">
+          <Button
+            onClick={submit}
+            disabled={busy}
+            className="w-full h-12 text-base font-semibold bg-gradient-to-r from-[#6C47FF] to-[#8E5BFF] hover:opacity-95 shadow-lg shadow-primary/30"
+          >
+            {busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            {editAgreementId ? "Save Changes" : "Send Agreement"}
           </Button>
-          <Button onClick={submit} disabled={busy} className="bg-gradient-brand">
-            {busy && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}Send Agreement
-          </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );

@@ -185,7 +185,7 @@ function AgreementCard({
     };
   }, [payload.agreement_id]);
 
-  const canEdit = status === "pending" && payload.sender_id === meId;
+  const canEdit = (status ?? "pending") === "pending" && payload.sender_id === meId;
   const statusStyle =
     status === "accepted"
       ? "bg-accent/15 text-accent border-accent/30"
@@ -244,11 +244,20 @@ function AgreementCard({
             >
               View Agreement
             </Button>
-            {canEdit && onEdit && (
+            {canEdit && (
               <Button
                 size="sm"
                 className="bg-gradient-brand"
-                onClick={() => onEdit(payload.agreement_id)}
+                onClick={() => {
+                  if (onEdit) return onEdit(payload.agreement_id);
+                  if (typeof window !== "undefined") {
+                    window.dispatchEvent(
+                      new CustomEvent("escrow:edit-agreement", {
+                        detail: { agreement_id: payload.agreement_id },
+                      }),
+                    );
+                  }
+                }}
               >
                 Edit
               </Button>
