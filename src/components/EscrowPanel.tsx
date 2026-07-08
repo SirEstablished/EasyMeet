@@ -538,6 +538,31 @@ export function EscrowPanel({
     setRoleRefreshKey((k) => k + 1);
   };
 
+  // Listen for "Edit" clicks fired from agreement chat cards.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const ce = e as CustomEvent<{ agreement_id: string; conversation_id?: string }>;
+      const detail = ce.detail;
+      if (!detail?.agreement_id) return;
+      if (detail.conversation_id && detail.conversation_id !== conversationId) return;
+      setEditAgreementId(detail.agreement_id);
+      setSendOpen(true);
+    };
+    window.addEventListener("escrow:edit-agreement", handler);
+    return () => window.removeEventListener("escrow:edit-agreement", handler);
+  }, [conversationId]);
+
+  const openNewDealFlow = () => {
+    // Full reset then open the type picker sheet.
+    startNewDeal();
+    setEditAgreementId(null);
+    setTypePickerOpen(true);
+  };
+  const openSendFlow = () => {
+    setEditAgreementId(null);
+    setTypePickerOpen(true);
+  };
+
   const cancelDeal = async (reason: string) => {
     const trimmed = reason.trim();
     setBusy(true);
