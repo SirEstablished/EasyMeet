@@ -1125,10 +1125,10 @@ export function EscrowPanel({
           )}
           <Button
             size="sm"
-            onClick={startNewDeal}
+            onClick={openNewDealFlow}
             className="bg-gradient-brand mt-3 w-full sm:w-auto"
           >
-            <Sparkles className="h-3.5 w-3.5 mr-1" /> Start New Deal
+            <Handshake className="h-3.5 w-3.5 mr-1" /> Start New Deal
           </Button>
         </div>
       )}
@@ -1139,8 +1139,8 @@ export function EscrowPanel({
           iAmProvider === true &&
           !order &&
           (!agreement || agreement.status === "rejected" || agreement.status === "cancelled") && (
-            <Button size="sm" onClick={() => setSendOpen(true)} className="bg-gradient-brand">
-              <Sparkles className="h-3.5 w-3.5 mr-1" /> Send Agreement
+            <Button size="sm" onClick={openSendFlow} className="bg-gradient-brand shadow-lg shadow-primary/30">
+              <Handshake className="h-3.5 w-3.5 mr-1" /> Send Agreement
             </Button>
           )}
 
