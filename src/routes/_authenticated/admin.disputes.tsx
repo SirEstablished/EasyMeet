@@ -267,7 +267,7 @@ function AdminDisputesPage() {
     );
   if (!isAdmin)
     return (
-      <div className="max-w-xl mx-auto p-10 text-center">
+      <div className="max-w-xl mx-auto px-5 sm:px-8 lg:px-12 py-10 text-center">
         <Shield className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
         <h1 className="text-xl font-bold">Admins only</h1>
         <p className="text-sm text-muted-foreground">You don't have access to this page.</p>
@@ -275,7 +275,7 @@ function AdminDisputesPage() {
     );
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="max-w-4xl mx-auto px-5 sm:px-8 lg:px-12 py-8">
       <h1 className="text-3xl font-extrabold text-gradient-tri">Admin</h1>
       <p className="text-sm text-muted-foreground">Review disputes and process withdrawals.</p>
       <Tabs defaultValue="disputes" className="mt-6">

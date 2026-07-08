@@ -111,7 +111,7 @@ function WalletPage() {
   if (!user) return null;
   if (role && role !== "professional" && role !== "business") {
     return (
-      <div className="max-w-xl mx-auto px-4 py-16 text-center">
+      <div className="max-w-xl mx-auto px-5 sm:px-8 lg:px-12 py-16 text-center">
         <WalletIcon className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
         <h1 className="text-2xl font-bold">Wallet is for professionals & businesses</h1>
         <p className="text-sm text-muted-foreground mt-2">
@@ -143,7 +143,7 @@ function WalletPage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-3 sm:px-6 py-4 sm:py-8 pb-24 md:pb-8 space-y-6">
+    <div className="max-w-5xl mx-auto px-5 sm:px-8 lg:px-12 py-4 sm:py-8 pb-24 md:pb-8 space-y-6">
       <div>
         <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Wallet</h1>
         <p className="text-xs sm:text-sm text-muted-foreground mt-1">

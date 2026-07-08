@@ -3,7 +3,6 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase, type Post } from "@/integrations/supabase/client";
 import { CreatePostCard } from "@/components/CreatePostCard";
 import { PostCard } from "@/components/PostCard";
-import { CommentsDrawer } from "@/components/CommentsDrawer";
 import { Loader2, Lock, Plus } from "lucide-react";
 import { useLiveData } from "@/hooks/use-live-data";
 import { useAuth } from "@/lib/providers";
@@ -17,7 +16,7 @@ function FeedPage() {
   const { profile } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
-  const [commentsFor, setCommentsFor] = useState<string | null>(null);
+  const [expandedComments, setExpandedComments] = useState<string | null>(null);
   const [tab, setTab] = useState<"for-you" | "following">("for-you");
   const [createOpen, setCreateOpen] = useState(false);
 
@@ -68,13 +67,15 @@ function FeedPage() {
     setCreateOpen(false);
   };
   const onDeleted = (id: string) => setPosts((cur) => cur.filter((p) => p.id !== id));
+  const toggleComments = (id: string) =>
+    setExpandedComments((cur) => (cur === id ? null : id));
   const adjustComment = (id: string, delta: number) =>
     setPosts((cur) =>
       cur.map((p) => (p.id === id ? { ...p, comment_count: (p.comment_count ?? 0) + delta } : p)),
     );
 
   return (
-    <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-2 pb-28 md:pb-10">
+    <div className="max-w-2xl mx-auto px-5 sm:px-8 lg:px-12 pt-2 pb-28 md:pb-10">
       {/* Minimal tabs with thin purple indicator */}
       <div className="flex items-center gap-6 border-b border-border/60 mb-4">
         {[
@@ -133,19 +134,15 @@ function FeedPage() {
             <PostCard
               key={p.id}
               post={p}
-              onOpenComments={setCommentsFor}
+              onOpenComments={toggleComments}
               onDeleted={onDeleted}
+              expanded={expandedComments === p.id}
+              onToggleComments={toggleComments}
+              onCountChange={adjustComment}
             />
           ))}
         </div>
       )}
-
-      <CommentsDrawer
-        postId={commentsFor}
-        open={!!commentsFor}
-        onOpenChange={(v) => !v && setCommentsFor(null)}
-        onCountChange={adjustComment}
-      />
 
       {canPost && (
         <>

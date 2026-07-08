@@ -86,7 +86,7 @@ function StaffsPage() {
 
   if (!isBusiness) {
     return (
-      <div className="max-w-3xl mx-auto p-8">
+      <div className="max-w-3xl mx-auto px-5 sm:px-8 lg:px-12 py-8">
         <h1 className="text-2xl font-bold mb-2">Staff Management</h1>
         <p className="text-muted-foreground">
           Only business accounts can manage staff.
@@ -174,7 +174,7 @@ function StaffsPage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-6 space-y-8">
+    <div className="max-w-5xl mx-auto px-5 sm:px-8 lg:px-12 py-6 space-y-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Staff</h1>

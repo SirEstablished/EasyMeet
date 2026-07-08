@@ -19,9 +19,8 @@ function AuthLayout() {
   useEffect(() => {
     if (!loading && !user) {
       navigate({ to: "/" });
-      openModal("login");
     }
-  }, [loading, user, navigate, openModal]);
+  }, [loading, user, navigate]);
 
   useEffect(() => {
     if (!loading && !profileLoading && user && !profile?.role && location.pathname !== "/select-role") {

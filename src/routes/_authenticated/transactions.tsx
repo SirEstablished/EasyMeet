@@ -7,7 +7,7 @@ export const Route = createFileRoute("/_authenticated/transactions")({
 
 function TransactionsPage() {
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-6">
+    <div className="max-w-7xl mx-auto px-5 sm:px-8 lg:px-12 py-4 sm:py-8 space-y-4 sm:space-y-6">
       <div>
         <h1 className="text-xl sm:text-3xl font-extrabold tracking-tight">Transactions</h1>
         <p className="text-xs sm:text-sm text-muted-foreground mt-1">

@@ -295,7 +295,7 @@ function MyOrdersPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 pt-6 pb-24">
+    <div className="max-w-3xl mx-auto px-5 sm:px-8 lg:px-12 pt-6 pb-24">
       <h1 className="text-[32px] leading-tight font-extrabold tracking-tight text-foreground">
         {title}
       </h1>
