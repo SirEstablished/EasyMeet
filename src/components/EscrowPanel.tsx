@@ -1856,20 +1856,60 @@ function SendAgreementDialog({
     onOpenChange(false);
   };
 
+  const agreementLabel =
+    AGREEMENT_TYPES.find((t) => t.value === agreementType)?.label ?? "Agreement";
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            Send Escrow Agreement
+      <DialogContent
+        className="p-0 gap-0 border-0 overflow-hidden max-w-full sm:max-w-lg
+          w-full sm:rounded-3xl rounded-t-[24px] rounded-b-none
+          max-h-[92vh] flex flex-col
+          data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom-8
+          sm:data-[state=open]:zoom-in-95 sm:data-[state=open]:slide-in-from-bottom-0
+          fixed bottom-0 left-0 right-0 top-auto translate-x-0 translate-y-0
+          sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:bottom-auto sm:right-auto"
+      >
+        {/* Dark premium header */}
+        <div className="relative bg-gradient-to-br from-[#1a1030] via-[#2b1655] to-[#3b1e78] text-white px-5 pt-5 pb-6">
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="h-9 w-9 grid place-items-center rounded-full bg-white/10 hover:bg-white/20 transition"
+              aria-label="Back"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 backdrop-blur px-3 py-1 text-[11px] font-semibold">
+              <Shield className="h-3 w-3" /> {agreementLabel}
+            </span>
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="h-9 w-9 grid place-items-center rounded-full bg-white/10 hover:bg-white/20 transition"
+              aria-label="Close"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="mt-4">
+            <DialogTitle className="text-xl font-extrabold tracking-tight text-white">
+              {editAgreementId ? "Edit Agreement" : "New Escrow Agreement"}
+            </DialogTitle>
+            <p className="text-xs text-white/70 mt-1">
+              Funds are held safely until the work is completed.
+            </p>
             {suggesting && (
-              <span className="text-xs font-normal text-muted-foreground flex items-center gap-1">
-                <Sparkles className="h-3 w-3" /> AI drafting…
+              <span className="mt-2 inline-flex text-[11px] font-medium text-white/80 items-center gap-1">
+                <Sparkles className="h-3 w-3" /> AI drafting from your chat…
               </span>
             )}
-          </DialogTitle>
-        </DialogHeader>
-        <div className="space-y-3">
+          </div>
+          {/* subtle sheet handle */}
+          <div className="sm:hidden absolute top-1.5 left-1/2 -translate-x-1/2 h-1 w-10 rounded-full bg-white/30" />
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 bg-background">
           <div>
             <Label>Agreement type</Label>
             <Select value={agreementType} onValueChange={setAgreementType}>
