@@ -38,6 +38,13 @@ import {
   Wallet,
   Percent,
   User,
+  Handshake,
+  ArrowLeft,
+  X,
+  Package,
+  Wrench,
+  Truck,
+  Briefcase,
 } from "lucide-react";
 import { payWithPaystack } from "@/lib/paystack";
 import { detectEscrowRoles, suggestAgreement } from "@/lib/escrow-ai.functions";
