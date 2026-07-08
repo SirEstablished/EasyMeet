@@ -9,17 +9,18 @@ export function LegalPageShell({ title, children }: { title: string; children: R
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <header className="sticky top-0 z-30 glass-panel">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-5 sm:px-8 lg:px-12 h-16 flex items-center justify-between">
           <Logo />
           <Button asChild variant="ghost" size="sm">
             <Link to="/"><ArrowLeft className="h-4 w-4 mr-1" /> Home</Link>
           </Button>
         </div>
       </header>
-      <main className="flex-1 max-w-3xl w-full mx-auto px-4 sm:px-6 py-10 sm:py-14">
-        <h1 className="text-3xl sm:text-4xl font-bold mb-6 bg-gradient-brand bg-clip-text text-transparent">
+      <main className="flex-1 max-w-4xl w-full mx-auto px-5 sm:px-8 lg:px-12 py-12 sm:py-16">
+        <h1 className="text-3xl sm:text-4xl font-bold mb-2">
           {title}
         </h1>
+        <div className="h-1 w-16 rounded-full bg-primary mb-8" />
         <div className="prose prose-sm sm:prose-base max-w-none text-foreground/90 space-y-4 leading-relaxed">
           {children}
         </div>
