@@ -1553,6 +1553,8 @@ function SendAgreementDialog({
   conversationId,
   professionalId,
   customerId,
+  initialType,
+  editAgreementId,
   onSent,
 }: {
   open: boolean;
@@ -1560,9 +1562,14 @@ function SendAgreementDialog({
   conversationId: string;
   professionalId: string;
   customerId: string;
+  initialType?: string;
+  editAgreementId?: string | null;
   onSent: () => void;
 }) {
-  const [agreementType, setAgreementType] = useState<string>("service");
+  const [agreementType, setAgreementType] = useState<string>(initialType ?? "service");
+  useEffect(() => {
+    if (open && initialType) setAgreementType(initialType);
+  }, [open, initialType]);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   // material_labor
