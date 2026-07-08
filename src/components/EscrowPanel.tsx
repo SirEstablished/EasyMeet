@@ -1016,10 +1016,10 @@ export function EscrowPanel({
           {cancelledDate && <p className="text-xs text-muted-foreground mt-1">{cancelledDate}</p>}
           <Button
             size="sm"
-            onClick={startNewDeal}
+            onClick={openNewDealFlow}
             className="bg-gradient-brand mt-3 w-full sm:w-auto"
           >
-            <Sparkles className="h-3.5 w-3.5 mr-1" /> Start New Deal
+            <Handshake className="h-3.5 w-3.5 mr-1" /> Start New Deal
           </Button>
         </div>
       </div>
@@ -1028,10 +1028,8 @@ export function EscrowPanel({
 
   if (hidden) {
     return (
-      <div className="border-t border-border bg-card/60 backdrop-blur p-3 flex justify-center">
-        <Button size="sm" onClick={startNewDeal} className="bg-gradient-brand">
-          <Sparkles className="h-3.5 w-3.5 mr-1" /> Start New Deal
-        </Button>
+      <div className="border-t border-border bg-card/60 backdrop-blur p-3 flex justify-end relative">
+        <NewDealFab onClick={openNewDealFlow} />
       </div>
     );
   }
