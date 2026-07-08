@@ -2235,14 +2235,16 @@ function SendAgreementDialog({
             <SummaryRow label="Professional receives" value={professionalReceives} accent />
           </div>
         </div>
-        <DialogFooter>
-          <Button variant="secondary" onClick={() => onOpenChange(false)}>
-            Cancel
+        <div className="px-5 py-4 border-t border-border bg-card/80 backdrop-blur">
+          <Button
+            onClick={submit}
+            disabled={busy}
+            className="w-full h-12 text-base font-semibold bg-gradient-to-r from-[#6C47FF] to-[#8E5BFF] hover:opacity-95 shadow-lg shadow-primary/30"
+          >
+            {busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            {editAgreementId ? "Save Changes" : "Send Agreement"}
           </Button>
-          <Button onClick={submit} disabled={busy} className="bg-gradient-brand">
-            {busy && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}Send Agreement
-          </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
