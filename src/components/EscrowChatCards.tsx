@@ -128,7 +128,7 @@ function CardShell({
   children,
   align,
 }: {
-  accent: "primary" | "accent" | "coral";
+  accent: "primary" | "accent" | "coral" | "payment";
   children: React.ReactNode;
   align?: "start" | "end";
 }) {
@@ -137,7 +137,9 @@ function CardShell({
       ? "border-primary/20"
       : accent === "coral"
         ? "border-coral/30"
-        : "border-accent/25";
+        : accent === "payment"
+          ? "border-payment/25"
+          : "border-accent/25";
   return (
     <div
       className={cn(
@@ -277,11 +279,11 @@ function AgreementCard({
 // ---- Payment Card ----
 function PaymentCard({ payload }: { payload: PaymentCardPayload }) {
   return (
-    <CardShell accent="accent">
+    <CardShell accent="payment">
       <div className="p-4 space-y-3">
         <div className="flex items-start gap-3">
-          <div className="h-10 w-10 rounded-xl bg-accent/15 grid place-items-center shrink-0">
-            <Lock className="h-5 w-5 text-accent" />
+          <div className="h-10 w-10 rounded-xl bg-payment/15 grid place-items-center shrink-0">
+            <Lock className="h-5 w-5 text-payment" />
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -291,14 +293,14 @@ function PaymentCard({ payload }: { payload: PaymentCardPayload }) {
               {formatNgn(payload.amount)}
             </div>
             <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
-              <Shield className="h-3 w-3 text-accent" />
+              <Shield className="h-3 w-3 text-payment" />
               Funds held securely in escrow
             </p>
           </div>
         </div>
 
         {payload.materials_released && payload.materials_released > 0 ? (
-          <div className="text-[12px] rounded-lg bg-primary/5 border border-primary/15 px-3 py-2 text-primary">
+          <div className="text-[12px] rounded-lg bg-payment/5 border border-payment/15 px-3 py-2 text-payment">
             {formatNgn(payload.materials_released)} for materials released immediately.
           </div>
         ) : null}
@@ -329,7 +331,7 @@ function EscrowProgress({ stage }: { stage: "holding" | "completed" }) {
           <div
             className={cn(
               "h-1.5 rounded-full flex-1",
-              i <= activeIdx ? "bg-accent" : "bg-border/60",
+              i <= activeIdx ? "bg-payment" : "bg-border/60",
             )}
           />
         </div>

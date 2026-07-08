@@ -93,10 +93,10 @@ function Landing() {
       {/* HERO */}
       <section className="relative overflow-hidden min-h-[80vh] sm:min-h-[92vh] flex flex-col items-center justify-center">
         {/* Decorative blurs — all clipped by section overflow-hidden */}
-        <div className="absolute inset-0 -z-10 bg-mesh-brand opacity-[0.28] dark:opacity-[0.45]" />
-        <div className="absolute -top-32 -left-32 -z-10 h-96 w-96 rounded-full bg-primary/30 blur-3xl float-soft" />
-        <div className="absolute -bottom-32 -right-32 -z-10 h-112 w-md rounded-full bg-accent/30 blur-3xl float-soft-slow" />
-        <div className="absolute top-1/3 right-1/4 -z-10 h-72 w-72 rounded-full bg-coral/25 blur-3xl float-soft-delayed" />
+        <div className="absolute inset-0 -z-10 bg-mesh-brand opacity-[0.25] dark:opacity-[0.4]" />
+        <div className="absolute -top-32 -left-32 -z-10 h-96 w-96 rounded-full bg-primary/20 dark:bg-primary/25 blur-3xl float-soft" />
+        <div className="absolute -bottom-32 -right-32 -z-10 h-112 w-md rounded-full bg-accent/20 dark:bg-accent/25 blur-3xl float-soft-slow" />
+        <div className="absolute top-1/3 right-1/4 -z-10 h-72 w-72 rounded-full bg-coral/15 dark:bg-coral/20 blur-3xl float-soft-delayed" />
 
         {/* Floating profile cards (desktop only, contained within section) */}
         <div className="hidden lg:block pointer-events-none absolute inset-0 z-[-5]">
@@ -153,7 +153,7 @@ function Landing() {
             <Button
               size="lg"
               variant="outline"
-              className="h-12 px-8 rounded-full glass-card border-white/40 hover:bg-primary/5 w-full sm:w-auto"
+              className="h-12 px-8 rounded-full glass-card border-border hover:bg-primary/5 w-full sm:w-auto"
               onClick={() =>
                 document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" })
               }
@@ -201,9 +201,9 @@ function Landing() {
         <div className="absolute inset-0 -z-10 bg-linear-to-br from-primary/10 via-transparent to-accent/10" />
         <div className="max-w-7xl mx-auto px-5 sm:px-8 lg:px-12 py-20 sm:py-24 grid gap-8 sm:grid-cols-3 text-center">
           {[
-            { num: "10,000+", label: "Professionals" },
-            { num: "50,000+", label: "Customers" },
-            { num: "₦500M+", label: "Transactions" },
+            { num: "100+", label: "Professionals" },
+            { num: "500+", label: "Customers" },
+            { num: "₦50,000+", label: "Transactions" },
           ].map((s) => (
             <div
               key={s.label}
