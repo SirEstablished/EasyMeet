@@ -354,7 +354,7 @@ export function AuthModal() {
                 try {
                   const { error: err } = await supabase.auth.signInWithOAuth({
                     provider: "google",
-                    // options: { redirectTo: "https://easymeet.com.ng" },
+                    options: { redirectTo: "https://easymeet.com.ng" },
                   });
                   if (err) {
                     setError(err.message);
