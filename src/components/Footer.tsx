@@ -4,7 +4,7 @@ import { Link } from "@tanstack/react-router";
 export function Footer() {
   return (
     <footer className="border-t border-border bg-secondary/30">
-      <div className="max-w-7xl mx-auto px-6 py-12 grid gap-8 md:grid-cols-3">
+      <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 py-12 grid gap-8 md:grid-cols-3">
         <div>
           <Logo />
           <p className="text-sm text-muted-foreground mt-3 max-w-xs">
@@ -29,8 +29,10 @@ export function Footer() {
           </a>
         </div>
       </div>
-      <div className="border-t border-border py-4 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} EasyMeet. All rights reserved.
+      <div className="border-t border-border">
+        <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 py-4 text-center text-xs text-muted-foreground">
+          © {new Date().getFullYear()} EasyMeet. All rights reserved.
+        </div>
       </div>
     </footer>
   );

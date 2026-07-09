@@ -18,15 +18,22 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { BoostPostModal } from "./BoostPostModal";
 import { RichText } from "./RichText";
+import { InlineComments } from "./InlineComments";
 
 export function PostCard({
   post,
   onOpenComments,
   onDeleted,
+  expanded,
+  onToggleComments,
+  onCountChange,
 }: {
   post: Post;
   onOpenComments: (postId: string) => void;
   onDeleted?: (postId: string) => void;
+  expanded?: boolean;
+  onToggleComments?: (postId: string) => void;
+  onCountChange?: (postId: string, delta: number) => void;
 }) {
   const { user } = useAuth();
   const [likeCount, setLikeCount] = useState(0);
@@ -266,7 +273,7 @@ export function PostCard({
         </button>
         <button
           type="button"
-          onClick={() => onOpenComments(post.id)}
+          onClick={() => onToggleComments?.(post.id)}
           className="inline-flex items-center gap-2 text-sm font-semibold text-foreground/80 hover:text-foreground transition"
         >
           <MessageCircle className="h-5 w-5 text-foreground/70" />
@@ -288,6 +295,10 @@ export function PostCard({
           <Bookmark className="h-5 w-5" />
         </button>
       </div>
+
+      {expanded && (
+        <InlineComments postId={post.id} onCountChange={onCountChange} />
+      )}
 
       <BoostPostModal
         open={boostOpen}

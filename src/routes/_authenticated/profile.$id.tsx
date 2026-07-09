@@ -86,14 +86,14 @@ function PublicProfilePage() {
 
   if (loading) {
     return (
-      <div className="max-w-3xl mx-auto px-4 py-20 flex items-center justify-center text-muted-foreground">
+      <div className="max-w-3xl mx-auto px-5 sm:px-8 lg:px-12 py-20 flex items-center justify-center text-muted-foreground">
         <Loader2 className="h-6 w-6 animate-spin mr-2" /> Loading profile…
       </div>
     );
   }
   if (err || !profile) {
     return (
-      <div className="max-w-3xl mx-auto px-4 py-10 text-center">
+      <div className="max-w-3xl mx-auto px-5 sm:px-8 lg:px-12 py-10 text-center">
         <h1 className="text-xl font-semibold">Profile not found</h1>
         <p className="text-sm text-muted-foreground mt-1">{err || "This user does not exist."}</p>
         <Button asChild variant="outline" className="mt-4">

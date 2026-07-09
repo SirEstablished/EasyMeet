@@ -95,7 +95,7 @@ function Settings() {
     .toUpperCase();
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10 space-y-6">
+    <div className="max-w-3xl mx-auto px-5 sm:px-8 lg:px-12 py-10 space-y-6">
       <div>
         <h1 className="text-4xl font-extrabold text-gradient-tri">Settings</h1>
         <p className="text-muted-foreground">Manage your account and preferences.</p>

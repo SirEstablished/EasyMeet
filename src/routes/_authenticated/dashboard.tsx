@@ -149,7 +149,7 @@ function Dashboard() {
   const roleLabel = role.charAt(0).toUpperCase() + role.slice(1) + " Account";
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-8 pb-28 md:pb-10 grid gap-6 md:gap-8 md:grid-cols-[240px_1fr]">
+    <div className="max-w-7xl mx-auto px-5 sm:px-8 lg:px-12 py-4 sm:py-8 pb-28 md:pb-10 grid gap-6 md:gap-8 md:grid-cols-[240px_1fr]">
       <aside className="hidden md:block">
         <div className="rounded-3xl p-4 sticky top-20 bg-card border border-border shadow-sm">
           <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.18em] mb-3 px-2">
@@ -177,13 +177,7 @@ function Dashboard() {
 
       <div className="space-y-5 sm:space-y-6 min-w-0">
         {/* Welcome banner */}
-        <section
-          className="relative overflow-hidden rounded-3xl p-5 sm:p-7 text-white shadow-[0_20px_50px_-25px_color-mix(in_oklab,var(--primary)_60%,transparent)]"
-          style={{
-            backgroundImage:
-              "linear-gradient(115deg, oklch(0.55 0.24 287) 0%, oklch(0.55 0.18 260) 45%, oklch(0.74 0.17 190) 100%)",
-          }}
-        >
+        <section className="relative overflow-hidden rounded-3xl p-5 sm:p-7 text-white shadow-[0_20px_50px_-25px_color-mix(in_oklab,var(--primary)_60%,transparent)] bg-primary">
           <div className="absolute -top-16 -right-16 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
           <div className="relative flex items-start justify-between gap-4">
             <div className="min-w-0">
@@ -191,7 +185,7 @@ function Dashboard() {
                 Welcome back
               </div>
               <h1 className="mt-1.5 text-2xl sm:text-4xl font-extrabold tracking-tight truncate">
-                Hi, {name} <span className="inline-block">👋</span>
+                Hi, {name} <span className="inline-block"></span>
               </h1>
               <p className="mt-1.5 text-sm sm:text-base text-white/85 max-w-md">{greeting}</p>
               <div className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-white/15 backdrop-blur-md border border-white/20 px-2.5 py-1 text-[11px] font-semibold">
@@ -237,7 +231,9 @@ function Dashboard() {
           <div>
             <h2 className="font-bold text-lg">Quick actions</h2>
             <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-              {role === "customer" ? "Everything you need in one tap." : "Manage your business with ease."}
+              {role === "customer"
+                ? "Everything you need in one tap."
+                : "Manage your business with ease."}
             </p>
           </div>
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-2.5 sm:gap-3">
@@ -259,9 +255,7 @@ function Dashboard() {
         </section>
 
         {/* Recent activity */}
-        {isPro && (
-          <RecentActivity items={activity} />
-        )}
+        {isPro && <RecentActivity items={activity} />}
       </div>
 
       {isPro && (
@@ -294,18 +288,16 @@ function StatCard({
   tone?: "primary" | "accent" | "coral";
 }) {
   const toneClass =
-    tone === "accent"
-      ? "text-accent"
-      : tone === "coral"
-        ? "text-coral"
-        : "text-primary";
+    tone === "accent" ? "text-accent" : tone === "coral" ? "text-coral" : "text-primary";
   return (
     <div className="rounded-2xl bg-card border border-border p-4 shadow-sm flex flex-col min-w-0">
       <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
         <span className="shrink-0">{icon}</span>
         <span className="truncate">{label}</span>
       </div>
-      <div className={`mt-2 text-xl sm:text-2xl font-extrabold tracking-tight truncate ${toneClass}`}>
+      <div
+        className={`mt-2 text-xl sm:text-2xl font-extrabold tracking-tight truncate ${toneClass}`}
+      >
         {value}
       </div>
       <div className="text-[11px] text-muted-foreground mt-0.5 truncate">{sub}</div>
@@ -336,7 +328,8 @@ function ProStats({
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
       <div className="rounded-2xl bg-card border border-border p-4 shadow-sm flex flex-col min-w-0">
         <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          <WalletIcon className="h-3.5 w-3.5 shrink-0" /> <span className="truncate">Wallet balance</span>
+          <WalletIcon className="h-3.5 w-3.5 shrink-0" />{" "}
+          <span className="truncate">Wallet balance</span>
         </div>
         <div className="mt-2 text-xl sm:text-2xl font-extrabold tracking-tight text-primary truncate">
           {formatNgn(available)}
@@ -455,7 +448,13 @@ function activityTone(type: string | null): { bg: string; fg: string; icon: Reac
 function RecentActivity({
   items,
 }: {
-  items: { id: string; title: string; message: string | null; type: string | null; created_at: string }[];
+  items: {
+    id: string;
+    title: string;
+    message: string | null;
+    type: string | null;
+    created_at: string;
+  }[];
 }) {
   const list = useMemo(() => items.slice(0, 4), [items]);
   return (

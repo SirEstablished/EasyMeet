@@ -17,7 +17,7 @@ import {
   PROFESSIONS,
   BUSINESS_TYPES,
 } from "@/integrations/supabase/client";
-import { User as UserIcon, Briefcase, Building2, Lightbulb, Eye, EyeOff } from "lucide-react";
+import { User as UserIcon, Briefcase, Building2, Lightbulb, Eye, EyeOff, X } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import {
   Select,
@@ -27,7 +27,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-
 type BusinessMode = "products" | "services" | "both";
 
 const roleOptions: {
@@ -36,9 +35,24 @@ const roleOptions: {
   description: string;
   Icon: typeof UserIcon;
 }[] = [
-  { id: "customer", label: "Customer", description: "I want to hire professionals", Icon: UserIcon },
-  { id: "professional", label: "Professional", description: "I offer services as an individual", Icon: Briefcase },
-  { id: "business", label: "Business", description: "I represent an organisation", Icon: Building2 },
+  {
+    id: "customer",
+    label: "Customer",
+    description: "I want to hire professionals",
+    Icon: UserIcon,
+  },
+  {
+    id: "professional",
+    label: "Professional",
+    description: "I offer services as an individual",
+    Icon: Briefcase,
+  },
+  {
+    id: "business",
+    label: "Business",
+    description: "I represent an organisation",
+    Icon: Building2,
+  },
 ];
 
 export function AuthModal() {
@@ -61,6 +75,22 @@ export function AuthModal() {
   const [info, setInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const reset = () => {
+    setError(null);
+    setInfo(null);
+  };
+
+  const clearForm = () => {
+    setFullName("");
+    setEmail("");
+    setPassword("");
+    setRole(null);
+    setStep(1);
+    setProfession("");
+    setProfessionOther("");
+    setSellsProducts(false);
+    setBusinessType("");
+    setBusinessTypeOther("");
+    setBusinessMode("");
     setError(null);
     setInfo(null);
   };
@@ -185,6 +215,7 @@ export function AuthModal() {
     setLoading(false);
 
     if (data.session) {
+      clearForm();
       close();
       navigate({ to: "/dashboard" });
     } else {
@@ -237,6 +268,7 @@ export function AuthModal() {
     setLoading(false);
 
     if (data.session) {
+      clearForm();
       close();
       navigate({ to: "/dashboard" });
     } else {
@@ -261,6 +293,7 @@ export function AuthModal() {
       else setError(err.message);
       return;
     }
+    clearForm();
     close();
     navigate({ to: "/dashboard" });
   };
@@ -281,9 +314,9 @@ export function AuthModal() {
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => (o ? null : close())}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+    <Dialog open={open} onOpenChange={(o) => (o ? null : (clearForm(), close()))}>
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogHeader className="pr-8">
           <div className="flex justify-center mb-2">
             <Logo asLink={false} size="md" />
           </div>
@@ -321,7 +354,7 @@ export function AuthModal() {
                 try {
                   const { error: err } = await supabase.auth.signInWithOAuth({
                     provider: "google",
-                    options: { redirectTo: "https://easymeet.com.ng" },
+                    // options: { redirectTo: "https://easymeet.com.ng" },
                   });
                   if (err) {
                     setError(err.message);
@@ -335,7 +368,10 @@ export function AuthModal() {
               }}
             >
               <svg className="h-4 w-4 mr-2" viewBox="0 0 24 24" aria-hidden="true">
-                <path fill="#EA4335" d="M12 10.2v3.9h5.5c-.24 1.4-1.7 4.1-5.5 4.1-3.3 0-6-2.7-6-6.1s2.7-6.1 6-6.1c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.7 3.4 14.5 2.4 12 2.4 6.7 2.4 2.4 6.7 2.4 12S6.7 21.6 12 21.6c6.9 0 9.5-4.8 9.5-9.4 0-.6-.1-1-.1-1.4H12z"/>
+                <path
+                  fill="#EA4335"
+                  d="M12 10.2v3.9h5.5c-.24 1.4-1.7 4.1-5.5 4.1-3.3 0-6-2.7-6-6.1s2.7-6.1 6-6.1c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.7 3.4 14.5 2.4 12 2.4 6.7 2.4 2.4 6.7 2.4 12S6.7 21.6 12 21.6c6.9 0 9.5-4.8 9.5-9.4 0-.6-.1-1-.1-1.4H12z"
+                />
               </svg>
               Continue with Google
             </Button>
@@ -352,216 +388,253 @@ export function AuthModal() {
 
         {mode === "signup" ? (
           step === 1 ? (
-          <form onSubmit={goToStep2} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="fullName">Full name</Label>
-              <Input
-                id="fullName"
-                required
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="Ada Okeke"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@email.com"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="password">Password</Label>
-              <div className="relative">
+            <form onSubmit={goToStep2} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="fullName">Full name</Label>
                 <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
+                  id="fullName"
                   required
-                  minLength={6}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pr-10"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="your fullname"
                 />
-                <button
-                  type="button"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>I am a…</Label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                {roleOptions.map(({ id, label, description, Icon }) => {
-                  const active = role === id;
-                  return (
-                    <button
-                      type="button"
-                      key={id}
-                      onClick={() => setRole(id)}
-                      className={`text-left rounded-lg border p-3 transition-all hover:border-primary/60 ${
-                        active
-                          ? "border-primary bg-primary/5 ring-2 ring-primary/40"
-                          : "border-border bg-card"
-                      }`}
-                    >
-                      <Icon className={`h-5 w-5 mb-1.5 ${active ? "text-primary" : "text-muted-foreground"}`} />
-                      <div className="text-sm font-semibold">{label}</div>
-                      <div className="text-xs text-muted-foreground leading-tight mt-0.5">
-                        {description}
-                      </div>
-                    </button>
-                  );
-                })}
+              <div className="space-y-1.5">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@email.com"
+                />
               </div>
-            </div>
-
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Creating account…" : role === "customer" ? "Create account" : "Continue"}
-            </Button>
-
-            <p className="text-sm text-center text-muted-foreground">
-              Already have an account?{" "}
-              <button
-                type="button"
-                className="text-primary font-medium hover:underline"
-                onClick={() => {
-                  reset();
-                  setMode("login");
-                }}
-              >
-                Sign in
-              </button>
-            </p>
-          </form>
-          ) : (
-          <form onSubmit={handleSignup} className="space-y-4">
-            {role === "professional" && (
-              <>
-                <div className="space-y-1.5">
-                  <Label>What is your profession?</Label>
-                  <Select value={profession} onValueChange={setProfession}>
-                    <SelectTrigger><SelectValue placeholder="Select your profession" /></SelectTrigger>
-                    <SelectContent>
-                      {PROFESSIONS.map((p) => (
-                        <SelectItem key={p} value={p}>{p}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {profession === "Other" && (
-                    <Input
-                      className="mt-2"
-                      placeholder="Tell us your profession"
-                      value={professionOther}
-                      onChange={(e) => setProfessionOther(e.target.value)}
-                    />
-                  )}
-                  <div className="mt-2 flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-2.5 text-xs text-muted-foreground">
-                    <Lightbulb className="h-3.5 w-3.5 mt-0.5 text-primary shrink-0" />
-                    <div>
-                      <span className="font-semibold text-foreground">Tip:</span>{" "}
-                      Use specific keywords in your profession so customers can find you easily.{" "}
-                      <span className="block mt-1 italic">
-                        Example: Instead of "I do hair" write "Professional hair stylist
-                        specialising in braids, weaves and natural hair in Lagos".
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between rounded-lg border border-border p-3">
-                  <div>
-                    <div className="text-sm font-medium">Do you sell physical or digital products?</div>
-                    <div className="text-xs text-muted-foreground">Enables the marketplace for your account.</div>
-                  </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="password">Password</Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    required
+                    minLength={6}
+                    value={password}
+                    placeholder="********"
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pr-10"
+                  />
                   <button
                     type="button"
-                    onClick={() => setSellsProducts((v) => !v)}
-                    className={`h-6 w-11 rounded-full transition-colors relative ${sellsProducts ? "bg-primary" : "bg-muted"}`}
-                    aria-pressed={sellsProducts}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
                   >
-                    <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${sellsProducts ? "left-5" : "left-0.5"}`} />
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
-              </>
-            )}
-            {role === "business" && (
-              <>
-                <div className="space-y-1.5">
-                  <Label>What type of business?</Label>
-                  <Select value={businessType} onValueChange={setBusinessType}>
-                    <SelectTrigger><SelectValue placeholder="Select business type" /></SelectTrigger>
-                    <SelectContent>
-                      {BUSINESS_TYPES.map((b) => (
-                        <SelectItem key={b} value={b}>{b}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {businessType === "Other" && (
-                    <Input
-                      className="mt-2"
-                      placeholder="Describe your business type"
-                      value={businessTypeOther}
-                      onChange={(e) => setBusinessTypeOther(e.target.value)}
-                    />
-                  )}
-                  <div className="mt-2 flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-2.5 text-xs text-muted-foreground">
-                    <Lightbulb className="h-3.5 w-3.5 mt-0.5 text-primary shrink-0" />
-                    <div>
-                      <span className="font-semibold text-foreground">Tip:</span>{" "}
-                      Use specific keywords for your business so customers can find you easily.{" "}
-                      <span className="block mt-1 italic">
-                        Example: Instead of "We sell food" write "Authentic Nigerian jollof and
-                        small chops catering in Lagos".
-                      </span>
+              </div>
+
+              <div className="space-y-2">
+                <Label>I am a…</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {roleOptions.map(({ id, label, description, Icon }) => {
+                    const active = role === id;
+                    return (
+                      <button
+                        type="button"
+                        key={id}
+                        onClick={() => setRole(id)}
+                        className={`text-left rounded-lg border p-2.5 sm:p-3 transition-all hover:border-primary/60 ${
+                          active
+                            ? "border-primary bg-primary/5 ring-2 ring-primary/40"
+                            : "border-border bg-card"
+                        }`}
+                      >
+                        <Icon
+                          className={`h-4 w-4 sm:h-5 sm:w-5 mb-1 ${active ? "text-primary" : "text-muted-foreground"}`}
+                        />
+                        <div className="text-xs sm:text-sm font-semibold">{label}</div>
+                        <div className="text-[10px] sm:text-xs text-muted-foreground leading-tight mt-0.5">
+                          {description}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading
+                  ? "Creating account…"
+                  : role === "customer"
+                    ? "Create account"
+                    : "Continue"}
+              </Button>
+
+              <p className="text-sm text-center text-muted-foreground">
+                Already have an account?{" "}
+                <button
+                  type="button"
+                  className="text-primary font-medium hover:underline"
+                  onClick={() => {
+                    reset();
+                    setMode("login");
+                  }}
+                >
+                  Sign in
+                </button>
+              </p>
+            </form>
+          ) : (
+            <form onSubmit={handleSignup} className="space-y-4">
+              {role === "professional" && (
+                <>
+                  <div className="space-y-1.5">
+                    <Label>What is your profession?</Label>
+                    <Select value={profession} onValueChange={setProfession}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select your profession" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PROFESSIONS.map((p) => (
+                          <SelectItem key={p} value={p}>
+                            {p}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {profession === "Other" && (
+                      <Input
+                        className="mt-2"
+                        placeholder="Tell us your profession"
+                        value={professionOther}
+                        onChange={(e) => setProfessionOther(e.target.value)}
+                      />
+                    )}
+                    <div className="mt-2 flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-2.5 text-xs text-muted-foreground">
+                      <Lightbulb className="h-3.5 w-3.5 mt-0.5 text-primary shrink-0" />
+                      <div>
+                        <span className="font-semibold text-foreground">Tip:</span> Use specific
+                        keywords in your profession so customers can find you easily.{" "}
+                        <span className="block mt-1 italic">
+                          Example: Instead of "I do hair" write "Professional hair stylist
+                          specialising in braids, weaves and natural hair in Lagos".
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>What does your business do?</Label>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    {([
-                      { id: "products", label: "We sell products", desc: "Physical or digital" },
-                      { id: "services", label: "We offer services", desc: "Skills and time" },
-                      { id: "both", label: "Both", desc: "Products + services" },
-                    ] as { id: BusinessMode; label: string; desc: string }[]).map((o) => {
-                      const active = businessMode === o.id;
-                      return (
-                        <button
-                          type="button"
-                          key={o.id}
-                          onClick={() => setBusinessMode(o.id)}
-                          className={`text-left rounded-lg border p-3 transition-all hover:border-primary/60 ${
-                            active
-                              ? "border-primary bg-primary/5 ring-2 ring-primary/40"
-                              : "border-border bg-card"
-                          }`}
-                        >
-                          <div className="text-sm font-semibold">{o.label}</div>
-                          <div className="text-xs text-muted-foreground leading-tight mt-0.5">{o.desc}</div>
-                        </button>
-                      );
-                    })}
+                  <div className="flex items-center justify-between rounded-lg border border-border p-3">
+                    <div>
+                      <div className="text-sm font-medium">
+                        Do you sell physical or digital products?
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Enables the marketplace for your account.
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSellsProducts((v) => !v)}
+                      className={`h-6 w-11 rounded-full transition-colors relative ${sellsProducts ? "bg-primary" : "bg-muted"}`}
+                      aria-pressed={sellsProducts}
+                    >
+                      <span
+                        className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${sellsProducts ? "left-5" : "left-0.5"}`}
+                      />
+                    </button>
                   </div>
-                </div>
-              </>
-            )}
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" className="flex-1" onClick={() => { setStep(1); reset(); }}>
-                Back
-              </Button>
-              <Button type="submit" className="flex-1" disabled={loading}>
-                {loading ? "Creating account…" : "Create account"}
-              </Button>
-            </div>
-          </form>
+                </>
+              )}
+              {role === "business" && (
+                <>
+                  <div className="space-y-1.5">
+                    <Label>What type of business?</Label>
+                    <Select value={businessType} onValueChange={setBusinessType}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select business type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {BUSINESS_TYPES.map((b) => (
+                          <SelectItem key={b} value={b}>
+                            {b}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {businessType === "Other" && (
+                      <Input
+                        className="mt-2"
+                        placeholder="Describe your business type"
+                        value={businessTypeOther}
+                        onChange={(e) => setBusinessTypeOther(e.target.value)}
+                      />
+                    )}
+                    <div className="mt-2 flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-2.5 text-xs text-muted-foreground">
+                      <Lightbulb className="h-3.5 w-3.5 mt-0.5 text-primary shrink-0" />
+                      <div>
+                        <span className="font-semibold text-foreground">Tip:</span> Use specific
+                        keywords for your business so customers can find you easily.{" "}
+                        <span className="block mt-1 italic">
+                          Example: Instead of "We sell food" write "Authentic Nigerian jollof and
+                          small chops catering in Lagos".
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>What does your business do?</Label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(
+                        [
+                          {
+                            id: "products",
+                            label: "We sell products",
+                            desc: "Physical or digital",
+                          },
+                          { id: "services", label: "We offer services", desc: "Skills and time" },
+                          { id: "both", label: "Both", desc: "Products + services" },
+                        ] as { id: BusinessMode; label: string; desc: string }[]
+                      ).map((o) => {
+                        const active = businessMode === o.id;
+                        return (
+                          <button
+                            type="button"
+                            key={o.id}
+                            onClick={() => setBusinessMode(o.id)}
+                            className={`text-left rounded-lg border p-2.5 sm:p-3 transition-all hover:border-primary/60 ${
+                              active
+                                ? "border-primary bg-primary/5 ring-2 ring-primary/40"
+                                : "border-border bg-card"
+                            }`}
+                          >
+                            <div className="text-xs sm:text-sm font-semibold">{o.label}</div>
+                            <div className="text-[10px] sm:text-xs text-muted-foreground leading-tight mt-0.5">
+                              {o.desc}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setStep(1);
+                    reset();
+                  }}
+                >
+                  Back
+                </Button>
+                <Button type="submit" className="flex-1" disabled={loading}>
+                  {loading ? "Creating account…" : "Create account"}
+                </Button>
+              </div>
+            </form>
           )
         ) : (
           <form onSubmit={handleLogin} className="space-y-4">
@@ -571,6 +644,7 @@ export function AuthModal() {
                 id="loginEmail"
                 type="email"
                 required
+                placeholder="you@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
@@ -591,6 +665,7 @@ export function AuthModal() {
                   id="loginPassword"
                   type={showPassword ? "text" : "password"}
                   required
+                  placeholder="********"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="pr-10"
@@ -625,7 +700,6 @@ export function AuthModal() {
             </p>
           </form>
         )}
-
       </DialogContent>
     </Dialog>
   );

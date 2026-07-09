@@ -50,7 +50,7 @@ function MyBookingsPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
+    <div className="max-w-3xl mx-auto px-5 sm:px-8 lg:px-12 py-8">
       <h1 className="text-3xl sm:text-4xl font-extrabold text-gradient-tri">My Bookings</h1>
       <p className="text-sm text-muted-foreground">Bookings customers have placed with you.</p>
 

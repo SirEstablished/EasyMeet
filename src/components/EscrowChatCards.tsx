@@ -2,12 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase, formatNgn } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   FileText,
   Lock,
@@ -116,10 +111,8 @@ export function EscrowChatCard({
     );
   }
   if (kind === "payment") return <PaymentCard payload={payload as PaymentCardPayload} />;
-  if (kind === "completion")
-    return <CompletionCard payload={payload as CompletionCardPayload} />;
-  if (kind === "deal_summary")
-    return <DealSummaryCard payload={payload as DealSummaryCardPayload} />;
+  if (kind === "completion") return <CompletionCard payload={payload as CompletionCardPayload} />;
+  if (kind === "deal_summary") return <DealSummaryCard payload={payload as DealSummaryCardPayload} />;
   return null;
 }
 
@@ -128,7 +121,7 @@ function CardShell({
   children,
   align,
 }: {
-  accent: "primary" | "accent" | "coral";
+  accent: "primary" | "accent" | "coral" | "payment";
   children: React.ReactNode;
   align?: "start" | "end";
 }) {
@@ -137,7 +130,9 @@ function CardShell({
       ? "border-primary/20"
       : accent === "coral"
         ? "border-coral/30"
-        : "border-accent/25";
+        : accent === "payment"
+          ? "border-payment/25"
+          : "border-accent/25";
   return (
     <div
       className={cn(
@@ -277,11 +272,11 @@ function AgreementCard({
 // ---- Payment Card ----
 function PaymentCard({ payload }: { payload: PaymentCardPayload }) {
   return (
-    <CardShell accent="accent">
+    <CardShell accent="payment">
       <div className="p-4 space-y-3">
         <div className="flex items-start gap-3">
-          <div className="h-10 w-10 rounded-xl bg-accent/15 grid place-items-center shrink-0">
-            <Lock className="h-5 w-5 text-accent" />
+          <div className="h-10 w-10 rounded-xl bg-payment/15 grid place-items-center shrink-0">
+            <Lock className="h-5 w-5 text-payment" />
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -291,14 +286,14 @@ function PaymentCard({ payload }: { payload: PaymentCardPayload }) {
               {formatNgn(payload.amount)}
             </div>
             <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
-              <Shield className="h-3 w-3 text-accent" />
+              <Shield className="h-3 w-3 text-payment" />
               Funds held securely in escrow
             </p>
           </div>
         </div>
 
         {payload.materials_released && payload.materials_released > 0 ? (
-          <div className="text-[12px] rounded-lg bg-primary/5 border border-primary/15 px-3 py-2 text-primary">
+          <div className="text-[12px] rounded-lg bg-payment/5 border border-payment/15 px-3 py-2 text-payment">
             {formatNgn(payload.materials_released)} for materials released immediately.
           </div>
         ) : null}
@@ -329,7 +324,7 @@ function EscrowProgress({ stage }: { stage: "holding" | "completed" }) {
           <div
             className={cn(
               "h-1.5 rounded-full flex-1",
-              i <= activeIdx ? "bg-accent" : "bg-border/60",
+              i <= activeIdx ? "bg-payment" : "bg-border/60",
             )}
           />
         </div>
@@ -344,8 +339,8 @@ function CompletionCard({ payload }: { payload: CompletionCardPayload }) {
     <CardShell accent="accent">
       <div className="p-4 space-y-3">
         <div className="flex items-start gap-3">
-          <div className="h-10 w-10 rounded-xl bg-accent grid place-items-center shrink-0">
-            <CheckCircle2 className="h-5 w-5 text-primary-foreground" strokeWidth={2.5} />
+          <div className="h-10 w-10 rounded-xl bg-payment/15 grid place-items-center shrink-0">
+            <CheckCircle2 className="h-5 w-5 text-payment" strokeWidth={2.5} />
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -364,18 +359,13 @@ function CompletionCard({ payload }: { payload: CompletionCardPayload }) {
         </div>
 
         <div className="rounded-xl bg-muted/40 border border-border/60 divide-y divide-border/60">
-          <Row label="Amount released" value={formatNgn(payload.amount)} />
+          <Row label="Amount released" value={formatNgn(payload.amount)} green />
           <Row
             label="EasyMeet Protection Fee"
             value={`− ${formatNgn(payload.protection_fee)}`}
             muted
           />
-          <Row
-            label="Professional received"
-            value={formatNgn(payload.payout)}
-            accent
-            bold
-          />
+          <Row label="Professional received" value={formatNgn(payload.payout)} green bold />
         </div>
       </div>
     </CardShell>
@@ -419,7 +409,7 @@ function DealSummaryCard({ payload }: { payload: DealSummaryCardPayload }) {
               muted
             />
             <Row label="Paystack fee" value={formatNgn(payload.paystack_fee)} muted />
-            <Row label="Amount released" value={formatNgn(payload.released)} accent bold />
+            <Row label="Amount released" value={formatNgn(payload.released)} green bold />
           </div>
 
           <Button
@@ -460,7 +450,7 @@ function DealSummaryCard({ payload }: { payload: DealSummaryCardPayload }) {
               <Row
                 label="Professional received"
                 value={formatNgn(payload.released)}
-                accent
+                green
                 bold
               />
               <Row label="Status" value={payload.status} />
@@ -478,12 +468,14 @@ function Row({
   muted,
   bold,
   accent,
+  green,
 }: {
   label: string;
   value: string;
   muted?: boolean;
   bold?: boolean;
   accent?: boolean;
+  green?: boolean;
 }) {
   return (
     <div className="flex justify-between items-center px-3 py-2 text-[13px]">
@@ -491,7 +483,7 @@ function Row({
       <span
         className={cn(
           bold ? "font-bold" : "font-semibold",
-          accent ? "text-accent" : "text-foreground",
+          green ? "text-payment" : accent ? "text-accent" : "text-foreground",
           "capitalize",
         )}
       >
