@@ -4,13 +4,9 @@ import { supabase, formatNgn } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/providers";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { WithdrawDialog } from "@/components/WithdrawDialog";
 import { useLiveData } from "@/hooks/use-live-data";
 import { Wallet as WalletIcon, ArrowDownToLine, TrendingUp, ShieldCheck, Clock } from "lucide-react";
-import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/wallet")({
   component: WalletPage,
@@ -22,8 +18,6 @@ interface WalletRow {
   escrow_balance: number;
   total_withdrawn: number;
   lifetime_earnings: number;
-  auto_withdrawal: boolean;
-  auto_withdrawal_threshold: number | null;
 }
 interface Tx {
   id: string;
@@ -52,12 +46,11 @@ function WalletPage() {
   const [wds, setWds] = useState<Withdrawal[]>([]);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
-  const [autoOn, setAutoOn] = useState(false);
-  const [threshold, setThreshold] = useState("");
+  const [liveEscrow, setLiveEscrow] = useState(0);
 
   const load = useCallback(async () => {
     if (!user) return;
-    const [{ data: w }, { data: tx }, { data: wd }] = await Promise.all([
+    const [{ data: w }, { data: tx }, { data: wd }, { data: escRows }] = await Promise.all([
       supabase.from("wallets" as never).select("*").eq("user_id", user.id).maybeSingle(),
       supabase
         .from("wallet_transactions" as never)
@@ -70,6 +63,11 @@ function WalletPage() {
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false }),
+      supabase
+        .from("escrow" as never)
+        .select("amount, amount_ngn, payout_amount")
+        .or(`provider_id.eq.${user.id},professional_id.eq.${user.id}`)
+        .eq("status", "holding"),
     ]);
     const row = (w as WalletRow | null) ?? {
       user_id: user.id,
@@ -77,14 +75,19 @@ function WalletPage() {
       escrow_balance: 0,
       total_withdrawn: 0,
       lifetime_earnings: 0,
-      auto_withdrawal: false,
-      auto_withdrawal_threshold: null,
     };
     setWallet(row);
-    setAutoOn(row.auto_withdrawal);
-    setThreshold(row.auto_withdrawal_threshold ? String(row.auto_withdrawal_threshold) : "");
     setTxs((tx as Tx[] | null) ?? []);
     setWds((wd as Withdrawal[] | null) ?? []);
+    const live = ((escRows ?? []) as {
+      amount: number | null;
+      amount_ngn: number | null;
+      payout_amount: number | null;
+    }[]).reduce(
+      (s, e) => s + Number(e.payout_amount ?? e.amount_ngn ?? e.amount ?? 0),
+      0,
+    );
+    setLiveEscrow(live);
   }, [user]);
 
   useEffect(() => {
@@ -92,21 +95,9 @@ function WalletPage() {
   }, [load]);
 
   useLiveData(
-    user ? ["wallets", "wallet_transactions", "withdrawal_requests"] : [],
+    user ? ["wallets", "wallet_transactions", "withdrawal_requests", "escrow"] : [],
     load,
   );
-
-  const saveAuto = async () => {
-    if (!user) return;
-    const val = threshold ? Number(threshold) : null;
-    if (autoOn && (!val || val < 1000)) return toast.error("Threshold must be at least ₦1,000");
-    const { error } = await supabase
-      .from("wallets" as never)
-      .update({ auto_withdrawal: autoOn, auto_withdrawal_threshold: val } as never)
-      .eq("user_id", user.id);
-    if (error) return toast.error(error.message);
-    toast.success("Auto-withdrawal settings saved");
-  };
 
   if (!user) return null;
   if (role && role !== "professional" && role !== "business") {
@@ -125,7 +116,7 @@ function WalletPage() {
   }
 
   const available = wallet?.available_balance ?? 0;
-  const escrow = wallet?.escrow_balance ?? 0;
+  const escrow = Math.max(wallet?.escrow_balance ?? 0, liveEscrow);
   const withdrawn = wallet?.total_withdrawn ?? 0;
   const lifetime = wallet?.lifetime_earnings ?? 0;
   const shownTxs = showAll ? txs : txs.slice(0, 10);
@@ -246,33 +237,6 @@ function WalletPage() {
             ))}
           </ul>
         )}
-      </div>
-
-      {/* Auto-withdrawal */}
-      <div className="rounded-2xl glass-card p-4 sm:p-6 space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className="font-bold">Auto-withdrawal</h2>
-            <p className="text-xs text-muted-foreground">
-              Automatically withdraw when your balance reaches the threshold.
-            </p>
-          </div>
-          <Switch checked={autoOn} onCheckedChange={setAutoOn} />
-        </div>
-        {autoOn && (
-          <div>
-            <Label htmlFor="thr">Threshold (NGN)</Label>
-            <Input
-              id="thr"
-              type="number"
-              min={1000}
-              value={threshold}
-              onChange={(e) => setThreshold(e.target.value)}
-              placeholder="10000"
-            />
-          </div>
-        )}
-        <Button size="sm" onClick={saveAuto} variant="outline">Save settings</Button>
       </div>
 
       <WithdrawDialog
