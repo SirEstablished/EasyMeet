@@ -239,33 +239,6 @@ function WalletPage() {
         )}
       </div>
 
-      {/* Auto-withdrawal */}
-      <div className="rounded-2xl glass-card p-4 sm:p-6 space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className="font-bold">Auto-withdrawal</h2>
-            <p className="text-xs text-muted-foreground">
-              Automatically withdraw when your balance reaches the threshold.
-            </p>
-          </div>
-          <Switch checked={autoOn} onCheckedChange={setAutoOn} />
-        </div>
-        {autoOn && (
-          <div>
-            <Label htmlFor="thr">Threshold (NGN)</Label>
-            <Input
-              id="thr"
-              type="number"
-              min={1000}
-              value={threshold}
-              onChange={(e) => setThreshold(e.target.value)}
-              placeholder="10000"
-            />
-          </div>
-        )}
-        <Button size="sm" onClick={saveAuto} variant="outline">Save settings</Button>
-      </div>
-
       <WithdrawDialog
         open={withdrawOpen}
         onOpenChange={setWithdrawOpen}
