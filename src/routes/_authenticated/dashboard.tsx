@@ -71,7 +71,7 @@ function Dashboard() {
     const monthStart = new Date();
     monthStart.setDate(1);
     monthStart.setHours(0, 0, 0, 0);
-    const [walletRes, ordersRes, notifRes] = await Promise.all([
+    const [walletRes, ordersRes, escrowHoldRes, pendingOrdersRes, notifRes] = await Promise.all([
       supabase
         .from("wallets" as never)
         .select("available_balance, escrow_balance")
@@ -82,6 +82,16 @@ function Dashboard() {
         .select("id, status, escrow_status, payout_amount, amount_ngn, amount, created_at")
         .eq("provider_id", user.id),
       supabase
+        .from("escrow" as never)
+        .select("amount, amount_ngn, payout_amount")
+        .or(`customer_id.eq.${user.id},provider_id.eq.${user.id},professional_id.eq.${user.id}`)
+        .eq("status", "holding"),
+      supabase
+        .from("orders")
+        .select("id, status")
+        .or(`customer_id.eq.${user.id},provider_id.eq.${user.id}`)
+        .in("status", ["confirmed", "pending"]),
+      supabase
         .from("notifications")
         .select("id, title, message, type, created_at")
         .eq("user_id", user.id)
@@ -90,7 +100,16 @@ function Dashboard() {
     ]);
     const w = walletRes.data as { available_balance?: number; escrow_balance?: number } | null;
     setAvailable(Number(w?.available_balance ?? 0));
-    setEscrow(Number(w?.escrow_balance ?? 0));
+    const walletEscrow = Number(w?.escrow_balance ?? 0);
+    const liveEscrow = ((escrowHoldRes.data ?? []) as {
+      amount: number | null;
+      amount_ngn: number | null;
+      payout_amount: number | null;
+    }[]).reduce(
+      (sum, e) => sum + Number(e.payout_amount ?? e.amount_ngn ?? e.amount ?? 0),
+      0,
+    );
+    setEscrow(Math.max(walletEscrow, liveEscrow));
     const orders = (ordersRes.data ?? []) as {
       status: string | null;
       escrow_status: string | null;
@@ -100,17 +119,15 @@ function Dashboard() {
       created_at: string;
     }[];
     let month = 0;
-    let pending = 0;
     for (const o of orders) {
       const es = (o.escrow_status || "").toLowerCase();
       const os = (o.status || "").toLowerCase();
       const completedOrder = es === "released" || es === "completed" || os === "completed";
       const rev = Number(o.payout_amount ?? o.amount_ngn ?? o.amount ?? 0) || 0;
       if (completedOrder && new Date(o.created_at) >= monthStart) month += rev;
-      if (os === "pending" || es === "held" || es === "in_escrow" || es === "pending") pending += 1;
     }
     setMonthEarnings(month);
-    setPendingOrders(pending);
+    setPendingOrders(((pendingOrdersRes.data ?? []) as unknown[]).length);
     setActivity(
       (notifRes.data ?? []) as {
         id: string;
@@ -125,7 +142,7 @@ function Dashboard() {
   useEffect(() => {
     void loadSummary();
   }, [loadSummary]);
-  useLiveData(user && isPro ? ["wallets", "orders", "notifications"] : [], loadSummary);
+  useLiveData(user && isPro ? ["wallets", "orders", "escrow", "notifications"] : [], loadSummary);
 
   const quickLinks: { Icon: typeof Search; label: string; to: string }[] =
     role === "customer"
