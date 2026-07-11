@@ -57,24 +57,41 @@ const AGREEMENT_TYPES = [
   { value: "delivery", label: "Delivery Agreement" },
 ] as const;
 
-export function computeAgreementFees(materials: number, labor: number, contingency: number) {
+// Fee math — commission and Paystack fee are always calculated separately.
+// - commission: comes from the tiered `calculate_commission` RPC on the
+//   labor/service amount ONLY. Never includes materials, Paystack fee, or
+//   contingency. Passed in from the caller.
+// - paystackFee: 1.5% + ₦100 (max ₦2,000) on the amount the customer is
+//   actually charged BEFORE the Paystack fee itself is added. It never
+//   feeds back into commission.
+export function computeAgreementFees(
+  materials: number,
+  labor: number,
+  contingency: number,
+  commission: number = 0,
+) {
   const m = Math.max(0, Number(materials) || 0);
   const l = Math.max(0, Number(labor) || 0);
   const c = Math.max(0, Number(contingency) || 0);
+  const comm = Math.max(0, Number(commission) || 0);
   const subtotal = m + l + c;
-  const commission = l >= 5000 ? Math.round(l * 0.03 * 100) / 100 : 0;
+  const preFeeTotal = subtotal + comm;
   const paystackFee =
-    subtotal > 0
-      ? Math.min(2000, Math.round((subtotal * 0.015 + (subtotal >= 2500 ? 100 : 0)) * 100) / 100)
+    preFeeTotal > 0
+      ? Math.min(
+          2000,
+          Math.round((preFeeTotal * 0.015 + (preFeeTotal >= 2500 ? 100 : 0)) * 100) / 100,
+        )
       : 0;
-  const totalPaid = subtotal + paystackFee;
-  const professionalReceives = Math.max(0, m + l - commission);
+  const totalPaid = preFeeTotal + paystackFee;
+  // Materials pay 0 commission; only labor/service is commissionable.
+  const professionalReceives = Math.max(0, m + l - comm);
   return {
     materials: m,
     labor: l,
     contingency: c,
     subtotal,
-    commission,
+    commission: comm,
     paystackFee,
     totalPaid,
     professionalReceives,
@@ -704,15 +721,31 @@ export function EscrowPanel({
         contingency_cost?: number | null;
         total_amount?: number | null;
         paystack_fee?: number | null;
+        commission_amount?: number | null;
+        agreement_type?: string | null;
       };
       const materialsCost = Number(ag.materials_cost ?? 0);
       const laborCost = Number(ag.labor_cost ?? 0);
       const contingencyCost = Number(ag.contingency_cost ?? 0);
       const subtotal = Number(ag.total_amount ?? paymentAgreement.price);
-      const fees = computeAgreementFees(materialsCost, laborCost, contingencyCost);
-      // Fallback to computed fee if agreement missing paystack_fee
-      const paystackFee = ag.paystack_fee != null ? Number(ag.paystack_fee) : fees.paystackFee;
-      const chargeAmount = subtotal + paystackFee;
+      const agreementType = (ag as { agreement_type?: string | null }).agreement_type ?? "service";
+      // Commissionable = labor only. Products/delivery/materials never
+      // contribute to commission.
+      const commissionable =
+        agreementType === "service"
+          ? laborCost || subtotal
+          : agreementType === "material_labor"
+            ? laborCost
+            : 0;
+      const commission =
+        ag.commission_amount != null
+          ? Number(ag.commission_amount)
+          : await fetchTieredCommission(commissionable);
+      // Paystack fee is a separate calculation on (subtotal + commission).
+      // It never influences commission.
+      const fees = computeAgreementFees(materialsCost, laborCost, contingencyCost, commission);
+      const paystackFee = fees.paystackFee;
+      const chargeAmount = fees.totalPaid;
       setPayBreakdownOpen(false);
       const reference = await payWithPaystack({
         email: myEmail,
@@ -841,7 +874,8 @@ export function EscrowPanel({
         if (notifErr) console.error("Material release notification failed", notifErr);
       }
 
-      toast.success("Payment held in escrow successfully");
+      // Payment confirmation appears as a rich chat card in the conversation
+      // (see the encodeCard("payment", ...) insert above) — no popup/toast.
       void load();
     } catch (e) {
       if (e instanceof Error && e.message === "Payment cancelled")
@@ -1034,32 +1068,9 @@ export function EscrowPanel({
     );
   }
 
-  if (showSummary && order) {
-    return (
-      <div className="border-t border-border bg-card/60 backdrop-blur p-3">
-        <div className="rounded-lg border border-accent/40 bg-accent/5 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <CheckCircle2 className="h-5 w-5 text-accent" />
-            <span className="font-bold text-sm">Deal Complete!</span>
-          </div>
-          <div className="space-y-1 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Amount paid</span>
-              <span className="font-semibold">{formatNgn(order.amount_ngn)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">EasyMeet Protection Fee</span>
-              <span className="font-semibold">{formatNgn(order.commission_amount)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Professional received</span>
-              <span className="font-semibold text-accent">{formatNgn(order.payout_amount)}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Post-payment popup removed — payment/completion state is shown as
+  // rich chat cards (payment card, completion card, permanent deal summary
+  // card) inside the conversation instead of a separate summary panel.
 
   return (
     <div className="border-t border-border bg-card/60 backdrop-blur p-3">
@@ -1473,31 +1484,31 @@ function PaymentBreakdownDialog({
 
   if (!agreement || !ag) return null;
 
-  const paystackFee = Number(
-    ag.paystack_fee ??
-      (subtotal > 0
-        ? Math.min(2000, Math.round((subtotal * 0.015 + (subtotal >= 2500 ? 100 : 0)) * 100) / 100)
-        : 0),
-  );
-  const total = subtotal + paystackFee;
-  const professionalReceives = Math.max(0, subtotal - commission);
+  // Paystack fee is always a SEPARATE calculation on (subtotal + commission).
+  // It is never added to commission and never influences it.
+  const preFeeTotal = subtotal + commission;
+  const paystackFee =
+    preFeeTotal > 0
+      ? Math.min(
+          2000,
+          Math.round((preFeeTotal * 0.015 + (preFeeTotal >= 2500 ? 100 : 0)) * 100) / 100,
+        )
+      : 0;
+  const total = preFeeTotal + paystackFee;
+  const professionalReceives = Math.max(0, materials + labor - commission);
 
   const rows: Array<{ label: string; value: number; muted?: boolean }> = [];
   if (type === "service") {
-    rows.push({ label: "Labor / Service fee", value: labor || subtotal });
+    rows.push({ label: "Service Fee", value: labor || subtotal });
   } else if (type === "material_labor") {
     if (materials > 0) rows.push({ label: "Materials (released immediately)", value: materials });
-    rows.push({ label: "Labor fee (held in escrow)", value: labor });
+    rows.push({ label: "Service Fee (held in escrow)", value: labor });
     if (contingency > 0) rows.push({ label: "Contingency (buffer)", value: contingency });
   } else if (type === "product_sale") {
-    // Send flow currently stores product+delivery combined; show combined if we
-    // cannot split, otherwise use the split when available.
-    if (contingency > 0) {
-      rows.push({ label: "Product price", value: materials });
-      rows.push({ label: "Delivery fee", value: contingency });
-    } else {
-      rows.push({ label: "Product + delivery", value: subtotal });
-    }
+    // Product price is stored in `materials`; delivery fee in `contingency`
+    // (see SendAgreementDialog.mapped for product_sale). Split them out.
+    rows.push({ label: "Product price", value: materials });
+    if (contingency > 0) rows.push({ label: "Delivery fee", value: contingency });
   } else if (type === "delivery") {
     rows.push({ label: "Delivery fee", value: labor || subtotal });
   } else {
@@ -1819,9 +1830,12 @@ function SendAgreementDialog({
         };
       case "product_sale":
         return {
-          immediate: n(productPrice) + n(productDeliveryFee),
+          // Product price → materials bucket (0% commission, released on delivery).
+          // Delivery fee → contingency bucket so the breakdown can show it as
+          // a separate "Delivery fee" line item.
+          immediate: n(productPrice),
           held: 0,
-          contingency: 0,
+          contingency: n(productDeliveryFee),
           commissionable: 0,
         };
       case "supply":
@@ -1841,7 +1855,6 @@ function SendAgreementDialog({
         return { immediate: 0, held: 0, contingency: 0, commissionable: 0 };
     }
   })();
-  const baseFees = computeAgreementFees(mapped.immediate, mapped.held, mapped.contingency);
   const [commission, setCommission] = useState<number>(
     fallbackCommission(mapped.commissionable),
   );
@@ -1860,8 +1873,15 @@ function SendAgreementDialog({
       cancelled = true;
     };
   }, [mapped.commissionable]);
-  const professionalReceives = Math.max(0, mapped.immediate + mapped.held - commission);
-  const fees = { ...baseFees, commission, professionalReceives };
+  // Paystack fee is computed inside computeAgreementFees on (subtotal +
+  // commission) — never combined with commission itself.
+  const fees = computeAgreementFees(
+    mapped.immediate,
+    mapped.held,
+    mapped.contingency,
+    commission,
+  );
+  const professionalReceives = fees.professionalReceives;
 
   // Auto-fill from chat history when dialog opens.
   useEffect(() => {
@@ -2416,26 +2436,47 @@ function SendAgreementDialog({
             <div className="text-xs font-bold uppercase tracking-wide text-gradient-tri mb-1">
               Payment summary
             </div>
-            {mapped.immediate > 0 && (
-              <SummaryRow label="Released immediately" value={mapped.immediate} />
+            {agreementType === "service" && mapped.held > 0 && (
+              <SummaryRow label="💼 Service Fee" value={mapped.held} />
             )}
-            {mapped.held > 0 && (
-              <SummaryRow
-                label={agreementType === "delivery" ? "Delivery fee (held)" : "Held in escrow"}
-                value={mapped.held}
-              />
+            {agreementType === "material_labor" && (
+              <>
+                {mapped.immediate > 0 && (
+                  <SummaryRow label="🧱 Materials (released immediately)" value={mapped.immediate} />
+                )}
+                {mapped.held > 0 && <SummaryRow label="💼 Service Fee (held)" value={mapped.held} />}
+                {mapped.contingency > 0 && (
+                  <SummaryRow label="🛟 Contingency" value={mapped.contingency} />
+                )}
+              </>
             )}
-            {mapped.contingency > 0 && (
-              <SummaryRow label="Contingency" value={mapped.contingency} />
+            {agreementType === "product_sale" && (
+              <>
+                {mapped.immediate > 0 && (
+                  <SummaryRow label="📦 Product Price" value={mapped.immediate} />
+                )}
+                {mapped.contingency > 0 && (
+                  <SummaryRow label="🚚 Delivery Fee" value={mapped.contingency} />
+                )}
+              </>
+            )}
+            {agreementType === "delivery" && mapped.held > 0 && (
+              <SummaryRow label="🚚 Delivery Fee" value={mapped.held} />
+            )}
+            {agreementType === "supply" && mapped.immediate > 0 && (
+              <SummaryRow label="📦 Supply + Delivery" value={mapped.immediate} />
+            )}
+            {agreementType === "milestone" && mapped.held > 0 && (
+              <SummaryRow label="💼 Milestone Payments (held)" value={mapped.held} />
             )}
             <SummaryRow
-              label={"EasyMeet Protection Fee" + (commissionLoading ? " • calculating…" : "")}
+              label={"🛡️ EasyMeet Protection Fee" + (commissionLoading ? " • calculating…" : "")}
               value={commission}
               muted
             />
-            <SummaryRow label="Paystack fee" value={fees.paystackFee} muted />
+            <SummaryRow label="💳 Paystack Fee" value={fees.paystackFee} muted />
             <div className="border-t border-border/50 my-1" />
-            <SummaryRow label="Total customer pays" value={fees.totalPaid} bold />
+            <SummaryRow label="Total you pay" value={fees.totalPaid} bold />
             <SummaryRow label="Professional receives" value={professionalReceives} accent />
           </div>
         </div>
