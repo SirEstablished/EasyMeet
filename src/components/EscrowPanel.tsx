@@ -57,24 +57,41 @@ const AGREEMENT_TYPES = [
   { value: "delivery", label: "Delivery Agreement" },
 ] as const;
 
-export function computeAgreementFees(materials: number, labor: number, contingency: number) {
+// Fee math — commission and Paystack fee are always calculated separately.
+// - commission: comes from the tiered `calculate_commission` RPC on the
+//   labor/service amount ONLY. Never includes materials, Paystack fee, or
+//   contingency. Passed in from the caller.
+// - paystackFee: 1.5% + ₦100 (max ₦2,000) on the amount the customer is
+//   actually charged BEFORE the Paystack fee itself is added. It never
+//   feeds back into commission.
+export function computeAgreementFees(
+  materials: number,
+  labor: number,
+  contingency: number,
+  commission: number = 0,
+) {
   const m = Math.max(0, Number(materials) || 0);
   const l = Math.max(0, Number(labor) || 0);
   const c = Math.max(0, Number(contingency) || 0);
+  const comm = Math.max(0, Number(commission) || 0);
   const subtotal = m + l + c;
-  const commission = l >= 5000 ? Math.round(l * 0.03 * 100) / 100 : 0;
+  const preFeeTotal = subtotal + comm;
   const paystackFee =
-    subtotal > 0
-      ? Math.min(2000, Math.round((subtotal * 0.015 + (subtotal >= 2500 ? 100 : 0)) * 100) / 100)
+    preFeeTotal > 0
+      ? Math.min(
+          2000,
+          Math.round((preFeeTotal * 0.015 + (preFeeTotal >= 2500 ? 100 : 0)) * 100) / 100,
+        )
       : 0;
-  const totalPaid = subtotal + paystackFee;
-  const professionalReceives = Math.max(0, m + l - commission);
+  const totalPaid = preFeeTotal + paystackFee;
+  // Materials pay 0 commission; only labor/service is commissionable.
+  const professionalReceives = Math.max(0, m + l - comm);
   return {
     materials: m,
     labor: l,
     contingency: c,
     subtotal,
-    commission,
+    commission: comm,
     paystackFee,
     totalPaid,
     professionalReceives,
