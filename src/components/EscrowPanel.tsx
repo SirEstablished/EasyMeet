@@ -2458,26 +2458,47 @@ function SendAgreementDialog({
             <div className="text-xs font-bold uppercase tracking-wide text-gradient-tri mb-1">
               Payment summary
             </div>
-            {mapped.immediate > 0 && (
-              <SummaryRow label="Released immediately" value={mapped.immediate} />
+            {agreementType === "service" && mapped.held > 0 && (
+              <SummaryRow label="💼 Service Fee" value={mapped.held} />
             )}
-            {mapped.held > 0 && (
-              <SummaryRow
-                label={agreementType === "delivery" ? "Delivery fee (held)" : "Held in escrow"}
-                value={mapped.held}
-              />
+            {agreementType === "material_labor" && (
+              <>
+                {mapped.immediate > 0 && (
+                  <SummaryRow label="🧱 Materials (released immediately)" value={mapped.immediate} />
+                )}
+                {mapped.held > 0 && <SummaryRow label="💼 Service Fee (held)" value={mapped.held} />}
+                {mapped.contingency > 0 && (
+                  <SummaryRow label="🛟 Contingency" value={mapped.contingency} />
+                )}
+              </>
             )}
-            {mapped.contingency > 0 && (
-              <SummaryRow label="Contingency" value={mapped.contingency} />
+            {agreementType === "product_sale" && (
+              <>
+                {mapped.immediate > 0 && (
+                  <SummaryRow label="📦 Product Price" value={mapped.immediate} />
+                )}
+                {mapped.contingency > 0 && (
+                  <SummaryRow label="🚚 Delivery Fee" value={mapped.contingency} />
+                )}
+              </>
+            )}
+            {agreementType === "delivery" && mapped.held > 0 && (
+              <SummaryRow label="🚚 Delivery Fee" value={mapped.held} />
+            )}
+            {agreementType === "supply" && mapped.immediate > 0 && (
+              <SummaryRow label="📦 Supply + Delivery" value={mapped.immediate} />
+            )}
+            {agreementType === "milestone" && mapped.held > 0 && (
+              <SummaryRow label="💼 Milestone Payments (held)" value={mapped.held} />
             )}
             <SummaryRow
-              label={"EasyMeet Protection Fee" + (commissionLoading ? " • calculating…" : "")}
+              label={"🛡️ EasyMeet Protection Fee" + (commissionLoading ? " • calculating…" : "")}
               value={commission}
               muted
             />
-            <SummaryRow label="Paystack fee" value={fees.paystackFee} muted />
+            <SummaryRow label="💳 Paystack Fee" value={fees.paystackFee} muted />
             <div className="border-t border-border/50 my-1" />
-            <SummaryRow label="Total customer pays" value={fees.totalPaid} bold />
+            <SummaryRow label="Total you pay" value={fees.totalPaid} bold />
             <SummaryRow label="Professional receives" value={professionalReceives} accent />
           </div>
         </div>
