@@ -726,10 +726,24 @@ export function EscrowPanel({
       const laborCost = Number(ag.labor_cost ?? 0);
       const contingencyCost = Number(ag.contingency_cost ?? 0);
       const subtotal = Number(ag.total_amount ?? paymentAgreement.price);
-      const fees = computeAgreementFees(materialsCost, laborCost, contingencyCost);
-      // Fallback to computed fee if agreement missing paystack_fee
-      const paystackFee = ag.paystack_fee != null ? Number(ag.paystack_fee) : fees.paystackFee;
-      const chargeAmount = subtotal + paystackFee;
+      const agreementType = (ag as { agreement_type?: string | null }).agreement_type ?? "service";
+      // Commissionable = labor only. Products/delivery/materials never
+      // contribute to commission.
+      const commissionable =
+        agreementType === "service"
+          ? laborCost || subtotal
+          : agreementType === "material_labor"
+            ? laborCost
+            : 0;
+      const commission =
+        ag.commission_amount != null
+          ? Number(ag.commission_amount)
+          : await fetchTieredCommission(commissionable);
+      // Paystack fee is a separate calculation on (subtotal + commission).
+      // It never influences commission.
+      const fees = computeAgreementFees(materialsCost, laborCost, contingencyCost, commission);
+      const paystackFee = fees.paystackFee;
+      const chargeAmount = fees.totalPaid;
       setPayBreakdownOpen(false);
       const reference = await payWithPaystack({
         email: myEmail,
