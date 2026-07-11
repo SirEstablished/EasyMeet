@@ -721,6 +721,8 @@ export function EscrowPanel({
         contingency_cost?: number | null;
         total_amount?: number | null;
         paystack_fee?: number | null;
+        commission_amount?: number | null;
+        agreement_type?: string | null;
       };
       const materialsCost = Number(ag.materials_cost ?? 0);
       const laborCost = Number(ag.labor_cost ?? 0);
