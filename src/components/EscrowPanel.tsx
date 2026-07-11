@@ -1877,7 +1877,6 @@ function SendAgreementDialog({
         return { immediate: 0, held: 0, contingency: 0, commissionable: 0 };
     }
   })();
-  const baseFees = computeAgreementFees(mapped.immediate, mapped.held, mapped.contingency);
   const [commission, setCommission] = useState<number>(
     fallbackCommission(mapped.commissionable),
   );
@@ -1896,8 +1895,15 @@ function SendAgreementDialog({
       cancelled = true;
     };
   }, [mapped.commissionable]);
-  const professionalReceives = Math.max(0, mapped.immediate + mapped.held - commission);
-  const fees = { ...baseFees, commission, professionalReceives };
+  // Paystack fee is computed inside computeAgreementFees on (subtotal +
+  // commission) — never combined with commission itself.
+  const fees = computeAgreementFees(
+    mapped.immediate,
+    mapped.held,
+    mapped.contingency,
+    commission,
+  );
+  const professionalReceives = fees.professionalReceives;
 
   // Auto-fill from chat history when dialog opens.
   useEffect(() => {
