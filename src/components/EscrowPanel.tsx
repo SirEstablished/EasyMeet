@@ -1067,32 +1067,9 @@ export function EscrowPanel({
     );
   }
 
-  if (showSummary && order) {
-    return (
-      <div className="border-t border-border bg-card/60 backdrop-blur p-3">
-        <div className="rounded-lg border border-accent/40 bg-accent/5 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <CheckCircle2 className="h-5 w-5 text-accent" />
-            <span className="font-bold text-sm">Deal Complete!</span>
-          </div>
-          <div className="space-y-1 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Amount paid</span>
-              <span className="font-semibold">{formatNgn(order.amount_ngn)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">EasyMeet Protection Fee</span>
-              <span className="font-semibold">{formatNgn(order.commission_amount)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Professional received</span>
-              <span className="font-semibold text-accent">{formatNgn(order.payout_amount)}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Post-payment popup removed — payment/completion state is shown as
+  // rich chat cards (payment card, completion card, permanent deal summary
+  // card) inside the conversation instead of a separate summary panel.
 
   return (
     <div className="border-t border-border bg-card/60 backdrop-blur p-3">
