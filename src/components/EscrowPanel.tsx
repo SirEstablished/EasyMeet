@@ -874,7 +874,8 @@ export function EscrowPanel({
         if (notifErr) console.error("Material release notification failed", notifErr);
       }
 
-      toast.success("Payment held in escrow successfully");
+      // Payment confirmation appears as a rich chat card in the conversation
+      // (see the encodeCard("payment", ...) insert above) — no popup/toast.
       void load();
     } catch (e) {
       if (e instanceof Error && e.message === "Payment cancelled")
