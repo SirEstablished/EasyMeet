@@ -1506,31 +1506,31 @@ function PaymentBreakdownDialog({
 
   if (!agreement || !ag) return null;
 
-  const paystackFee = Number(
-    ag.paystack_fee ??
-      (subtotal > 0
-        ? Math.min(2000, Math.round((subtotal * 0.015 + (subtotal >= 2500 ? 100 : 0)) * 100) / 100)
-        : 0),
-  );
-  const total = subtotal + paystackFee;
-  const professionalReceives = Math.max(0, subtotal - commission);
+  // Paystack fee is always a SEPARATE calculation on (subtotal + commission).
+  // It is never added to commission and never influences it.
+  const preFeeTotal = subtotal + commission;
+  const paystackFee =
+    preFeeTotal > 0
+      ? Math.min(
+          2000,
+          Math.round((preFeeTotal * 0.015 + (preFeeTotal >= 2500 ? 100 : 0)) * 100) / 100,
+        )
+      : 0;
+  const total = preFeeTotal + paystackFee;
+  const professionalReceives = Math.max(0, materials + labor - commission);
 
   const rows: Array<{ label: string; value: number; muted?: boolean }> = [];
   if (type === "service") {
-    rows.push({ label: "Labor / Service fee", value: labor || subtotal });
+    rows.push({ label: "Service Fee", value: labor || subtotal });
   } else if (type === "material_labor") {
     if (materials > 0) rows.push({ label: "Materials (released immediately)", value: materials });
-    rows.push({ label: "Labor fee (held in escrow)", value: labor });
+    rows.push({ label: "Service Fee (held in escrow)", value: labor });
     if (contingency > 0) rows.push({ label: "Contingency (buffer)", value: contingency });
   } else if (type === "product_sale") {
-    // Send flow currently stores product+delivery combined; show combined if we
-    // cannot split, otherwise use the split when available.
-    if (contingency > 0) {
-      rows.push({ label: "Product price", value: materials });
-      rows.push({ label: "Delivery fee", value: contingency });
-    } else {
-      rows.push({ label: "Product + delivery", value: subtotal });
-    }
+    // Product price is stored in `materials`; delivery fee in `contingency`
+    // (see SendAgreementDialog.mapped for product_sale). Split them out.
+    rows.push({ label: "Product price", value: materials });
+    if (contingency > 0) rows.push({ label: "Delivery fee", value: contingency });
   } else if (type === "delivery") {
     rows.push({ label: "Delivery fee", value: labor || subtotal });
   } else {
