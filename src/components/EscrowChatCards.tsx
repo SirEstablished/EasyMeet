@@ -456,7 +456,10 @@ function DealSummaryCard({ payload }: { payload: DealSummaryCardPayload }) {
               </div>
             </div>
             <div className="rounded-xl bg-muted/40 border border-border/60 divide-y divide-border/60">
-              <Row label="Total customer paid" value={formatNgn(payload.total + payload.paystack_fee)} />
+              <Row
+                label="Total customer paid"
+                value={formatNgn(payload.total + payload.protection_fee + payload.paystack_fee)}
+              />
               <Row label="Escrow subtotal" value={formatNgn(payload.total)} />
               <Row label="Paystack fee" value={formatNgn(payload.paystack_fee)} muted />
               <Row
