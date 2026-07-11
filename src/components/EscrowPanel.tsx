@@ -1852,9 +1852,12 @@ function SendAgreementDialog({
         };
       case "product_sale":
         return {
-          immediate: n(productPrice) + n(productDeliveryFee),
+          // Product price → materials bucket (0% commission, released on delivery).
+          // Delivery fee → contingency bucket so the breakdown can show it as
+          // a separate "Delivery fee" line item.
+          immediate: n(productPrice),
           held: 0,
-          contingency: 0,
+          contingency: n(productDeliveryFee),
           commissionable: 0,
         };
       case "supply":
