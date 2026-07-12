@@ -2492,23 +2492,29 @@ function SendAgreementDialog({
                   <SummaryRow label="🧱 Materials (released immediately)" value={mapped.immediate} />
                 )}
                 {mapped.held > 0 && <SummaryRow label="💼 Service Fee (held)" value={mapped.held} />}
-                {mapped.contingency > 0 && (
-                  <SummaryRow label="🛟 Contingency" value={mapped.contingency} />
-                )}
               </>
             )}
             {agreementType === "product_sale" && (
               <>
-                {mapped.immediate > 0 && (
-                  <SummaryRow label="📦 Product Price — Held in escrow" value={mapped.immediate} />
+                {mapped.held > 0 && (
+                  <SummaryRow
+                    label="📦 Product Price — Held in escrow until delivery confirmed"
+                    value={mapped.held}
+                  />
                 )}
-                {mapped.contingency > 0 && (
-                  <SummaryRow label="🚚 Delivery Fee — Released immediately" value={mapped.contingency} />
+                {mapped.immediate > 0 && (
+                  <SummaryRow
+                    label="🚚 Delivery Fee — Released immediately"
+                    value={mapped.immediate}
+                  />
                 )}
               </>
             )}
             {agreementType === "delivery" && mapped.held > 0 && (
-              <SummaryRow label="🚚 Delivery Fee" value={mapped.held} />
+              <SummaryRow
+                label="🚚 Delivery Fee — Goes to rider in full"
+                value={mapped.held}
+              />
             )}
             {agreementType === "supply" && mapped.immediate > 0 && (
               <SummaryRow label="📦 Supply + Delivery" value={mapped.immediate} />
