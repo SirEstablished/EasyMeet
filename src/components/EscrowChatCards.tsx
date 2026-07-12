@@ -393,6 +393,9 @@ function CompletionCard({ payload }: { payload: CompletionCardPayload }) {
 // ---- Deal Summary Card ----
 function DealSummaryCard({ payload }: { payload: DealSummaryCardPayload }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const completedAt = payload.completed_at
+    ? new Date(payload.completed_at)
+    : null;
   return (
     <>
       <CardShell accent="primary">
@@ -420,14 +423,29 @@ function DealSummaryCard({ payload }: { payload: DealSummaryCardPayload }) {
           </div>
 
           <div className="rounded-xl bg-muted/40 border border-border/60 divide-y divide-border/60">
-            <Row label="Total amount" value={formatNgn(payload.total)} />
+            <Row label="Amount paid" value={formatNgn(payload.total)} />
             <Row
-              label="EasyMeet Protection Fee"
+              label="🛡️ Protection Fee"
               value={formatNgn(payload.protection_fee)}
               muted
             />
-            <Row label="Paystack fee" value={formatNgn(payload.paystack_fee)} muted />
-            <Row label="Amount released" value={formatNgn(payload.released)} green bold />
+            <Row label="💳 Paystack Fee" value={formatNgn(payload.paystack_fee)} muted />
+            <Row
+              label="✅ Professional received"
+              value={formatNgn(payload.released)}
+              green
+              bold
+            />
+            {completedAt && (
+              <Row
+                label="📅 Completed"
+                value={completedAt.toLocaleString(undefined, {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })}
+                muted
+              />
+            )}
           </div>
 
           <Button
@@ -436,7 +454,7 @@ function DealSummaryCard({ payload }: { payload: DealSummaryCardPayload }) {
             className="w-full"
             onClick={() => setDetailsOpen(true)}
           >
-            View Details <ArrowRight className="h-3.5 w-3.5 ml-1" />
+            View Full Details <ArrowRight className="h-3.5 w-3.5 ml-1" />
           </Button>
         </div>
       </CardShell>
@@ -457,23 +475,29 @@ function DealSummaryCard({ payload }: { payload: DealSummaryCardPayload }) {
               </div>
             </div>
             <div className="rounded-xl bg-muted/40 border border-border/60 divide-y divide-border/60">
+              <Row label="Amount customer paid" value={formatNgn(payload.total)} />
+              <Row label="💳 Paystack Fee" value={formatNgn(payload.paystack_fee)} muted />
               <Row
-                label="Total customer paid"
-                value={formatNgn(payload.total + payload.protection_fee + payload.paystack_fee)}
-              />
-              <Row label="Escrow subtotal" value={formatNgn(payload.total)} />
-              <Row label="Paystack fee" value={formatNgn(payload.paystack_fee)} muted />
-              <Row
-                label="EasyMeet Protection Fee"
+                label="🛡️ EasyMeet Protection Fee"
                 value={formatNgn(payload.protection_fee)}
                 muted
               />
               <Row
-                label="Professional received"
+                label="✅ Professional received"
                 value={formatNgn(payload.released)}
                 green
                 bold
               />
+              {completedAt && (
+                <Row
+                  label="📅 Completed"
+                  value={completedAt.toLocaleString(undefined, {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })}
+                  muted
+                />
+              )}
               <Row label="Status" value={payload.status} />
             </div>
           </div>
