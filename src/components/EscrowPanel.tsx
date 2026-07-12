@@ -2541,7 +2541,7 @@ function SendAgreementDialog({
             <SummaryRow label="💳 Paystack Fee" value={fees.paystackFee} muted />
             <div className="border-t border-border/50 my-1" />
             <SummaryRow label="Total you pay" value={fees.totalPaid} bold />
-            <SummaryRow label="Professional receives" value={professionalReceives} accent />
+            <SummaryRow label={receiverLabel} value={professionalReceives} accent />
           </div>
         </div>
         <div className="px-5 py-4 border-t border-border bg-card/80 backdrop-blur">
