@@ -1884,7 +1884,18 @@ function SendAgreementDialog({
     mapped.contingency,
     commission,
   );
-  const professionalReceives = fees.professionalReceives;
+  // For delivery, rider gets 100% of the delivery fee — commission is added
+  // to the customer's total, not deducted from the rider's payout.
+  const professionalReceives =
+    agreementType === "delivery"
+      ? mapped.held
+      : fees.professionalReceives;
+  const receiverLabel =
+    agreementType === "delivery"
+      ? "Rider receives (full — no deductions)"
+      : agreementType === "product_sale"
+        ? "Seller receives"
+        : "Professional receives";
 
   // Auto-fill from chat history when dialog opens.
   useEffect(() => {
