@@ -1442,9 +1442,8 @@ function PaymentBreakdownDialog({
     | null;
   const materials = Number(ag?.materials_cost ?? 0);
   const labor = Number(ag?.labor_cost ?? 0);
-  const contingency = Number(ag?.contingency_cost ?? 0);
   const subtotal =
-    Number(ag?.total_amount ?? materials + labor + contingency) || Number(ag?.price ?? 0);
+    Number(ag?.total_amount ?? materials + labor) || Number(ag?.price ?? 0);
   const type = (ag?.agreement_type ?? "service") as
     | "service"
     | "material_labor"
@@ -1452,13 +1451,17 @@ function PaymentBreakdownDialog({
     | "delivery"
     | string;
 
-  // Commissionable amount by agreement type. Products & delivery = 0.
+  // Commissionable amount by agreement type.
+  // Service: labor/subtotal. Material+Labor: labor. Delivery: fee (customer
+  // pays commission on top so rider gets 100%). Product sale: 0.
   const commissionable =
     type === "service"
       ? labor || subtotal
       : type === "material_labor"
         ? labor
-        : 0;
+        : type === "delivery"
+          ? labor || subtotal
+          : 0;
 
   const [commission, setCommission] = useState<number>(
     Number(ag?.commission_amount ?? fallbackCommission(commissionable)),
@@ -1503,14 +1506,15 @@ function PaymentBreakdownDialog({
   } else if (type === "material_labor") {
     if (materials > 0) rows.push({ label: "Materials (released immediately)", value: materials });
     rows.push({ label: "Service Fee (held in escrow)", value: labor });
-    if (contingency > 0) rows.push({ label: "Contingency (buffer)", value: contingency });
   } else if (type === "product_sale") {
-    // Product price is stored in `materials`; delivery fee in `contingency`
-    // (see SendAgreementDialog.mapped for product_sale). Split them out.
-    rows.push({ label: "Product Price — Held in escrow", value: materials });
-    if (contingency > 0) rows.push({ label: "Delivery Fee — Released immediately", value: contingency });
+    // Product price is stored in `labor_cost` (held in escrow until delivery
+    // confirmed); delivery fee in `materials_cost` (released immediately).
+    if (labor > 0)
+      rows.push({ label: "Product Price — Held in escrow until delivery confirmed", value: labor });
+    if (materials > 0)
+      rows.push({ label: "Delivery Fee — Released immediately", value: materials });
   } else if (type === "delivery") {
-    rows.push({ label: "Delivery fee", value: labor || subtotal });
+    rows.push({ label: "Delivery Fee — Goes to rider in full", value: labor || subtotal });
   } else {
     rows.push({ label: "Escrow amount", value: subtotal });
   }
