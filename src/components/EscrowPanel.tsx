@@ -755,7 +755,6 @@ export function EscrowPanel({
           kind: "escrow_service",
           materials_cost: materialsCost,
           labor_cost: laborCost,
-          contingency_cost: contingencyCost,
           paystack_fee: paystackFee,
         },
       });
@@ -826,7 +825,6 @@ export function EscrowPanel({
       const escrowUpdate: Record<string, unknown> = {
         materials_amount: materialsCost,
         labor_amount: laborCost,
-        contingency_amount: contingencyCost,
       };
       if (materialsCost > 0) {
         escrowUpdate.materials_released = true;
