@@ -1507,8 +1507,8 @@ function PaymentBreakdownDialog({
   } else if (type === "product_sale") {
     // Product price is stored in `materials`; delivery fee in `contingency`
     // (see SendAgreementDialog.mapped for product_sale). Split them out.
-    rows.push({ label: "Product price", value: materials });
-    if (contingency > 0) rows.push({ label: "Delivery fee", value: contingency });
+    rows.push({ label: "Product Price — Held in escrow", value: materials });
+    if (contingency > 0) rows.push({ label: "Delivery Fee — Released immediately", value: contingency });
   } else if (type === "delivery") {
     rows.push({ label: "Delivery fee", value: labor || subtotal });
   } else {
@@ -2258,7 +2258,7 @@ function SendAgreementDialog({
                   placeholder="0"
                 />
                 <p className="text-[11px] text-muted-foreground mt-1">
-                  Released immediately on delivery confirmation.
+                  Held in escrow until delivery is confirmed.
                 </p>
               </div>
               <div>
@@ -2453,10 +2453,10 @@ function SendAgreementDialog({
             {agreementType === "product_sale" && (
               <>
                 {mapped.immediate > 0 && (
-                  <SummaryRow label="📦 Product Price" value={mapped.immediate} />
+                  <SummaryRow label="📦 Product Price — Held in escrow" value={mapped.immediate} />
                 )}
                 {mapped.contingency > 0 && (
-                  <SummaryRow label="🚚 Delivery Fee" value={mapped.contingency} />
+                  <SummaryRow label="🚚 Delivery Fee — Released immediately" value={mapped.contingency} />
                 )}
               </>
             )}
