@@ -1507,8 +1507,8 @@ function PaymentBreakdownDialog({
   } else if (type === "product_sale") {
     // Product price is stored in `materials`; delivery fee in `contingency`
     // (see SendAgreementDialog.mapped for product_sale). Split them out.
-    rows.push({ label: "Product price", value: materials });
-    if (contingency > 0) rows.push({ label: "Delivery fee", value: contingency });
+    rows.push({ label: "Product Price — Held in escrow", value: materials });
+    if (contingency > 0) rows.push({ label: "Delivery Fee — Released immediately", value: contingency });
   } else if (type === "delivery") {
     rows.push({ label: "Delivery fee", value: labor || subtotal });
   } else {
