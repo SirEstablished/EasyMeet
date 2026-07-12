@@ -2258,7 +2258,7 @@ function SendAgreementDialog({
                   placeholder="0"
                 />
                 <p className="text-[11px] text-muted-foreground mt-1">
-                  Released immediately on delivery confirmation.
+                  Held in escrow until delivery is confirmed.
                 </p>
               </div>
               <div>
