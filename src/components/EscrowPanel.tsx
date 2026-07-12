@@ -2287,20 +2287,6 @@ function SendAgreementDialog({
                   Released after job completion.
                 </p>
               </div>
-              <div>
-                <Label>Contingency (₦)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={contingency}
-                  onChange={(e) => setContingency(e.target.value)}
-                  placeholder="0"
-                />
-                <p className="text-[11px] text-muted-foreground mt-1">
-                  Optional buffer — refunded if unused.
-                </p>
-              </div>
             </>
           )}
 
