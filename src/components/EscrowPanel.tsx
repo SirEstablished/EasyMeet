@@ -2018,24 +2018,82 @@ function SendAgreementDialog({
     }
     const termsFinal = [terms.trim(), extras.join("\n")].filter(Boolean).join("\n\n") || null;
 
-    const payload: Record<string, unknown> = {
+    const n = (v: string) => Math.max(0, Number(v) || 0);
+    const totalAmount = fees.subtotal;
+    const basePayload: Record<string, unknown> = {
       conversation_id: conversationId,
       sender_id: professionalId,
       receiver_id: customerId,
       job_title: jobTitle,
       job_description: jobDescription,
-      price: fees.subtotal,
       terms: termsFinal,
       status: "pending",
       agreement_type: agreementType,
-      materials_cost: mapped.immediate,
-      labor_cost: mapped.held,
-      contingency_cost: mapped.contingency,
       delivery_date: deliveryDate,
-      total_amount: fees.subtotal,
-      commission_amount: commission,
+      total_amount: totalAmount,
       paystack_fee: fees.paystackFee,
     };
+    let typeFields: Record<string, unknown>;
+    switch (agreementType) {
+      case "service":
+        typeFields = {
+          labor_cost: n(serviceFee),
+          materials_cost: 0,
+          price: n(serviceFee),
+          commission_amount: commission,
+        };
+        break;
+      case "material_labor":
+        typeFields = {
+          materials_cost: n(materials),
+          labor_cost: n(labor),
+          price: totalAmount,
+          commission_amount: commission,
+        };
+        break;
+      case "product_sale":
+        typeFields = {
+          materials_cost: n(productDeliveryFee),
+          labor_cost: n(productPrice),
+          price: totalAmount,
+          commission_amount: 0,
+        };
+        break;
+      case "delivery":
+        typeFields = {
+          labor_cost: n(deliveryFee),
+          materials_cost: 0,
+          price: totalAmount,
+          commission_amount: commission,
+        };
+        break;
+      case "milestone": {
+        const held = n(m1Amt) + n(m2Amt) + n(finalPayment);
+        typeFields = {
+          labor_cost: held,
+          materials_cost: 0,
+          price: totalAmount,
+          commission_amount: commission,
+        };
+        break;
+      }
+      case "supply":
+        typeFields = {
+          materials_cost: n(supplyCost) + n(supplyDeliveryFee),
+          labor_cost: 0,
+          price: totalAmount,
+          commission_amount: 0,
+        };
+        break;
+      default:
+        typeFields = {
+          materials_cost: mapped.immediate,
+          labor_cost: mapped.held,
+          price: totalAmount,
+          commission_amount: commission,
+        };
+    }
+    const payload: Record<string, unknown> = { ...basePayload, ...typeFields };
     let inserted: { id: string } | null = null;
     let error: { message: string } | null = null;
     if (editAgreementId) {
