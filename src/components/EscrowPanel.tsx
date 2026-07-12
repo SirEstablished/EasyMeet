@@ -1828,17 +1828,16 @@ function SendAgreementDialog({
         return {
           immediate: n(materials),
           held: n(labor),
-          contingency: n(contingency),
+          contingency: 0,
           commissionable: n(labor),
         };
       case "product_sale":
         return {
-          // Product price → materials bucket (0% commission, released on delivery).
-          // Delivery fee → contingency bucket so the breakdown can show it as
-          // a separate "Delivery fee" line item.
-          immediate: n(productPrice),
-          held: 0,
-          contingency: n(productDeliveryFee),
+          // Product price → held (in escrow until delivery confirmed).
+          // Delivery fee → immediate (released to seller on payment).
+          immediate: n(productDeliveryFee),
+          held: n(productPrice),
+          contingency: 0,
           commissionable: 0,
         };
       case "supply":
@@ -1849,7 +1848,8 @@ function SendAgreementDialog({
           commissionable: 0,
         };
       case "delivery":
-        return { immediate: 0, held: n(deliveryFee), contingency: 0, commissionable: 0 };
+        // Delivery fee goes 100% to the rider; customer pays commission on top.
+        return { immediate: 0, held: n(deliveryFee), contingency: 0, commissionable: n(deliveryFee) };
       case "milestone": {
         const held = n(m1Amt) + n(m2Amt) + n(finalPayment);
         return { immediate: 0, held, contingency: 0, commissionable: held };
