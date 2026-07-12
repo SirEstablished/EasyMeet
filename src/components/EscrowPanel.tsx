@@ -1955,11 +1955,11 @@ function SendAgreementDialog({
       if (t === "material_labor") {
         setMaterials(String(mat));
         setLabor(String(lab));
-        setContingency(cont ? String(cont) : "");
       }
       if (t === "product_sale") {
-        setProductPrice(String(mat || Number(a.price ?? 0)));
-        setProductDeliveryFee(cont ? String(cont) : "");
+        // Product price is stored in labor_cost; delivery fee in materials_cost.
+        setProductPrice(String(lab || Number(a.price ?? 0)));
+        setProductDeliveryFee(mat ? String(mat) : "");
       }
       if (t === "delivery") {
         setDeliveryFee(String(lab || Number(a.price ?? 0)));
