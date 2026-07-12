@@ -543,6 +543,11 @@ function ViewAgreementModal({
   const a = agreement ?? {};
   const type = (a.agreement_type as string) ?? "service";
   const price = Number(a.price ?? a.total_amount ?? 0);
+  const termsText = (a.terms as string) ?? "";
+  const pickupMatch = termsText.match(/Pickup:\s*(.+)/);
+  const dropoffMatch = termsText.match(/Drop-off:\s*(.+)/);
+  const pickup = pickupMatch ? pickupMatch[1].trim() : "";
+  const dropoff = dropoffMatch ? dropoffMatch[1].trim() : "";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -580,16 +585,25 @@ function ViewAgreementModal({
                 <div className="rounded-xl bg-muted/40 border border-border/60 divide-y divide-border/60">
                   {type === "product_sale" ? (
                     <>
+                      {Number(a.labor_cost ?? 0) > 0 && (
+                        <Row
+                          label="Product Price — Held in escrow until delivery confirmed"
+                          value={formatNgn(Number(a.labor_cost))}
+                        />
+                      )}
                       {Number(a.materials_cost ?? 0) > 0 && (
                         <Row
-                          label="Product Price — Held in escrow"
+                          label="Delivery Fee — Released immediately"
                           value={formatNgn(Number(a.materials_cost))}
                         />
                       )}
-                      {Number(a.contingency_cost ?? 0) > 0 && (
+                    </>
+                  ) : type === "delivery" ? (
+                    <>
+                      {Number(a.labor_cost ?? 0) > 0 && (
                         <Row
-                          label="Delivery Fee — Released immediately"
-                          value={formatNgn(Number(a.contingency_cost))}
+                          label="Delivery Fee — Goes to rider in full"
+                          value={formatNgn(Number(a.labor_cost))}
                         />
                       )}
                     </>
@@ -604,14 +618,20 @@ function ViewAgreementModal({
                       {Number(a.labor_cost ?? 0) > 0 && (
                         <Row label="Labor / Service fee" value={formatNgn(Number(a.labor_cost))} />
                       )}
-                      {Number(a.contingency_cost ?? 0) > 0 && (
-                        <Row label="Contingency" value={formatNgn(Number(a.contingency_cost))} muted />
-                      )}
                     </>
                   )}
                   <Row label="Total" value={formatNgn(price)} bold />
                 </div>
               </Section>
+
+              {type === "delivery" && (pickup || dropoff) ? (
+                <Section title="Delivery route">
+                  <div className="rounded-xl bg-muted/40 border border-border/60 divide-y divide-border/60">
+                    {pickup && <Row label="📍 Pickup" value={pickup} />}
+                    {dropoff && <Row label="📍 Delivery to" value={dropoff} />}
+                  </div>
+                </Section>
+              ) : null}
 
               {a.terms ? (
                 <Section title="Terms">
