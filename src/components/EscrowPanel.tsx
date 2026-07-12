@@ -983,6 +983,7 @@ export function EscrowPanel({
             paystack_fee: paystackFeeApprox,
             released: payout,
             status: "completed",
+            completed_at: releasedAtIso,
           },
           `Deal completed — ${formatNgn(payout)} released.`,
         ),
