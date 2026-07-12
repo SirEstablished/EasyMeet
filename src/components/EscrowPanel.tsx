@@ -2453,10 +2453,10 @@ function SendAgreementDialog({
             {agreementType === "product_sale" && (
               <>
                 {mapped.immediate > 0 && (
-                  <SummaryRow label="📦 Product Price" value={mapped.immediate} />
+                  <SummaryRow label="📦 Product Price — Held in escrow" value={mapped.immediate} />
                 )}
                 {mapped.contingency > 0 && (
-                  <SummaryRow label="🚚 Delivery Fee" value={mapped.contingency} />
+                  <SummaryRow label="🚚 Delivery Fee — Released immediately" value={mapped.contingency} />
                 )}
               </>
             )}
