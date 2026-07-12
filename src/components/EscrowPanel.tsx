@@ -1794,7 +1794,6 @@ function SendAgreementDialog({
   // material_labor
   const [materials, setMaterials] = useState("");
   const [labor, setLabor] = useState("");
-  const [contingency, setContingency] = useState("");
   // service
   const [serviceFee, setServiceFee] = useState("");
   // product_sale
