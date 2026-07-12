@@ -42,6 +42,7 @@ export interface PaymentCardPayload extends BaseCardPayload {
 export interface CompletionCardPayload extends BaseCardPayload {
   amount: number;
   protection_fee: number;
+  paystack_fee?: number;
   payout: number;
   released_at: string;
 }
@@ -377,13 +378,20 @@ function CompletionCard({ payload }: { payload: CompletionCardPayload }) {
         </div>
 
         <div className="rounded-xl bg-muted/40 border border-border/60 divide-y divide-border/60">
-          <Row label="Amount released" value={formatNgn(payload.amount)} green />
+          <Row label="Amount customer paid" value={formatNgn(payload.amount)} />
           <Row
-            label="EasyMeet Protection Fee"
-            value={`− ${formatNgn(payload.protection_fee)}`}
+            label="🛡️ EasyMeet Protection Fee"
+            value={formatNgn(payload.protection_fee)}
             muted
           />
-          <Row label="Professional received" value={formatNgn(payload.payout)} green bold />
+          {typeof payload.paystack_fee === "number" && payload.paystack_fee > 0 && (
+            <Row
+              label="💳 Paystack Fee"
+              value={formatNgn(payload.paystack_fee)}
+              muted
+            />
+          )}
+          <Row label="✅ Professional received" value={formatNgn(payload.payout)} green bold />
         </div>
       </div>
     </CardShell>
