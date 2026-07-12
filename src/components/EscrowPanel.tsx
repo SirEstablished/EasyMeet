@@ -956,6 +956,7 @@ export function EscrowPanel({
           {
             amount: grossAmount,
             protection_fee: commission,
+            paystack_fee: paystackFeeApprox,
             payout,
             released_at: releasedAtIso,
           },
