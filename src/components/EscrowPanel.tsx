@@ -755,7 +755,6 @@ export function EscrowPanel({
           kind: "escrow_service",
           materials_cost: materialsCost,
           labor_cost: laborCost,
-          contingency_cost: contingencyCost,
           paystack_fee: paystackFee,
         },
       });
@@ -826,7 +825,6 @@ export function EscrowPanel({
       const escrowUpdate: Record<string, unknown> = {
         materials_amount: materialsCost,
         labor_amount: laborCost,
-        contingency_amount: contingencyCost,
       };
       if (materialsCost > 0) {
         escrowUpdate.materials_released = true;
@@ -956,6 +954,7 @@ export function EscrowPanel({
           {
             amount: grossAmount,
             protection_fee: commission,
+            paystack_fee: paystackFeeApprox,
             payout,
             released_at: releasedAtIso,
           },
@@ -983,6 +982,7 @@ export function EscrowPanel({
             paystack_fee: paystackFeeApprox,
             released: payout,
             status: "completed",
+            completed_at: releasedAtIso,
           },
           `Deal completed — ${formatNgn(payout)} released.`,
         ),
@@ -1442,9 +1442,8 @@ function PaymentBreakdownDialog({
     | null;
   const materials = Number(ag?.materials_cost ?? 0);
   const labor = Number(ag?.labor_cost ?? 0);
-  const contingency = Number(ag?.contingency_cost ?? 0);
   const subtotal =
-    Number(ag?.total_amount ?? materials + labor + contingency) || Number(ag?.price ?? 0);
+    Number(ag?.total_amount ?? materials + labor) || Number(ag?.price ?? 0);
   const type = (ag?.agreement_type ?? "service") as
     | "service"
     | "material_labor"
@@ -1452,13 +1451,17 @@ function PaymentBreakdownDialog({
     | "delivery"
     | string;
 
-  // Commissionable amount by agreement type. Products & delivery = 0.
+  // Commissionable amount by agreement type.
+  // Service: labor/subtotal. Material+Labor: labor. Delivery: fee (customer
+  // pays commission on top so rider gets 100%). Product sale: 0.
   const commissionable =
     type === "service"
       ? labor || subtotal
       : type === "material_labor"
         ? labor
-        : 0;
+        : type === "delivery"
+          ? labor || subtotal
+          : 0;
 
   const [commission, setCommission] = useState<number>(
     Number(ag?.commission_amount ?? fallbackCommission(commissionable)),
@@ -1503,14 +1506,15 @@ function PaymentBreakdownDialog({
   } else if (type === "material_labor") {
     if (materials > 0) rows.push({ label: "Materials (released immediately)", value: materials });
     rows.push({ label: "Service Fee (held in escrow)", value: labor });
-    if (contingency > 0) rows.push({ label: "Contingency (buffer)", value: contingency });
   } else if (type === "product_sale") {
-    // Product price is stored in `materials`; delivery fee in `contingency`
-    // (see SendAgreementDialog.mapped for product_sale). Split them out.
-    rows.push({ label: "Product Price — Held in escrow", value: materials });
-    if (contingency > 0) rows.push({ label: "Delivery Fee — Released immediately", value: contingency });
+    // Product price is stored in `labor_cost` (held in escrow until delivery
+    // confirmed); delivery fee in `materials_cost` (released immediately).
+    if (labor > 0)
+      rows.push({ label: "Product Price — Held in escrow until delivery confirmed", value: labor });
+    if (materials > 0)
+      rows.push({ label: "Delivery Fee — Released immediately", value: materials });
   } else if (type === "delivery") {
-    rows.push({ label: "Delivery fee", value: labor || subtotal });
+    rows.push({ label: "Delivery Fee — Goes to rider in full", value: labor || subtotal });
   } else {
     rows.push({ label: "Escrow amount", value: subtotal });
   }
@@ -1790,7 +1794,6 @@ function SendAgreementDialog({
   // material_labor
   const [materials, setMaterials] = useState("");
   const [labor, setLabor] = useState("");
-  const [contingency, setContingency] = useState("");
   // service
   const [serviceFee, setServiceFee] = useState("");
   // product_sale
@@ -1825,17 +1828,16 @@ function SendAgreementDialog({
         return {
           immediate: n(materials),
           held: n(labor),
-          contingency: n(contingency),
+          contingency: 0,
           commissionable: n(labor),
         };
       case "product_sale":
         return {
-          // Product price → materials bucket (0% commission, released on delivery).
-          // Delivery fee → contingency bucket so the breakdown can show it as
-          // a separate "Delivery fee" line item.
-          immediate: n(productPrice),
-          held: 0,
-          contingency: n(productDeliveryFee),
+          // Product price → held (in escrow until delivery confirmed).
+          // Delivery fee → immediate (released to seller on payment).
+          immediate: n(productDeliveryFee),
+          held: n(productPrice),
+          contingency: 0,
           commissionable: 0,
         };
       case "supply":
@@ -1846,7 +1848,8 @@ function SendAgreementDialog({
           commissionable: 0,
         };
       case "delivery":
-        return { immediate: 0, held: n(deliveryFee), contingency: 0, commissionable: 0 };
+        // Delivery fee goes 100% to the rider; customer pays commission on top.
+        return { immediate: 0, held: n(deliveryFee), contingency: 0, commissionable: n(deliveryFee) };
       case "milestone": {
         const held = n(m1Amt) + n(m2Amt) + n(finalPayment);
         return { immediate: 0, held, contingency: 0, commissionable: held };
@@ -1881,7 +1884,18 @@ function SendAgreementDialog({
     mapped.contingency,
     commission,
   );
-  const professionalReceives = fees.professionalReceives;
+  // For delivery, rider gets 100% of the delivery fee — commission is added
+  // to the customer's total, not deducted from the rider's payout.
+  const professionalReceives =
+    agreementType === "delivery"
+      ? mapped.held
+      : fees.professionalReceives;
+  const receiverLabel =
+    agreementType === "delivery"
+      ? "Rider receives (full — no deductions)"
+      : agreementType === "product_sale"
+        ? "Seller receives"
+        : "Professional receives";
 
   // Auto-fill from chat history when dialog opens.
   useEffect(() => {
@@ -1952,11 +1966,11 @@ function SendAgreementDialog({
       if (t === "material_labor") {
         setMaterials(String(mat));
         setLabor(String(lab));
-        setContingency(cont ? String(cont) : "");
       }
       if (t === "product_sale") {
-        setProductPrice(String(mat || Number(a.price ?? 0)));
-        setProductDeliveryFee(cont ? String(cont) : "");
+        // Product price is stored in labor_cost; delivery fee in materials_cost.
+        setProductPrice(String(lab || Number(a.price ?? 0)));
+        setProductDeliveryFee(mat ? String(mat) : "");
       }
       if (t === "delivery") {
         setDeliveryFee(String(lab || Number(a.price ?? 0)));
@@ -2284,20 +2298,6 @@ function SendAgreementDialog({
                   Released after job completion.
                 </p>
               </div>
-              <div>
-                <Label>Contingency (₦)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={contingency}
-                  onChange={(e) => setContingency(e.target.value)}
-                  placeholder="0"
-                />
-                <p className="text-[11px] text-muted-foreground mt-1">
-                  Optional buffer — refunded if unused.
-                </p>
-              </div>
             </>
           )}
 
@@ -2503,23 +2503,29 @@ function SendAgreementDialog({
                   <SummaryRow label="🧱 Materials (released immediately)" value={mapped.immediate} />
                 )}
                 {mapped.held > 0 && <SummaryRow label="💼 Service Fee (held)" value={mapped.held} />}
-                {mapped.contingency > 0 && (
-                  <SummaryRow label="🛟 Contingency" value={mapped.contingency} />
-                )}
               </>
             )}
             {agreementType === "product_sale" && (
               <>
-                {mapped.immediate > 0 && (
-                  <SummaryRow label="📦 Product Price — Held in escrow" value={mapped.immediate} />
+                {mapped.held > 0 && (
+                  <SummaryRow
+                    label="📦 Product Price — Held in escrow until delivery confirmed"
+                    value={mapped.held}
+                  />
                 )}
-                {mapped.contingency > 0 && (
-                  <SummaryRow label="🚚 Delivery Fee — Released immediately" value={mapped.contingency} />
+                {mapped.immediate > 0 && (
+                  <SummaryRow
+                    label="🚚 Delivery Fee — Released immediately"
+                    value={mapped.immediate}
+                  />
                 )}
               </>
             )}
             {agreementType === "delivery" && mapped.held > 0 && (
-              <SummaryRow label="🚚 Delivery Fee" value={mapped.held} />
+              <SummaryRow
+                label="🚚 Delivery Fee — Goes to rider in full"
+                value={mapped.held}
+              />
             )}
             {agreementType === "supply" && mapped.immediate > 0 && (
               <SummaryRow label="📦 Supply + Delivery" value={mapped.immediate} />
@@ -2535,7 +2541,7 @@ function SendAgreementDialog({
             <SummaryRow label="💳 Paystack Fee" value={fees.paystackFee} muted />
             <div className="border-t border-border/50 my-1" />
             <SummaryRow label="Total you pay" value={fees.totalPaid} bold />
-            <SummaryRow label="Professional receives" value={professionalReceives} accent />
+            <SummaryRow label={receiverLabel} value={professionalReceives} accent />
           </div>
         </div>
         <div className="px-5 py-4 border-t border-border bg-card/80 backdrop-blur">
