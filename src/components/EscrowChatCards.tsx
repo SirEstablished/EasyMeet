@@ -56,6 +56,7 @@ export interface DealSummaryCardPayload extends BaseCardPayload {
   paystack_fee: number;
   released: number;
   status: string;
+  completed_at?: string;
 }
 
 export function encodeCard(kind: CardKind, payload: BaseCardPayload, fallback: string): string {
