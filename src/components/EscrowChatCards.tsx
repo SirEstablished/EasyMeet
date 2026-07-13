@@ -634,7 +634,11 @@ function ViewAgreementModal({
                       </div>
                       <Row
                         label="Total You'll Pay"
-                        value={formatNgn(Number(a.total_amount ?? 0))}
+                        value={formatNgn(
+                          Number(a.labor_cost ?? 0) +
+                            Number(a.commission_amount ?? 0) +
+                            Number(a.paystack_fee ?? 0),
+                        )}
                         bold
                       />
                       <Row
