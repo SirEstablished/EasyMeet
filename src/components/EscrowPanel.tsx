@@ -47,6 +47,7 @@ import {
   Briefcase,
 } from "lucide-react";
 import { payWithPaystack } from "@/lib/paystack";
+import { computePaystackFee } from "@/lib/paystackFees";
 import { detectEscrowRoles, suggestAgreement } from "@/lib/escrow-ai.functions";
 import { encodeCard } from "@/components/EscrowChatCards";
 
@@ -946,6 +947,9 @@ export function EscrowPanel({
         if (!s) return 0;
         return Math.min(2000, Math.round((s * 0.015 + (s >= 2500 ? 100 : 0)) * 100) / 100);
       })();
+      // Paystack fee is calculated on the pre-fee amount the customer pays
+      // (service amount + commission). It is never deducted from the professional.
+      const paystackFee = computePaystackFee(grossAmount + commission);
       const { error: messageError } = await supabase.from("messages").insert({
         conversation_id: conversationId,
         sender_id: meId,
@@ -963,6 +967,7 @@ export function EscrowPanel({
       });
       if (messageError) console.error("Completion message failed", messageError);
       // Persistent Deal Summary card (replaces the temporary popup).
+      // The customer paid the service amount + protection fee + Paystack fee.
       await supabase.from("messages").insert({
         conversation_id: conversationId,
         sender_id: meId,
@@ -979,7 +984,7 @@ export function EscrowPanel({
               "service",
             total: grossAmount,
             protection_fee: commission,
-            paystack_fee: paystackFeeApprox,
+            paystack_fee: paystackFee,
             released: payout,
             status: "completed",
             completed_at: releasedAtIso,

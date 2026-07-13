@@ -14,6 +14,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { computePaystackFee } from "@/lib/paystackFees";
 
 // -------- Card message encoding --------
 // Cards are persisted inside message.body as a single line prefix so the
@@ -401,9 +402,59 @@ function CompletionCard({ payload }: { payload: CompletionCardPayload }) {
 // ---- Deal Summary Card ----
 function DealSummaryCard({ payload }: { payload: DealSummaryCardPayload }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const completedAt = payload.completed_at
+  const [escrow, setEscrow] = useState<{
+    amount: number;
+    commission_amount: number;
+    paystack_fee: number | null;
+    payout_amount: number;
+    released_at: string | null;
+  } | null>(null);
+
+  // Prefer the live escrow row; fall back to the persisted card payload.
+  useEffect(() => {
+    if (!payload.escrow_id) return;
+    let cancel = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("escrow")
+        .select("amount, commission_amount, paystack_fee, payout_amount, released_at")
+        .eq("id", payload.escrow_id)
+        .maybeSingle();
+      if (cancel) return;
+      if (error) {
+        console.warn("Deal summary could not read escrow row; using payload", error);
+        return;
+      }
+      if (!data) return;
+      setEscrow({
+        amount: Number(data.amount ?? 0),
+        commission_amount: Number(data.commission_amount ?? 0),
+        paystack_fee: data.paystack_fee != null ? Number(data.paystack_fee) : null,
+        payout_amount: Number(data.payout_amount ?? 0),
+        released_at: (data.released_at as string | null) ?? null,
+      });
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [payload.escrow_id]);
+
+  const completedAtFromPayload = payload.completed_at
     ? new Date(payload.completed_at)
     : null;
+  const serviceAmount = Number(escrow?.amount ?? payload.total ?? 0);
+  const protectionFee = Number(escrow?.commission_amount ?? payload.protection_fee ?? 0);
+  const rawPaystackFee = escrow?.paystack_fee ?? payload.paystack_fee;
+  const paystackFee =
+    rawPaystackFee != null && !Number.isNaN(Number(rawPaystackFee))
+      ? Number(rawPaystackFee)
+      : computePaystackFee(serviceAmount + protectionFee);
+  const totalCustomerPaid = serviceAmount + protectionFee + paystackFee;
+  const professionalReceived = Number(escrow?.payout_amount ?? payload.released ?? 0);
+  const completedAt = escrow?.released_at
+    ? new Date(escrow.released_at)
+    : completedAtFromPayload;
+
   return (
     <>
       <CardShell accent="primary">
@@ -431,16 +482,23 @@ function DealSummaryCard({ payload }: { payload: DealSummaryCardPayload }) {
           </div>
 
           <div className="rounded-xl bg-muted/40 border border-border/60 divide-y divide-border/60">
-            <Row label="Amount paid" value={formatNgn(payload.total)} />
             <Row
-              label="🛡️ Protection Fee"
-              value={formatNgn(payload.protection_fee)}
+              label="Amount customer paid"
+              value={formatNgn(totalCustomerPaid)}
+            />
+            <Row
+              label="💳 Paystack Fee"
+              value={formatNgn(paystackFee)}
               muted
             />
-            <Row label="💳 Paystack Fee" value={formatNgn(payload.paystack_fee)} muted />
+            <Row
+              label="🛡️ EasyMeet Protection Fee"
+              value={formatNgn(protectionFee)}
+              muted
+            />
             <Row
               label="✅ Professional received"
-              value={formatNgn(payload.released)}
+              value={formatNgn(professionalReceived)}
               green
               bold
             />
@@ -454,6 +512,7 @@ function DealSummaryCard({ payload }: { payload: DealSummaryCardPayload }) {
                 muted
               />
             )}
+            <Row label="Status" value={payload.status} />
           </div>
 
           <Button
@@ -483,16 +542,23 @@ function DealSummaryCard({ payload }: { payload: DealSummaryCardPayload }) {
               </div>
             </div>
             <div className="rounded-xl bg-muted/40 border border-border/60 divide-y divide-border/60">
-              <Row label="Amount customer paid" value={formatNgn(payload.total)} />
-              <Row label="💳 Paystack Fee" value={formatNgn(payload.paystack_fee)} muted />
+              <Row
+                label="Amount customer paid"
+                value={formatNgn(totalCustomerPaid)}
+              />
+              <Row
+                label="💳 Paystack Fee"
+                value={formatNgn(paystackFee)}
+                muted
+              />
               <Row
                 label="🛡️ EasyMeet Protection Fee"
-                value={formatNgn(payload.protection_fee)}
+                value={formatNgn(protectionFee)}
                 muted
               />
               <Row
                 label="✅ Professional received"
-                value={formatNgn(payload.released)}
+                value={formatNgn(professionalReceived)}
                 green
                 bold
               />
