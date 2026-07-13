@@ -616,7 +616,40 @@ function ViewAgreementModal({
 
               <Section title="Amounts">
                 <div className="rounded-xl bg-muted/40 border border-border/60 divide-y divide-border/60">
-                  {type === "product_sale" ? (
+                  {type === "service" ? (
+                    <>
+                      <Row label="Service Fee" value={formatNgn(Number(a.labor_cost ?? 0))} />
+                      <Row
+                        label="EasyMeet Protection Fee"
+                        value={formatNgn(Number(a.commission_amount ?? 0))}
+                        muted
+                      />
+                      <Row
+                        label="Paystack Processing Fee"
+                        value={formatNgn(Number(a.paystack_fee ?? 0))}
+                        muted
+                      />
+                      <div className="px-3 py-2">
+                        <div className="h-px bg-border/60" />
+                      </div>
+                      <Row
+                        label="Total You'll Pay"
+                        value={formatNgn(Number(a.total_amount ?? 0))}
+                        bold
+                      />
+                      <Row
+                        label="Professional Receives"
+                        value={formatNgn(
+                          Math.max(
+                            0,
+                            Number(a.labor_cost ?? 0) - Number(a.commission_amount ?? 0),
+                          ),
+                        )}
+                        green
+                        bold
+                      />
+                    </>
+                  ) : type === "product_sale" ? (
                     <>
                       {Number(a.labor_cost ?? 0) > 0 && (
                         <Row
@@ -653,7 +686,7 @@ function ViewAgreementModal({
                       )}
                     </>
                   )}
-                  <Row label="Total" value={formatNgn(price)} bold />
+                  {type !== "service" && <Row label="Total" value={formatNgn(price)} bold />}
                 </div>
               </Section>
 
