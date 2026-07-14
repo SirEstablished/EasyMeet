@@ -449,8 +449,24 @@ function DealSummaryCard({ payload }: { payload: DealSummaryCardPayload }) {
     rawPaystackFee != null && !Number.isNaN(Number(rawPaystackFee))
       ? Number(rawPaystackFee)
       : computePaystackFee(serviceAmount + protectionFee);
-  const totalCustomerPaid = serviceAmount + protectionFee + paystackFee;
-  const professionalReceived = Number(escrow?.payout_amount ?? payload.released ?? 0);
+  // Service Agreement fee tiers (₦5,000 threshold on the Service Fee):
+  //  - Above ₦5,000: customer pays Service Fee + Protection Fee (no Paystack row).
+  //                  Professional receives Service Fee − Paystack Fee.
+  //  - ≤ ₦5,000: Protection Fee = 0. Customer pays Service Fee + Paystack Fee.
+  //              Professional receives full Service Fee.
+  const isService = payload.agreement_type === "service";
+  const isServiceHighTier = isService && serviceAmount > 5000;
+  const isServiceLowTier = isService && serviceAmount <= 5000;
+  const totalCustomerPaid = isServiceHighTier
+    ? serviceAmount + protectionFee
+    : isServiceLowTier
+      ? serviceAmount + paystackFee
+      : serviceAmount + protectionFee + paystackFee;
+  const professionalReceived = isServiceHighTier
+    ? Math.max(0, serviceAmount - paystackFee)
+    : isServiceLowTier
+      ? serviceAmount
+      : Number(escrow?.payout_amount ?? payload.released ?? 0);
   const completedAt = escrow?.released_at
     ? new Date(escrow.released_at)
     : completedAtFromPayload;
