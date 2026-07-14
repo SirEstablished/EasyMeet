@@ -745,8 +745,21 @@ export function EscrowPanel({
       // Paystack fee is a separate calculation on (subtotal + commission).
       // It never influences commission.
       const fees = computeAgreementFees(materialsCost, laborCost, contingencyCost, commission);
-      const paystackFee = fees.paystackFee;
-      const chargeAmount = fees.totalPaid;
+      let paystackFee = fees.paystackFee;
+      let chargeAmount = fees.totalPaid;
+      // Service Agreement fee tiers:
+      //  - labor > ₦5,000: customer pays labor + commission (Paystack absorbed by EasyMeet).
+      //  - labor ≤ ₦5,000: commission=0, customer pays labor + Paystack fee.
+      if (agreementType === "service") {
+        if (laborCost > 5000) {
+          chargeAmount = laborCost + commission;
+          paystackFee = computePaystackFee(chargeAmount);
+        } else {
+          const zeroCommissionCharge = laborCost;
+          paystackFee = computePaystackFee(zeroCommissionCharge);
+          chargeAmount = zeroCommissionCharge + paystackFee;
+        }
+      }
       setPayBreakdownOpen(false);
       const reference = await payWithPaystack({
         email: myEmail,
@@ -1492,18 +1505,34 @@ function PaymentBreakdownDialog({
 
   if (!agreement || !ag) return null;
 
-  // Paystack fee is always a SEPARATE calculation on (subtotal + commission).
-  // It is never added to commission and never influences it.
-  const preFeeTotal = subtotal + commission;
-  const paystackFee =
-    preFeeTotal > 0
-      ? Math.min(
-          2000,
-          Math.round((preFeeTotal * 0.015 + (preFeeTotal >= 2500 ? 100 : 0)) * 100) / 100,
-        )
-      : 0;
-  const total = preFeeTotal + paystackFee;
-  const professionalReceives = Math.max(0, materials + labor - commission);
+  // Service Agreement fee tiers (₦5,000 threshold on Service Fee):
+  //  - Above ₦5,000: customer pays labor + commission. Paystack fee absorbed by EasyMeet.
+  //                  Professional receives labor - paystackFee.
+  //  - ≤ ₦5,000: commission = 0. Customer pays labor + paystack fee.
+  //              Professional receives full labor.
+  const isService = type === "service";
+  const serviceFee = labor || subtotal;
+  const isServiceHighTier = isService && serviceFee > 5000;
+  const isServiceLowTier = isService && serviceFee <= 5000;
+  const serviceCommission = isServiceLowTier ? 0 : commission;
+  const effectiveCommission = isService ? serviceCommission : commission;
+  const preFeeTotal = isService
+    ? serviceFee + effectiveCommission
+    : subtotal + effectiveCommission;
+  const rawPaystackFee = computePaystackFee(
+    isServiceLowTier ? serviceFee : preFeeTotal,
+  );
+  const paystackFee = rawPaystackFee;
+  const total = isServiceHighTier
+    ? preFeeTotal // customer never pays Paystack fee
+    : isServiceLowTier
+      ? serviceFee + paystackFee
+      : preFeeTotal + paystackFee;
+  const professionalReceives = isServiceHighTier
+    ? Math.max(0, serviceFee - paystackFee)
+    : isServiceLowTier
+      ? serviceFee
+      : Math.max(0, materials + labor - commission);
 
   const rows: Array<{ label: string; value: number; muted?: boolean }> = [];
   if (type === "service") {
@@ -1588,23 +1617,29 @@ function PaymentBreakdownDialog({
                 <span className="font-semibold text-sm">{formatNgn(r.value)}</span>
               </div>
             ))}
-            <div className="flex items-center gap-3 px-4 py-3">
-              <span className="h-8 w-8 rounded-lg bg-accent/15 text-accent grid place-items-center">
-                <Shield className="h-4 w-4" />
-              </span>
-              <span className="flex-1 text-sm text-muted-foreground">
-                {commissionLabel}
-                {commissionLoading && " • calculating…"}
-              </span>
-              <span className="font-semibold text-sm">{formatNgn(commission)}</span>
-            </div>
-            <div className="flex items-center gap-3 px-4 py-3">
-              <span className="h-8 w-8 rounded-lg bg-muted text-muted-foreground grid place-items-center">
-                <CreditCard className="h-4 w-4" />
-              </span>
-              <span className="flex-1 text-sm text-muted-foreground">Paystack fee</span>
-              <span className="font-semibold text-sm">{formatNgn(paystackFee)}</span>
-            </div>
+            {!isServiceLowTier && (
+              <div className="flex items-center gap-3 px-4 py-3">
+                <span className="h-8 w-8 rounded-lg bg-accent/15 text-accent grid place-items-center">
+                  <Shield className="h-4 w-4" />
+                </span>
+                <span className="flex-1 text-sm text-muted-foreground">
+                  {commissionLabel}
+                  {commissionLoading && " • calculating…"}
+                </span>
+                <span className="font-semibold text-sm">
+                  {formatNgn(effectiveCommission)}
+                </span>
+              </div>
+            )}
+            {!isServiceHighTier && (
+              <div className="flex items-center gap-3 px-4 py-3">
+                <span className="h-8 w-8 rounded-lg bg-muted text-muted-foreground grid place-items-center">
+                  <CreditCard className="h-4 w-4" />
+                </span>
+                <span className="flex-1 text-sm text-muted-foreground">Paystack fee</span>
+                <span className="font-semibold text-sm">{formatNgn(paystackFee)}</span>
+              </div>
+            )}
           </div>
 
           <div className="rounded-2xl bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/20 p-4 space-y-1.5">

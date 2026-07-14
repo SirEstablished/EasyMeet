@@ -449,8 +449,24 @@ function DealSummaryCard({ payload }: { payload: DealSummaryCardPayload }) {
     rawPaystackFee != null && !Number.isNaN(Number(rawPaystackFee))
       ? Number(rawPaystackFee)
       : computePaystackFee(serviceAmount + protectionFee);
-  const totalCustomerPaid = serviceAmount + protectionFee + paystackFee;
-  const professionalReceived = Number(escrow?.payout_amount ?? payload.released ?? 0);
+  // Service Agreement fee tiers (₦5,000 threshold on the Service Fee):
+  //  - Above ₦5,000: customer pays Service Fee + Protection Fee (no Paystack row).
+  //                  Professional receives Service Fee − Paystack Fee.
+  //  - ≤ ₦5,000: Protection Fee = 0. Customer pays Service Fee + Paystack Fee.
+  //              Professional receives full Service Fee.
+  const isService = payload.agreement_type === "service";
+  const isServiceHighTier = isService && serviceAmount > 5000;
+  const isServiceLowTier = isService && serviceAmount <= 5000;
+  const totalCustomerPaid = isServiceHighTier
+    ? serviceAmount + protectionFee
+    : isServiceLowTier
+      ? serviceAmount + paystackFee
+      : serviceAmount + protectionFee + paystackFee;
+  const professionalReceived = isServiceHighTier
+    ? Math.max(0, serviceAmount - paystackFee)
+    : isServiceLowTier
+      ? serviceAmount
+      : Number(escrow?.payout_amount ?? payload.released ?? 0);
   const completedAt = escrow?.released_at
     ? new Date(escrow.released_at)
     : completedAtFromPayload;
@@ -486,14 +502,16 @@ function DealSummaryCard({ payload }: { payload: DealSummaryCardPayload }) {
               label="Amount customer paid"
               value={formatNgn(totalCustomerPaid)}
             />
-            <Row
-              label="💳 Paystack Fee"
-              value={formatNgn(paystackFee)}
-              muted
-            />
+            {!isService && (
+              <Row
+                label="💳 Paystack Fee"
+                value={formatNgn(paystackFee)}
+                muted
+              />
+            )}
             <Row
               label="🛡️ EasyMeet Protection Fee"
-              value={formatNgn(protectionFee)}
+              value={formatNgn(isServiceLowTier ? 0 : protectionFee)}
               muted
             />
             <Row
@@ -546,14 +564,16 @@ function DealSummaryCard({ payload }: { payload: DealSummaryCardPayload }) {
                 label="Amount customer paid"
                 value={formatNgn(totalCustomerPaid)}
               />
-              <Row
-                label="💳 Paystack Fee"
-                value={formatNgn(paystackFee)}
-                muted
-              />
+              {!isService && (
+                <Row
+                  label="💳 Paystack Fee"
+                  value={formatNgn(paystackFee)}
+                  muted
+                />
+              )}
               <Row
                 label="🛡️ EasyMeet Protection Fee"
-                value={formatNgn(protectionFee)}
+                value={formatNgn(isServiceLowTier ? 0 : protectionFee)}
                 muted
               />
               <Row
@@ -683,42 +703,51 @@ function ViewAgreementModal({
               <Section title="Amounts">
                 <div className="rounded-xl bg-muted/40 border border-border/60 divide-y divide-border/60">
                   {type === "service" ? (
-                    <>
-                      <Row label="Service Fee" value={formatNgn(Number(a.labor_cost ?? 0))} />
-                      <Row
-                        label="EasyMeet Protection Fee"
-                        value={formatNgn(Number(a.commission_amount ?? 0))}
-                        muted
-                      />
-                      <Row
-                        label="Paystack Processing Fee"
-                        value={formatNgn(Number(a.paystack_fee ?? 0))}
-                        muted
-                      />
-                      <div className="px-3 py-2">
-                        <div className="h-px bg-border/60" />
-                      </div>
-                      <Row
-                        label="Total You'll Pay"
-                        value={formatNgn(
-                          Number(a.labor_cost ?? 0) +
-                            Number(a.commission_amount ?? 0) +
-                            Number(a.paystack_fee ?? 0),
-                        )}
-                        bold
-                      />
-                      <Row
-                        label="Professional Receives"
-                        value={formatNgn(
-                          Math.max(
-                            0,
-                            Number(a.labor_cost ?? 0) - Number(a.commission_amount ?? 0),
-                          ),
-                        )}
-                        green
-                        bold
-                      />
-                    </>
+                    (() => {
+                      const laborCost = Number(a.labor_cost ?? 0);
+                      const rawCommission = Number(a.commission_amount ?? 0);
+                      const rawPaystack = Number(a.paystack_fee ?? 0);
+                      const highTier = laborCost > 5000;
+                      const commission = highTier ? rawCommission : 0;
+                      const paystackFee = highTier
+                        ? rawPaystack ||
+                          computePaystackFee(laborCost + commission)
+                        : rawPaystack || computePaystackFee(laborCost);
+                      const totalYouPay = highTier
+                        ? laborCost + commission
+                        : laborCost + paystackFee;
+                      const professionalReceives = highTier
+                        ? Math.max(0, laborCost - paystackFee)
+                        : laborCost;
+                      return (
+                        <>
+                          <Row label="Service Fee" value={formatNgn(laborCost)} />
+                          {highTier ? (
+                            <Row
+                              label="EasyMeet Protection Fee"
+                              value={formatNgn(commission)}
+                              muted
+                            />
+                          ) : (
+                            <Row
+                              label="Paystack Processing Fee"
+                              value={formatNgn(paystackFee)}
+                              muted
+                            />
+                          )}
+                          <div className="px-3 py-2">
+                            <div className="h-px bg-border/60" />
+                          </div>
+                          <Row label="Total You'll Pay" value={formatNgn(totalYouPay)} bold />
+                          <Row
+                            label="Professional Receives"
+                            value={formatNgn(professionalReceives)}
+                            green
+                            bold
+                          />
+                        </>
+                      );
+                    })()
                   ) : type === "product_sale" ? (
                     <>
                       {Number(a.labor_cost ?? 0) > 0 && (
