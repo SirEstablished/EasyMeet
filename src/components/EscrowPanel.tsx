@@ -1081,7 +1081,7 @@ export function EscrowPanel({
   if (hidden) {
     return (
       <div className="border-t border-border bg-card/60 backdrop-blur p-3 flex justify-end relative">
-        <NewDealFab onClick={openNewDealFlow} />
+        {meRole !== "customer" && <NewDealFab onClick={openNewDealFlow} />}
       </div>
     );
   }
