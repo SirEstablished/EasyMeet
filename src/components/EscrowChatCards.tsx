@@ -502,14 +502,16 @@ function DealSummaryCard({ payload }: { payload: DealSummaryCardPayload }) {
               label="Amount customer paid"
               value={formatNgn(totalCustomerPaid)}
             />
-            <Row
-              label="💳 Paystack Fee"
-              value={formatNgn(paystackFee)}
-              muted
-            />
+            {!isService && (
+              <Row
+                label="💳 Paystack Fee"
+                value={formatNgn(paystackFee)}
+                muted
+              />
+            )}
             <Row
               label="🛡️ EasyMeet Protection Fee"
-              value={formatNgn(protectionFee)}
+              value={formatNgn(isServiceLowTier ? 0 : protectionFee)}
               muted
             />
             <Row
@@ -562,14 +564,16 @@ function DealSummaryCard({ payload }: { payload: DealSummaryCardPayload }) {
                 label="Amount customer paid"
                 value={formatNgn(totalCustomerPaid)}
               />
-              <Row
-                label="💳 Paystack Fee"
-                value={formatNgn(paystackFee)}
-                muted
-              />
+              {!isService && (
+                <Row
+                  label="💳 Paystack Fee"
+                  value={formatNgn(paystackFee)}
+                  muted
+                />
+              )}
               <Row
                 label="🛡️ EasyMeet Protection Fee"
-                value={formatNgn(protectionFee)}
+                value={formatNgn(isServiceLowTier ? 0 : protectionFee)}
                 muted
               />
               <Row
