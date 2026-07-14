@@ -745,8 +745,21 @@ export function EscrowPanel({
       // Paystack fee is a separate calculation on (subtotal + commission).
       // It never influences commission.
       const fees = computeAgreementFees(materialsCost, laborCost, contingencyCost, commission);
-      const paystackFee = fees.paystackFee;
-      const chargeAmount = fees.totalPaid;
+      let paystackFee = fees.paystackFee;
+      let chargeAmount = fees.totalPaid;
+      // Service Agreement fee tiers:
+      //  - labor > ₦5,000: customer pays labor + commission (Paystack absorbed by EasyMeet).
+      //  - labor ≤ ₦5,000: commission=0, customer pays labor + Paystack fee.
+      if (agreementType === "service") {
+        if (laborCost > 5000) {
+          chargeAmount = laborCost + commission;
+          paystackFee = computePaystackFee(chargeAmount);
+        } else {
+          const zeroCommissionCharge = laborCost;
+          paystackFee = computePaystackFee(zeroCommissionCharge);
+          chargeAmount = zeroCommissionCharge + paystackFee;
+        }
+      }
       setPayBreakdownOpen(false);
       const reference = await payWithPaystack({
         email: myEmail,
