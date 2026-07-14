@@ -1617,23 +1617,29 @@ function PaymentBreakdownDialog({
                 <span className="font-semibold text-sm">{formatNgn(r.value)}</span>
               </div>
             ))}
-            <div className="flex items-center gap-3 px-4 py-3">
-              <span className="h-8 w-8 rounded-lg bg-accent/15 text-accent grid place-items-center">
-                <Shield className="h-4 w-4" />
-              </span>
-              <span className="flex-1 text-sm text-muted-foreground">
-                {commissionLabel}
-                {commissionLoading && " • calculating…"}
-              </span>
-              <span className="font-semibold text-sm">{formatNgn(commission)}</span>
-            </div>
-            <div className="flex items-center gap-3 px-4 py-3">
-              <span className="h-8 w-8 rounded-lg bg-muted text-muted-foreground grid place-items-center">
-                <CreditCard className="h-4 w-4" />
-              </span>
-              <span className="flex-1 text-sm text-muted-foreground">Paystack fee</span>
-              <span className="font-semibold text-sm">{formatNgn(paystackFee)}</span>
-            </div>
+            {!isServiceLowTier && (
+              <div className="flex items-center gap-3 px-4 py-3">
+                <span className="h-8 w-8 rounded-lg bg-accent/15 text-accent grid place-items-center">
+                  <Shield className="h-4 w-4" />
+                </span>
+                <span className="flex-1 text-sm text-muted-foreground">
+                  {commissionLabel}
+                  {commissionLoading && " • calculating…"}
+                </span>
+                <span className="font-semibold text-sm">
+                  {formatNgn(effectiveCommission)}
+                </span>
+              </div>
+            )}
+            {!isServiceHighTier && (
+              <div className="flex items-center gap-3 px-4 py-3">
+                <span className="h-8 w-8 rounded-lg bg-muted text-muted-foreground grid place-items-center">
+                  <CreditCard className="h-4 w-4" />
+                </span>
+                <span className="flex-1 text-sm text-muted-foreground">Paystack fee</span>
+                <span className="font-semibold text-sm">{formatNgn(paystackFee)}</span>
+              </div>
+            )}
           </div>
 
           <div className="rounded-2xl bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/20 p-4 space-y-1.5">
