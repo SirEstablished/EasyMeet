@@ -710,8 +710,7 @@ function ViewAgreementModal({
                       const highTier = laborCost > 5000;
                       const commission = highTier ? rawCommission : 0;
                       const paystackFee = highTier
-                        ? rawPaystack ||
-                          computePaystackFee(laborCost + commission)
+                        ? computePaystackFee(laborCost)
                         : rawPaystack || computePaystackFee(laborCost);
                       const totalYouPay = highTier
                         ? laborCost + commission
