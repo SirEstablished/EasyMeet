@@ -1505,18 +1505,34 @@ function PaymentBreakdownDialog({
 
   if (!agreement || !ag) return null;
 
-  // Paystack fee is always a SEPARATE calculation on (subtotal + commission).
-  // It is never added to commission and never influences it.
-  const preFeeTotal = subtotal + commission;
-  const paystackFee =
-    preFeeTotal > 0
-      ? Math.min(
-          2000,
-          Math.round((preFeeTotal * 0.015 + (preFeeTotal >= 2500 ? 100 : 0)) * 100) / 100,
-        )
-      : 0;
-  const total = preFeeTotal + paystackFee;
-  const professionalReceives = Math.max(0, materials + labor - commission);
+  // Service Agreement fee tiers (₦5,000 threshold on Service Fee):
+  //  - Above ₦5,000: customer pays labor + commission. Paystack fee absorbed by EasyMeet.
+  //                  Professional receives labor - paystackFee.
+  //  - ≤ ₦5,000: commission = 0. Customer pays labor + paystack fee.
+  //              Professional receives full labor.
+  const isService = type === "service";
+  const serviceFee = labor || subtotal;
+  const isServiceHighTier = isService && serviceFee > 5000;
+  const isServiceLowTier = isService && serviceFee <= 5000;
+  const serviceCommission = isServiceLowTier ? 0 : commission;
+  const effectiveCommission = isService ? serviceCommission : commission;
+  const preFeeTotal = isService
+    ? serviceFee + effectiveCommission
+    : subtotal + effectiveCommission;
+  const rawPaystackFee = computePaystackFee(
+    isServiceLowTier ? serviceFee : preFeeTotal,
+  );
+  const paystackFee = rawPaystackFee;
+  const total = isServiceHighTier
+    ? preFeeTotal // customer never pays Paystack fee
+    : isServiceLowTier
+      ? serviceFee + paystackFee
+      : preFeeTotal + paystackFee;
+  const professionalReceives = isServiceHighTier
+    ? Math.max(0, serviceFee - paystackFee)
+    : isServiceLowTier
+      ? serviceFee
+      : Math.max(0, materials + labor - commission);
 
   const rows: Array<{ label: string; value: number; muted?: boolean }> = [];
   if (type === "service") {
