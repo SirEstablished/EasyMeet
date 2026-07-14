@@ -1520,7 +1520,7 @@ function PaymentBreakdownDialog({
     ? serviceFee + effectiveCommission
     : subtotal + effectiveCommission;
   const rawPaystackFee = computePaystackFee(
-    isServiceLowTier ? serviceFee : preFeeTotal,
+    isService ? serviceFee : preFeeTotal,
   );
   const paystackFee = rawPaystackFee;
   const total = isServiceHighTier
