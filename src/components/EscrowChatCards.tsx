@@ -445,8 +445,10 @@ function DealSummaryCard({ payload }: { payload: DealSummaryCardPayload }) {
   const serviceAmount = Number(escrow?.amount ?? payload.total ?? 0);
   const protectionFee = Number(escrow?.commission_amount ?? payload.protection_fee ?? 0);
   const rawPaystackFee = escrow?.paystack_fee ?? payload.paystack_fee;
-  const paystackFee =
-    rawPaystackFee != null && !Number.isNaN(Number(rawPaystackFee))
+  const isService = payload.agreement_type === "service";
+  const paystackFee = isService
+    ? computePaystackFee(serviceAmount)
+    : rawPaystackFee != null && !Number.isNaN(Number(rawPaystackFee))
       ? Number(rawPaystackFee)
       : computePaystackFee(serviceAmount + protectionFee);
   // Service Agreement fee tiers (₦5,000 threshold on the Service Fee):
@@ -454,7 +456,6 @@ function DealSummaryCard({ payload }: { payload: DealSummaryCardPayload }) {
   //                  Professional receives Service Fee − Paystack Fee.
   //  - ≤ ₦5,000: Protection Fee = 0. Customer pays Service Fee + Paystack Fee.
   //              Professional receives full Service Fee.
-  const isService = payload.agreement_type === "service";
   const isServiceHighTier = isService && serviceAmount > 5000;
   const isServiceLowTier = isService && serviceAmount <= 5000;
   const totalCustomerPaid = isServiceHighTier
@@ -710,8 +711,7 @@ function ViewAgreementModal({
                       const highTier = laborCost > 5000;
                       const commission = highTier ? rawCommission : 0;
                       const paystackFee = highTier
-                        ? rawPaystack ||
-                          computePaystackFee(laborCost + commission)
+                        ? computePaystackFee(laborCost)
                         : rawPaystack || computePaystackFee(laborCost);
                       const totalYouPay = highTier
                         ? laborCost + commission

@@ -1081,7 +1081,7 @@ export function EscrowPanel({
   if (hidden) {
     return (
       <div className="border-t border-border bg-card/60 backdrop-blur p-3 flex justify-end relative">
-        <NewDealFab onClick={openNewDealFlow} />
+        {meRole !== "customer" && <NewDealFab onClick={openNewDealFlow} />}
       </div>
     );
   }
@@ -1520,7 +1520,7 @@ function PaymentBreakdownDialog({
     ? serviceFee + effectiveCommission
     : subtotal + effectiveCommission;
   const rawPaystackFee = computePaystackFee(
-    isServiceLowTier ? serviceFee : preFeeTotal,
+    isService ? serviceFee : preFeeTotal,
   );
   const paystackFee = rawPaystackFee;
   const total = isServiceHighTier
