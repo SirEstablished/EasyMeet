@@ -963,23 +963,10 @@ export function EscrowPanel({
       // Paystack fee is calculated on the pre-fee amount the customer pays
       // (service amount + commission). It is never deducted from the professional.
       const paystackFee = computePaystackFee(grossAmount + commission);
-      const { error: messageError } = await supabase.from("messages").insert({
-        conversation_id: conversationId,
-        sender_id: meId,
-        body: encodeCard(
-          "completion",
-          {
-            amount: grossAmount,
-            protection_fee: commission,
-            paystack_fee: paystackFeeApprox,
-            payout,
-            released_at: releasedAtIso,
-          },
-          `✅ Deal completed. ${formatNgn(payout)} released to professional${commission > 0 ? " (EasyMeet Protection Fee applied)" : ""}.`,
-        ),
-      });
-      if (messageError) console.error("Completion message failed", messageError);
-      // Persistent Deal Summary card (replaces the temporary popup).
+      // Only the permanent Deal Summary card is posted to chat — no
+      // completion popup, toast, or extra chat notification.
+      void paystackFeeApprox;
+      // Persistent Deal Summary card (sole confirmation of completion).
       // The customer paid the service amount + protection fee + Paystack fee.
       await supabase.from("messages").insert({
         conversation_id: conversationId,
@@ -1005,7 +992,7 @@ export function EscrowPanel({
           `Deal completed — ${formatNgn(payout)} released.`,
         ),
       });
-      toast.success("Payment released");
+      // Deal Summary card in chat is the only confirmation — no toast.
       // Wallet-credit notification to the professional.
       try {
         await supabase.from("notifications").insert({
