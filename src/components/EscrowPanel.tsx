@@ -36,8 +36,7 @@ import {
   Sparkles,
   XCircle,
   Wallet,
-  Percent,
-  User,
+  // Percent, User removed with the in-panel completion summary.
   Handshake,
   ArrowLeft,
   X,
@@ -963,23 +962,10 @@ export function EscrowPanel({
       // Paystack fee is calculated on the pre-fee amount the customer pays
       // (service amount + commission). It is never deducted from the professional.
       const paystackFee = computePaystackFee(grossAmount + commission);
-      const { error: messageError } = await supabase.from("messages").insert({
-        conversation_id: conversationId,
-        sender_id: meId,
-        body: encodeCard(
-          "completion",
-          {
-            amount: grossAmount,
-            protection_fee: commission,
-            paystack_fee: paystackFeeApprox,
-            payout,
-            released_at: releasedAtIso,
-          },
-          `✅ Deal completed. ${formatNgn(payout)} released to professional${commission > 0 ? " (EasyMeet Protection Fee applied)" : ""}.`,
-        ),
-      });
-      if (messageError) console.error("Completion message failed", messageError);
-      // Persistent Deal Summary card (replaces the temporary popup).
+      // Only the permanent Deal Summary card is posted to chat — no
+      // completion popup, toast, or extra chat notification.
+      void paystackFeeApprox;
+      // Persistent Deal Summary card (sole confirmation of completion).
       // The customer paid the service amount + protection fee + Paystack fee.
       await supabase.from("messages").insert({
         conversation_id: conversationId,
@@ -1005,7 +991,7 @@ export function EscrowPanel({
           `Deal completed — ${formatNgn(payout)} released.`,
         ),
       });
-      toast.success("Payment released");
+      // Deal Summary card in chat is the only confirmation — no toast.
       // Wallet-credit notification to the professional.
       try {
         await supabase.from("notifications").insert({
@@ -1222,74 +1208,8 @@ export function EscrowPanel({
             </Button>
           )}
 
-        {(order?.status === "released" || order?.status === "completed") && (
-          <div className="w-full rounded-2xl bg-accent/10 border border-accent/20 p-4 sm:p-5 space-y-4">
-            <div className="flex items-start gap-4">
-              <div className="relative shrink-0">
-                <div className="h-14 w-14 rounded-full bg-accent text-primary-foreground flex items-center justify-center ring-4 ring-accent/20">
-                  <CheckCircle2 className="h-7 w-7" strokeWidth={2.5} />
-                </div>
-                {/* decorative confetti dots */}
-                <span className="absolute -top-1 -left-1 h-2 w-2 rounded-full bg-primary/60" />
-                <span className="absolute top-2 -right-2 h-1.5 w-1.5 rounded-full bg-coral/60" />
-                <span className="absolute -bottom-1 left-1 h-1.5 w-1.5 rounded-full bg-accent/80" />
-                <span className="absolute bottom-4 -left-2 h-1 w-1 rounded-full bg-primary/50" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="text-lg font-bold tracking-tight text-foreground">
-                    Deal Completed!
-                  </h3>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/12 border border-accent/20 px-2.5 py-1 text-xs font-medium text-accent">
-                    <Shield className="h-3.5 w-3.5" />
-                    Escrow Secured
-                  </span>
-                </div>
-                <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-                  Great job! The work has been completed successfully.
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="rounded-xl bg-card border border-border/60 p-3 flex items-center gap-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-                <div className="h-10 w-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0">
-                  <Wallet className="h-5 w-5" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground">Amount Paid</p>
-                  <p className="text-base font-bold text-foreground truncate">
-                    {formatNgn(order.amount_ngn)}
-                  </p>
-                </div>
-              </div>
-
-              <div className="rounded-xl bg-card border border-border/60 p-3 flex items-center gap-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-                <div className="h-10 w-10 rounded-full bg-coral text-coral-foreground flex items-center justify-center shrink-0">
-                  <Percent className="h-5 w-5" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground">EasyMeet Protection Fee</p>
-                  <p className="text-base font-bold text-foreground truncate">
-                    {formatNgn(order.commission_amount)}
-                  </p>
-                </div>
-              </div>
-
-              <div className="rounded-xl bg-card border border-border/60 p-3 flex items-center gap-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-                <div className="h-10 w-10 rounded-full bg-accent text-primary-foreground flex items-center justify-center shrink-0">
-                  <User className="h-5 w-5" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground">Professional Received</p>
-                  <p className="text-base font-bold text-accent truncate">
-                    {formatNgn(order.payout_amount)}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* In-panel "Deal Completed!" summary removed — the permanent
+            Deal Summary chat card is the only completion confirmation. */}
 
         {order?.status === "disputed" && (
           <div className="w-full rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive flex items-center gap-2">
