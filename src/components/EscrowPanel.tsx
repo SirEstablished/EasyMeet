@@ -36,8 +36,7 @@ import {
   Sparkles,
   XCircle,
   Wallet,
-  Percent,
-  User,
+  // Percent, User removed with the in-panel completion summary.
   Handshake,
   ArrowLeft,
   X,
