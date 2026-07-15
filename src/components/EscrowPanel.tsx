@@ -1924,12 +1924,21 @@ function SendAgreementDialog({
     mapped.contingency,
     commission,
   );
+  // Service Agreement above ₦5,000: Paystack fee is absorbed by EasyMeet and
+  // calculated on the service fee alone. The professional receives the service
+  // fee minus that Paystack fee, never minus the protection fee.
+  const serviceHighTierPaystackFee =
+    agreementType === "service" && mapped.held > 5000
+      ? computePaystackFee(mapped.held)
+      : fees.paystackFee;
   // For delivery, rider gets 100% of the delivery fee — commission is added
   // to the customer's total, not deducted from the rider's payout.
   const professionalReceives =
-    agreementType === "delivery"
-      ? mapped.held
-      : fees.professionalReceives;
+    agreementType === "service" && mapped.held > 5000
+      ? Math.max(0, mapped.held - serviceHighTierPaystackFee)
+      : agreementType === "delivery"
+        ? mapped.held
+        : fees.professionalReceives;
   const receiverLabel =
     agreementType === "delivery"
       ? "Rider receives (full — no deductions)"
