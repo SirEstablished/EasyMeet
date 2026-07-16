@@ -27,8 +27,10 @@ export const recordProductOrder = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => InputSchema.parse(data))
   .handler(async ({ data, context }): Promise<RecordResult> => {
     const { userId, supabase } = context;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sb = supabase as any;
 
-    const { data: product, error: prodErr } = await supabase
+    const { data: product, error: prodErr } = await sb
       .from("products")
       .select("id, seller_id, title, price, stock_count, product_type, is_active")
       .eq("id", data.productId)
@@ -66,16 +68,18 @@ export const recordProductOrder = createServerFn({ method: "POST" })
     if (paidKobo < Math.round(price * 100)) return { ok: false, message: "Amount mismatch" };
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const admin = supabaseAdmin as any;
 
     // Idempotency: if the reference is already recorded, return that order.
-    const { data: existing } = await supabaseAdmin
+    const { data: existing } = await admin
       .from("orders")
       .select("id")
       .eq("payment_ref", data.reference)
       .maybeSingle();
     if (existing?.id) return { ok: true, orderId: existing.id };
 
-    const { data: inserted, error: insErr } = await supabaseAdmin
+    const { data: inserted, error: insErr } = await admin
       .from("orders")
       .insert({
         customer_id: userId,
@@ -95,7 +99,7 @@ export const recordProductOrder = createServerFn({ method: "POST" })
 
     // Decrement stock for physical products (best-effort)
     if (product.product_type === "physical" && typeof product.stock_count === "number") {
-      await supabaseAdmin
+      await admin
         .from("products")
         .update({ stock_count: Math.max(0, product.stock_count - 1) })
         .eq("id", product.id);
