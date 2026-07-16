@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VerificationTicks } from "@/components/VerificationTicks";
-import { StarRating } from "@/components/StarRating";
 import { ReviewOrderDialog } from "@/components/ReviewOrderDialog";
 import { useLiveData } from "@/hooks/use-live-data";
 import { Search, Loader2, ShoppingBag, ChevronDown, Star } from "lucide-react";
@@ -431,7 +430,6 @@ function OrdersTab() {
             reviewing.provider?.full_name || reviewing.provider?.username || "Seller"
           }
           orderId={reviewing.id}
-          productId={reviewing.product_id || undefined}
           onSubmitted={() => {
             if (reviewing.product_id) {
               setReviewed((cur) => new Set(cur).add(reviewing.product_id!));
