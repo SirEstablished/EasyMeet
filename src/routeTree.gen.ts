@@ -18,6 +18,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedWalletRouteImport } from './routes/_authenticated/wallet'
 import { Route as AuthenticatedTransactionsRouteImport } from './routes/_authenticated/transactions'
 import { Route as AuthenticatedStaffsRouteImport } from './routes/_authenticated/staffs'
+import { Route as AuthenticatedShopRouteImport } from './routes/_authenticated/shop'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedSelectRoleRouteImport } from './routes/_authenticated/select-role'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
@@ -76,6 +77,11 @@ const AuthenticatedTransactionsRoute =
 const AuthenticatedStaffsRoute = AuthenticatedStaffsRouteImport.update({
   id: '/staffs',
   path: '/staffs',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedShopRoute = AuthenticatedShopRouteImport.update({
+  id: '/shop',
+  path: '/shop',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
@@ -168,6 +174,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof AuthenticatedProfileRouteWithChildren
   '/select-role': typeof AuthenticatedSelectRoleRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/shop': typeof AuthenticatedShopRoute
   '/staffs': typeof AuthenticatedStaffsRoute
   '/transactions': typeof AuthenticatedTransactionsRoute
   '/wallet': typeof AuthenticatedWalletRoute
@@ -191,6 +198,7 @@ export interface FileRoutesByTo {
   '/my-services': typeof AuthenticatedMyServicesRoute
   '/select-role': typeof AuthenticatedSelectRoleRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/shop': typeof AuthenticatedShopRoute
   '/staffs': typeof AuthenticatedStaffsRoute
   '/transactions': typeof AuthenticatedTransactionsRoute
   '/wallet': typeof AuthenticatedWalletRoute
@@ -217,6 +225,7 @@ export interface FileRoutesById {
   '/_authenticated/profile': typeof AuthenticatedProfileRouteWithChildren
   '/_authenticated/select-role': typeof AuthenticatedSelectRoleRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/shop': typeof AuthenticatedShopRoute
   '/_authenticated/staffs': typeof AuthenticatedStaffsRoute
   '/_authenticated/transactions': typeof AuthenticatedTransactionsRoute
   '/_authenticated/wallet': typeof AuthenticatedWalletRoute
@@ -243,6 +252,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/select-role'
     | '/settings'
+    | '/shop'
     | '/staffs'
     | '/transactions'
     | '/wallet'
@@ -266,6 +276,7 @@ export interface FileRouteTypes {
     | '/my-services'
     | '/select-role'
     | '/settings'
+    | '/shop'
     | '/staffs'
     | '/transactions'
     | '/wallet'
@@ -291,6 +302,7 @@ export interface FileRouteTypes {
     | '/_authenticated/profile'
     | '/_authenticated/select-role'
     | '/_authenticated/settings'
+    | '/_authenticated/shop'
     | '/_authenticated/staffs'
     | '/_authenticated/transactions'
     | '/_authenticated/wallet'
@@ -371,6 +383,13 @@ declare module '@tanstack/react-router' {
       path: '/staffs'
       fullPath: '/staffs'
       preLoaderRoute: typeof AuthenticatedStaffsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/shop': {
+      id: '/_authenticated/shop'
+      path: '/shop'
+      fullPath: '/shop'
+      preLoaderRoute: typeof AuthenticatedShopRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/settings': {
@@ -499,6 +518,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRouteWithChildren
   AuthenticatedSelectRoleRoute: typeof AuthenticatedSelectRoleRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedShopRoute: typeof AuthenticatedShopRoute
   AuthenticatedStaffsRoute: typeof AuthenticatedStaffsRoute
   AuthenticatedTransactionsRoute: typeof AuthenticatedTransactionsRoute
   AuthenticatedWalletRoute: typeof AuthenticatedWalletRoute
@@ -517,6 +537,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedProfileRoute: AuthenticatedProfileRouteWithChildren,
   AuthenticatedSelectRoleRoute: AuthenticatedSelectRoleRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedShopRoute: AuthenticatedShopRoute,
   AuthenticatedStaffsRoute: AuthenticatedStaffsRoute,
   AuthenticatedTransactionsRoute: AuthenticatedTransactionsRoute,
   AuthenticatedWalletRoute: AuthenticatedWalletRoute,
