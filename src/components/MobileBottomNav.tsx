@@ -1,17 +1,12 @@
 import { Link } from "@tanstack/react-router";
-import { Home, Compass, MessageSquare, Package, Rss } from "lucide-react";
-import { useAuth } from "@/lib/providers";
+import { Home, Compass, MessageSquare, ShoppingBag, Rss } from "lucide-react";
 
 export function MobileBottomNav() {
-  const { profile } = useAuth();
-  const isCustomer = profile?.role === "customer";
-  const ordersLabel = isCustomer ? "Orders" : "Orders";
-
   const items = [
     { to: "/dashboard", label: "Home", Icon: Home },
     { to: "/explore", label: "Explore", Icon: Compass },
     { to: "/feed", label: "Feed", Icon: Rss },
-    { to: "/my-orders", label: ordersLabel, Icon: Package },
+    { to: "/shop", label: "Shop", Icon: ShoppingBag },
     { to: "/messages", label: "Chat", Icon: MessageSquare },
   ] as const;
 
