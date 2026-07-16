@@ -270,7 +270,7 @@ function MyOrdersPage() {
       setOutgoing((cur) => cur.map(patchOrder));
       setIncoming((cur) => cur.map(patchOrder));
       setCompleting(null);
-      toast.success("Payment released successfully! 🎉");
+      // No completion popup — confirmation lives in the chat Deal Summary card.
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not release payment");
     } finally {

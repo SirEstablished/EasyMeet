@@ -14,6 +14,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { computePaystackFee } from "@/lib/paystackFees";
 
 // -------- Card message encoding --------
 // Cards are persisted inside message.body as a single line prefix so the
@@ -42,6 +43,7 @@ export interface PaymentCardPayload extends BaseCardPayload {
 export interface CompletionCardPayload extends BaseCardPayload {
   amount: number;
   protection_fee: number;
+  paystack_fee?: number;
   payout: number;
   released_at: string;
 }
@@ -56,6 +58,7 @@ export interface DealSummaryCardPayload extends BaseCardPayload {
   paystack_fee: number;
   released: number;
   status: string;
+  completed_at?: string;
 }
 
 export function encodeCard(kind: CardKind, payload: BaseCardPayload, fallback: string): string {
@@ -315,20 +318,37 @@ function PaymentCard({ payload }: { payload: PaymentCardPayload }) {
 }
 
 function EscrowProgress({ stage }: { stage: "holding" | "completed" }) {
-  const steps = ["Agreement", "Paid", "Working", "Completed"];
+  const steps = ["Negotiate", "Agreement", "Payment", "Complete"];
+  // Payment held = stage 3 (3/4 fills). Completed = stage 4 (4/4 fills).
   const activeIdx = stage === "completed" ? 3 : 2;
   return (
-    <div className="flex items-center gap-1.5 pt-1">
-      {steps.map((s, i) => (
-        <div key={s} className="flex-1 flex items-center gap-1.5">
+    <div className="pt-2">
+      <div className="flex items-center gap-1.5">
+        {steps.map((s, i) => (
           <div
+            key={s}
             className={cn(
-              "h-1.5 rounded-full flex-1",
-              i <= activeIdx ? "bg-payment" : "bg-border/60",
+              "h-2 rounded-full flex-1 transition-all duration-500 ease-out",
+              i <= activeIdx
+                ? "bg-gradient-to-r from-emerald-500 to-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.4)]"
+                : "bg-border/60",
             )}
           />
-        </div>
-      ))}
+        ))}
+      </div>
+      <div className="mt-1.5 flex items-center gap-1.5">
+        {steps.map((s, i) => (
+          <div
+            key={s}
+            className={cn(
+              "flex-1 text-center text-[9px] font-semibold uppercase tracking-wide transition-colors",
+              i <= activeIdx ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground/60",
+            )}
+          >
+            {s}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -359,13 +379,20 @@ function CompletionCard({ payload }: { payload: CompletionCardPayload }) {
         </div>
 
         <div className="rounded-xl bg-muted/40 border border-border/60 divide-y divide-border/60">
-          <Row label="Amount released" value={formatNgn(payload.amount)} green />
+          <Row label="Amount customer paid" value={formatNgn(payload.amount)} />
           <Row
-            label="EasyMeet Protection Fee"
-            value={`− ${formatNgn(payload.protection_fee)}`}
+            label="🛡️ EasyMeet Protection Fee"
+            value={formatNgn(payload.protection_fee)}
             muted
           />
-          <Row label="Professional received" value={formatNgn(payload.payout)} green bold />
+          {typeof payload.paystack_fee === "number" && payload.paystack_fee > 0 && (
+            <Row
+              label="💳 Paystack Fee"
+              value={formatNgn(payload.paystack_fee)}
+              muted
+            />
+          )}
+          <Row label="✅ Professional received" value={formatNgn(payload.payout)} green bold />
         </div>
       </div>
     </CardShell>
@@ -375,6 +402,76 @@ function CompletionCard({ payload }: { payload: CompletionCardPayload }) {
 // ---- Deal Summary Card ----
 function DealSummaryCard({ payload }: { payload: DealSummaryCardPayload }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [escrow, setEscrow] = useState<{
+    amount: number;
+    commission_amount: number;
+    paystack_fee: number | null;
+    payout_amount: number;
+    released_at: string | null;
+  } | null>(null);
+
+  // Prefer the live escrow row; fall back to the persisted card payload.
+  useEffect(() => {
+    if (!payload.escrow_id) return;
+    let cancel = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("escrow")
+        .select("amount, commission_amount, paystack_fee, payout_amount, released_at")
+        .eq("id", payload.escrow_id)
+        .maybeSingle();
+      if (cancel) return;
+      if (error) {
+        console.warn("Deal summary could not read escrow row; using payload", error);
+        return;
+      }
+      if (!data) return;
+      setEscrow({
+        amount: Number(data.amount ?? 0),
+        commission_amount: Number(data.commission_amount ?? 0),
+        paystack_fee: data.paystack_fee != null ? Number(data.paystack_fee) : null,
+        payout_amount: Number(data.payout_amount ?? 0),
+        released_at: (data.released_at as string | null) ?? null,
+      });
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [payload.escrow_id]);
+
+  const completedAtFromPayload = payload.completed_at
+    ? new Date(payload.completed_at)
+    : null;
+  const serviceAmount = Number(escrow?.amount ?? payload.total ?? 0);
+  const protectionFee = Number(escrow?.commission_amount ?? payload.protection_fee ?? 0);
+  const rawPaystackFee = escrow?.paystack_fee ?? payload.paystack_fee;
+  const isService = payload.agreement_type === "service";
+  const paystackFee = isService
+    ? computePaystackFee(serviceAmount)
+    : rawPaystackFee != null && !Number.isNaN(Number(rawPaystackFee))
+      ? Number(rawPaystackFee)
+      : computePaystackFee(serviceAmount + protectionFee);
+  // Service Agreement fee tiers (₦5,000 threshold on the Service Fee):
+  //  - Above ₦5,000: customer pays Service Fee + Protection Fee (no Paystack row).
+  //                  Professional receives Service Fee − Paystack Fee.
+  //  - ≤ ₦5,000: Protection Fee = 0. Customer pays Service Fee + Paystack Fee.
+  //              Professional receives full Service Fee.
+  const isServiceHighTier = isService && serviceAmount > 5000;
+  const isServiceLowTier = isService && serviceAmount <= 5000;
+  const totalCustomerPaid = isServiceHighTier
+    ? serviceAmount + protectionFee
+    : isServiceLowTier
+      ? serviceAmount + paystackFee
+      : serviceAmount + protectionFee + paystackFee;
+  const professionalReceived = isServiceHighTier
+    ? Math.max(0, serviceAmount - paystackFee)
+    : isServiceLowTier
+      ? serviceAmount
+      : Number(escrow?.payout_amount ?? payload.released ?? 0);
+  const completedAt = escrow?.released_at
+    ? new Date(escrow.released_at)
+    : completedAtFromPayload;
+
   return (
     <>
       <CardShell accent="primary">
@@ -402,14 +499,39 @@ function DealSummaryCard({ payload }: { payload: DealSummaryCardPayload }) {
           </div>
 
           <div className="rounded-xl bg-muted/40 border border-border/60 divide-y divide-border/60">
-            <Row label="Total amount" value={formatNgn(payload.total)} />
             <Row
-              label="EasyMeet Protection Fee"
-              value={formatNgn(payload.protection_fee)}
+              label="Amount customer paid"
+              value={formatNgn(totalCustomerPaid)}
+            />
+            {!isService && (
+              <Row
+                label="💳 Paystack Fee"
+                value={formatNgn(paystackFee)}
+                muted
+              />
+            )}
+            <Row
+              label="🛡️ EasyMeet Protection Fee"
+              value={formatNgn(isServiceLowTier ? 0 : protectionFee)}
               muted
             />
-            <Row label="Paystack fee" value={formatNgn(payload.paystack_fee)} muted />
-            <Row label="Amount released" value={formatNgn(payload.released)} green bold />
+            <Row
+              label="✅ Professional received"
+              value={formatNgn(professionalReceived)}
+              green
+              bold
+            />
+            {completedAt && (
+              <Row
+                label="📅 Completed"
+                value={completedAt.toLocaleString(undefined, {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })}
+                muted
+              />
+            )}
+            <Row label="Status" value={payload.status} />
           </div>
 
           <Button
@@ -418,7 +540,7 @@ function DealSummaryCard({ payload }: { payload: DealSummaryCardPayload }) {
             className="w-full"
             onClick={() => setDetailsOpen(true)}
           >
-            View Details <ArrowRight className="h-3.5 w-3.5 ml-1" />
+            View Full Details <ArrowRight className="h-3.5 w-3.5 ml-1" />
           </Button>
         </div>
       </CardShell>
@@ -439,20 +561,38 @@ function DealSummaryCard({ payload }: { payload: DealSummaryCardPayload }) {
               </div>
             </div>
             <div className="rounded-xl bg-muted/40 border border-border/60 divide-y divide-border/60">
-              <Row label="Total customer paid" value={formatNgn(payload.total + payload.paystack_fee)} />
-              <Row label="Escrow subtotal" value={formatNgn(payload.total)} />
-              <Row label="Paystack fee" value={formatNgn(payload.paystack_fee)} muted />
               <Row
-                label="EasyMeet Protection Fee"
-                value={formatNgn(payload.protection_fee)}
+                label="Amount customer paid"
+                value={formatNgn(totalCustomerPaid)}
+              />
+              {!isService && (
+                <Row
+                  label="💳 Paystack Fee"
+                  value={formatNgn(paystackFee)}
+                  muted
+                />
+              )}
+              <Row
+                label="🛡️ EasyMeet Protection Fee"
+                value={formatNgn(isServiceLowTier ? 0 : protectionFee)}
                 muted
               />
               <Row
-                label="Professional received"
-                value={formatNgn(payload.released)}
+                label="✅ Professional received"
+                value={formatNgn(professionalReceived)}
                 green
                 bold
               />
+              {completedAt && (
+                <Row
+                  label="📅 Completed"
+                  value={completedAt.toLocaleString(undefined, {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })}
+                  muted
+                />
+              )}
               <Row label="Status" value={payload.status} />
             </div>
           </div>
@@ -523,6 +663,11 @@ function ViewAgreementModal({
   const a = agreement ?? {};
   const type = (a.agreement_type as string) ?? "service";
   const price = Number(a.price ?? a.total_amount ?? 0);
+  const termsText = (a.terms as string) ?? "";
+  const pickupMatch = termsText.match(/Pickup:\s*(.+)/);
+  const dropoffMatch = termsText.match(/Drop-off:\s*(.+)/);
+  const pickup = pickupMatch ? pickupMatch[1].trim() : "";
+  const dropoff = dropoffMatch ? dropoffMatch[1].trim() : "";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -558,21 +703,100 @@ function ViewAgreementModal({
 
               <Section title="Amounts">
                 <div className="rounded-xl bg-muted/40 border border-border/60 divide-y divide-border/60">
-                  {Number(a.materials_cost ?? 0) > 0 && (
-                    <Row
-                      label="Materials (released immediately)"
-                      value={formatNgn(Number(a.materials_cost))}
-                    />
+                  {type === "service" ? (
+                    (() => {
+                      const laborCost = Number(a.labor_cost ?? 0);
+                      const rawCommission = Number(a.commission_amount ?? 0);
+                      const rawPaystack = Number(a.paystack_fee ?? 0);
+                      const highTier = laborCost > 5000;
+                      const commission = highTier ? rawCommission : 0;
+                      const paystackFee = highTier
+                        ? computePaystackFee(laborCost)
+                        : rawPaystack || computePaystackFee(laborCost);
+                      const totalYouPay = highTier
+                        ? laborCost + commission
+                        : laborCost + paystackFee;
+                      const professionalReceives = highTier
+                        ? Math.max(0, laborCost - paystackFee)
+                        : laborCost;
+                      return (
+                        <>
+                          <Row label="Service Fee" value={formatNgn(laborCost)} />
+                          {highTier ? (
+                            <Row
+                              label="EasyMeet Protection Fee"
+                              value={formatNgn(commission)}
+                              muted
+                            />
+                          ) : (
+                            <Row
+                              label="Paystack Processing Fee"
+                              value={formatNgn(paystackFee)}
+                              muted
+                            />
+                          )}
+                          <div className="px-3 py-2">
+                            <div className="h-px bg-border/60" />
+                          </div>
+                          <Row label="Total You'll Pay" value={formatNgn(totalYouPay)} bold />
+                          <Row
+                            label="Professional Receives"
+                            value={formatNgn(professionalReceives)}
+                            green
+                            bold
+                          />
+                        </>
+                      );
+                    })()
+                  ) : type === "product_sale" ? (
+                    <>
+                      {Number(a.labor_cost ?? 0) > 0 && (
+                        <Row
+                          label="Product Price — Held in escrow until delivery confirmed"
+                          value={formatNgn(Number(a.labor_cost))}
+                        />
+                      )}
+                      {Number(a.materials_cost ?? 0) > 0 && (
+                        <Row
+                          label="Delivery Fee — Released immediately"
+                          value={formatNgn(Number(a.materials_cost))}
+                        />
+                      )}
+                    </>
+                  ) : type === "delivery" ? (
+                    <>
+                      {Number(a.labor_cost ?? 0) > 0 && (
+                        <Row
+                          label="Delivery Fee — Goes to rider in full"
+                          value={formatNgn(Number(a.labor_cost))}
+                        />
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      {Number(a.materials_cost ?? 0) > 0 && (
+                        <Row
+                          label="Materials (released immediately)"
+                          value={formatNgn(Number(a.materials_cost))}
+                        />
+                      )}
+                      {Number(a.labor_cost ?? 0) > 0 && (
+                        <Row label="Labor / Service fee" value={formatNgn(Number(a.labor_cost))} />
+                      )}
+                    </>
                   )}
-                  {Number(a.labor_cost ?? 0) > 0 && (
-                    <Row label="Labor / Service fee" value={formatNgn(Number(a.labor_cost))} />
-                  )}
-                  {Number(a.contingency_cost ?? 0) > 0 && (
-                    <Row label="Contingency" value={formatNgn(Number(a.contingency_cost))} muted />
-                  )}
-                  <Row label="Total" value={formatNgn(price)} bold />
+                  {type !== "service" && <Row label="Total" value={formatNgn(price)} bold />}
                 </div>
               </Section>
+
+              {type === "delivery" && (pickup || dropoff) ? (
+                <Section title="Delivery route">
+                  <div className="rounded-xl bg-muted/40 border border-border/60 divide-y divide-border/60">
+                    {pickup && <Row label="📍 Pickup" value={pickup} />}
+                    {dropoff && <Row label="📍 Delivery to" value={dropoff} />}
+                  </div>
+                </Section>
+              ) : null}
 
               {a.terms ? (
                 <Section title="Terms">
