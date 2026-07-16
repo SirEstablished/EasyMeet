@@ -15,20 +15,35 @@ export function WalletSummaryCard() {
 
   const load = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("wallets" as never)
-      .select("available_balance, escrow_balance")
-      .eq("user_id", user.id)
-      .maybeSingle();
+    const [{ data }, { data: esc }] = await Promise.all([
+      supabase
+        .from("wallets" as never)
+        .select("available_balance, escrow_balance")
+        .eq("user_id", user.id)
+        .maybeSingle(),
+      supabase
+        .from("escrow" as never)
+        .select("amount, amount_ngn, payout_amount")
+        .or(`provider_id.eq.${user.id},professional_id.eq.${user.id}`)
+        .eq("status", "holding"),
+    ]);
     const w = data as { available_balance?: number; escrow_balance?: number } | null;
     setAvailable(Number(w?.available_balance ?? 0));
-    setEscrow(Number(w?.escrow_balance ?? 0));
+    const live = ((esc ?? []) as {
+      amount: number | null;
+      amount_ngn: number | null;
+      payout_amount: number | null;
+    }[]).reduce(
+      (s, e) => s + Number(e.payout_amount ?? e.amount_ngn ?? e.amount ?? 0),
+      0,
+    );
+    setEscrow(Math.max(Number(w?.escrow_balance ?? 0), live));
   }, [user]);
 
   useEffect(() => {
     void load();
   }, [load]);
-  useLiveData(user ? ["wallets"] : [], load);
+  useLiveData(user ? ["wallets", "escrow"] : [], load);
 
   return (
     <div className="rounded-2xl p-5 bg-gradient-brand text-primary-foreground relative overflow-hidden glow-primary">
