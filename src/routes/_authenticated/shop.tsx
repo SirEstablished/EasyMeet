@@ -235,7 +235,6 @@ function ProductCard({ p }: { p: ProductWithSeller }) {
           </span>
           {p.seller && (
             <VerificationTicks
-              role={p.seller.role}
               blue={p.seller.blue_tick}
               white={p.seller.white_tick}
               gold={p.seller.gold_tick}
