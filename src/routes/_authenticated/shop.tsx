@@ -260,6 +260,7 @@ function ProductCard({ p }: { p: ProductWithSeller }) {
 
 type ProductOrder = Order & {
   provider?: Pick<Profile, "id" | "full_name" | "username" | "avatar_url"> | null;
+  customer?: Pick<Profile, "id" | "full_name" | "username" | "avatar_url"> | null;
   product?: { id: string; title: string; image_urls: string[] | null } | null;
 };
 
@@ -270,6 +271,7 @@ function OrdersTab() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [reviewing, setReviewing] = useState<ProductOrder | null>(null);
   const [reviewed, setReviewed] = useState<Set<string>>(new Set());
+  const [filter, setFilter] = useState<"all" | "service" | "product">("all");
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -277,18 +279,21 @@ function OrdersTab() {
       const { data, error } = await supabase
         .from("orders")
         .select("*")
-        .eq("customer_id", user.id)
-        .eq("kind", "product")
+        .or(`customer_id.eq.${user.id},provider_id.eq.${user.id}`)
         .order("created_at", { ascending: false });
       if (error) throw error;
       const rows = (data as Order[]) ?? [];
 
-      const providerIds = [...new Set(rows.map((o) => o.provider_id))];
+      const partyIds = [
+        ...new Set(
+          rows.flatMap((o) => [o.provider_id, o.customer_id]).filter(Boolean) as string[],
+        ),
+      ];
       const productIds = [...new Set(rows.map((o) => o.product_id).filter(Boolean) as string[])];
 
-      const [{ data: providers }, { data: products }, { data: myReviews }] = await Promise.all([
-        providerIds.length
-          ? supabase.from("profiles").select("id, full_name, username, avatar_url").in("id", providerIds)
+      const [{ data: parties }, { data: products }, { data: myReviews }] = await Promise.all([
+        partyIds.length
+          ? supabase.from("profiles").select("id, full_name, username, avatar_url").in("id", partyIds)
           : Promise.resolve({ data: [] as any[] }),
         productIds.length
           ? (supabase.from("products") as any).select("id, title, image_urls").in("id", productIds)
@@ -296,13 +301,14 @@ function OrdersTab() {
         supabase.from("product_reviews").select("product_id").eq("reviewer_id", user.id),
       ]);
 
-      const provMap = new Map(((providers as any[]) ?? []).map((p) => [p.id, p]));
+      const partyMap = new Map(((parties as any[]) ?? []).map((p) => [p.id, p]));
       const prodMap = new Map(((products as any[]) ?? []).map((p) => [p.id, p]));
 
       setOrders(
         rows.map((o) => ({
           ...o,
-          provider: provMap.get(o.provider_id) ?? null,
+          provider: partyMap.get(o.provider_id) ?? null,
+          customer: partyMap.get(o.customer_id) ?? null,
           product: (o.product_id && prodMap.get(o.product_id)) || null,
         })),
       );
@@ -327,6 +333,36 @@ function OrdersTab() {
   }, [user, load]);
   useLiveData(["orders", "product_reviews"], load);
 
+  const filtered = useMemo(() => {
+    if (filter === "all") return orders;
+    if (filter === "service") return orders.filter((o) => o.kind === "service" || !o.kind);
+    return orders.filter((o) => o.kind === "product");
+  }, [orders, filter]);
+
+  const FilterTabs = (
+    <div className="mb-4 inline-flex items-center gap-1 p-1 rounded-full bg-muted/70">
+      {(["all", "service", "product"] as const).map((k) => {
+        const active = filter === k;
+        const label = k === "all" ? "All" : k === "service" ? "Services" : "Products";
+        return (
+          <button
+            key={k}
+            type="button"
+            onClick={() => setFilter(k)}
+            className={
+              "px-4 h-8 rounded-full text-xs font-semibold transition " +
+              (active
+                ? "bg-primary text-primary-foreground shadow-[0_6px_16px_-8px_color-mix(in_oklab,var(--primary)_60%,transparent)]"
+                : "text-muted-foreground hover:text-foreground")
+            }
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16 text-muted-foreground">
@@ -337,19 +373,35 @@ function OrdersTab() {
 
   if (orders.length === 0) {
     return (
-      <EmptyState
-        icon={<ShoppingBag className="h-6 w-6" />}
-        title="No product orders yet"
-        body="Start shopping! 🛍️"
-      />
+      <div>
+        {FilterTabs}
+        <EmptyState
+          icon={<ShoppingBag className="h-6 w-6" />}
+          title="No orders yet"
+          body="Start exploring! 🛍️"
+        />
+      </div>
     );
   }
 
   return (
-    <div className="space-y-3">
-      {orders.map((o) => {
+    <div>
+      {FilterTabs}
+      {filtered.length === 0 ? (
+        <EmptyState
+          icon={<ShoppingBag className="h-6 w-6" />}
+          title="No orders in this filter"
+          body="Try a different tab."
+        />
+      ) : (
+      <div className="space-y-3">
+      {filtered.map((o) => {
         const isOpen = expanded === o.id;
         const cover = o.product?.image_urls?.[0];
+        const isSeller = o.provider_id === user?.id;
+        const counterparty = isSeller ? o.customer : o.provider;
+        const counterpartyLabel = isSeller ? "Buyer" : "Seller";
+        const kindLabel = o.kind === "product" ? "Product" : "Service";
         const statusColor =
           o.status === "completed"
             ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
@@ -378,11 +430,12 @@ function OrdersTab() {
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-semibold truncate">{o.service_title}</div>
                 <div className="text-xs text-muted-foreground truncate">
-                  {o.provider?.full_name || o.provider?.username || "Seller"}
+                  {counterpartyLabel}: {counterparty?.full_name || counterparty?.username || "—"}
                 </div>
                 <div className="mt-1 flex items-center gap-2 flex-wrap">
                   <span className="text-sm font-extrabold text-gradient-brand">{formatNgn(o.amount)}</span>
                   <Badge className={`${statusColor} border-transparent capitalize`}>{o.status}</Badge>
+                  <Badge variant="outline" className="capitalize">{kindLabel}</Badge>
                   <span className="text-[11px] text-muted-foreground">
                     {new Date(o.created_at).toLocaleDateString()}
                   </span>
@@ -395,15 +448,19 @@ function OrdersTab() {
             {isOpen && (
               <div className="border-t border-border/60 px-3 py-3 space-y-2 text-xs">
                 <Row label="Order ID" value={o.id} mono />
+                <Row label="Kind" value={kindLabel} />
                 <Row label="Payment Ref" value={o.payment_ref || "—"} mono />
                 <Row label="Payment Status" value={o.payment_status} />
-                <Row label="Delivery Status" value={o.status} />
+                <Row label="Status" value={o.status} />
                 <Row label="Placed" value={new Date(o.created_at).toLocaleString()} />
                 <div className="pt-2 flex flex-wrap gap-2">
-                  <Button size="sm" variant="outline" asChild className="rounded-full">
-                    <Link to="/product/$id" params={{ id: o.product_id || "" }}>View product</Link>
-                  </Button>
-                  {o.status === "completed" &&
+                  {o.kind === "product" && o.product_id && (
+                    <Button size="sm" variant="outline" asChild className="rounded-full">
+                      <Link to="/product/$id" params={{ id: o.product_id }}>View product</Link>
+                    </Button>
+                  )}
+                  {!isSeller &&
+                    o.status === "completed" &&
                     o.product_id &&
                     !reviewed.has(o.product_id) && (
                       <Button
@@ -437,6 +494,8 @@ function OrdersTab() {
             setReviewing(null);
           }}
         />
+      )}
+      </div>
       )}
     </div>
   );
