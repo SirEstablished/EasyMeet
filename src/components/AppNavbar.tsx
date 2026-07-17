@@ -25,6 +25,7 @@ export function AppNavbar() {
     { to: "/dashboard", label: "Home" },
     { to: "/explore", label: "Explore" },
     { to: "/feed", label: "Feed" },
+    { to: "/shop", label: "Shop" },
     { to: "/messages", label: "Messages" },
     { to: "/my-orders", label: ordersLabel },
     { to: "/profile", label: "My Profile" },
