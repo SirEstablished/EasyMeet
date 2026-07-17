@@ -10,7 +10,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VerificationTicks } from "@/components/VerificationTicks";
 import { ReviewOrderDialog } from "@/components/ReviewOrderDialog";
-import { RequestRefundDialog } from "@/components/RequestRefundDialog";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { computePaystackFee } from "@/lib/paystackFees";
 import { useLiveData } from "@/hooks/use-live-data";
@@ -291,7 +290,6 @@ function OrdersTab() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<ProductOrder | null>(null);
   const [reviewing, setReviewing] = useState<ProductOrder | null>(null);
-  const [refunding, setRefunding] = useState<ProductOrder | null>(null);
   const [reviewed, setReviewed] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState<"all" | "service" | "product">("all");
 
@@ -496,21 +494,7 @@ function OrdersTab() {
           setSelected(null);
           setReviewing(o);
         }}
-        onRefund={(o) => {
-          setSelected(null);
-          setRefunding(o);
-        }}
       />
-
-      {refunding && (
-        <RequestRefundDialog
-          open={!!refunding}
-          onOpenChange={(v) => !v && setRefunding(null)}
-          orderId={refunding.id}
-          amount={refunding.amount}
-          onSubmitted={() => setRefunding(null)}
-        />
-      )}
     </div>
   );
 }
@@ -521,14 +505,12 @@ function OrderDetailSheet({
   reviewed,
   onClose,
   onReview,
-  onRefund,
 }: {
   order: ProductOrder | null;
   currentUserId: string | null;
   reviewed: Set<string>;
   onClose: () => void;
   onReview: (o: ProductOrder) => void;
-  onRefund: (o: ProductOrder) => void;
 }) {
   const open = !!order;
   if (!order) {
@@ -683,9 +665,9 @@ function OrderDetailSheet({
             <DetailRow icon={<Wallet className="h-4 w-4" />} label="Amount">
               <span className="font-extrabold text-gradient-brand">{formatNgn(order.amount)}</span>
             </DetailRow>
-            {order.commission_amount > 0 && (
+            {(order.commission_amount ?? 0) > 0 && (
               <DetailRow icon={<Shield className="h-4 w-4" />} label="EasyMeet Protection Fee">
-                <span className="font-semibold">{formatNgn(order.commission_amount)}</span>
+                <span className="font-semibold">{formatNgn(order.commission_amount ?? 0)}</span>
               </DetailRow>
             )}
             {paystackFee > 0 && (
@@ -693,10 +675,10 @@ function OrderDetailSheet({
                 <span className="font-semibold">{formatNgn(paystackFee)}</span>
               </DetailRow>
             )}
-            {order.payout_amount > 0 && (
+            {(order.payout_amount ?? 0) > 0 && (
               <DetailRow icon={<CheckCircle2 className="h-4 w-4" />} label={isSeller ? "You Received" : "Professional Received"}>
                 <span className="font-extrabold text-emerald-600 dark:text-emerald-400">
-                  {formatNgn(order.payout_amount)}
+                  {formatNgn(order.payout_amount ?? 0)}
                 </span>
               </DetailRow>
             )}
@@ -756,11 +738,13 @@ function OrderDetailSheet({
             )}
             {!isSeller && order.status === "cancelled" && order.payment_ref && (
               <Button
-                onClick={() => onRefund(order)}
+                asChild
                 variant="outline"
                 className="h-11 rounded-full"
               >
-                <RotateCcw className="h-4 w-4 mr-2" /> Request Refund
+                <Link to="/my-orders">
+                  <RotateCcw className="h-4 w-4 mr-2" /> Request Refund
+                </Link>
               </Button>
             )}
             {isService && (
