@@ -147,7 +147,7 @@ function Dashboard() {
     monthStart.setHours(0, 0, 0, 0);
     const lastMonthStart = new Date(monthStart);
     lastMonthStart.setMonth(lastMonthStart.getMonth() - 1);
-    const [walletRes, ordersRes, notifRes] = await Promise.all([
+    const [walletRes, ordersRes, escrowHoldRes, , notifRes] = await Promise.all([
       supabase
         .from("wallets" as never)
         .select("available_balance, escrow_balance")

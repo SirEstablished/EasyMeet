@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { supabase, formatNgn, type Product, type Order, type Profile } from "@/integrations/supabase/client";
@@ -51,12 +51,13 @@ function matchCategory(product: Product, cat: Category): boolean {
 }
 
 function ShopPage() {
-  const search = useSearch({ from: "/_authenticated/shop" });
-  const navigate = useNavigate({ from: "/_authenticated/shop" });
-  const initialTab = search.tab === "orders" ? "orders" : "products";
+  const search = Route.useSearch();
+  const [tab, setTab] = useState<"products" | "orders">(
+    search.tab === "orders" ? "orders" : "products",
+  );
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-8 lg:px-12 pt-5 pb-24">
+    <div className="w-full max-w-7xl mx-auto px-4 sm:px-8 lg:px-12 pt-5 pb-24">
       <div className="flex items-center gap-2">
         <div className="h-10 w-10 rounded-2xl bg-gradient-brand grid place-items-center text-white">
           <ShoppingBag className="h-5 w-5" />
@@ -65,11 +66,11 @@ function ShopPage() {
       </div>
 
       <Tabs
-        value={initialTab}
-        onValueChange={(v) => navigate({ search: { tab: v as "products" | "orders" } })}
+        value={tab}
+        onValueChange={(v) => setTab(v as "products" | "orders")}
         className="mt-5"
       >
-        <TabsList className="w-full h-12 p-1 rounded-2xl bg-muted/70 grid grid-cols-2">
+        <TabsList className="w-full sm:max-w-md h-12 p-1 rounded-2xl bg-muted/70 grid grid-cols-2">
           <TabsTrigger
             value="products"
             className="rounded-xl h-full text-sm font-semibold transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-[0_6px_16px_-8px_color-mix(in_oklab,var(--primary)_60%,transparent)] text-muted-foreground"
