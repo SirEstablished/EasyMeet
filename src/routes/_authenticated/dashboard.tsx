@@ -250,7 +250,6 @@ function Dashboard() {
 
   const quickActions: { Icon: typeof Search; label: string; to: string; show: boolean }[] = isPro
     ? [
-        { Icon: Sparkles, label: "My Services", to: "/my-services", show: true },
         { Icon: Package, label: "My Products", to: "/my-products", show: true },
         { Icon: CalendarCheck, label: "Orders", to: "/my-orders", show: true },
         { Icon: MessageCircle, label: "Messages", to: "/messages", show: true },
@@ -310,45 +309,45 @@ function Dashboard() {
 
       {/* Wallet + Escrow card */}
       {isPro && (
-        <section className="rounded-2xl bg-primary/5 border border-primary/10 p-4 sm:p-5 shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-0 sm:justify-between">
+        <section className="rounded-2xl bg-card border border-border p-4 sm:p-5 shadow-sm">
+          <div className="grid grid-cols-2 gap-4">
             <div className="min-w-0">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+              <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                 <WalletIcon className="h-3.5 w-3.5" /> Wallet Balance
               </div>
               <div className="mt-1.5 flex items-center gap-2">
-                <span className="text-2xl sm:text-3xl font-extrabold tracking-tight text-primary">
+                <span className="text-xl sm:text-2xl font-extrabold tracking-tight text-primary truncate">
                   {hideBalance ? "••••••" : formatNgn(available)}
                 </span>
                 <button
                   type="button"
                   onClick={() => setHideBalance(!hideBalance)}
-                  className="text-muted-foreground hover:text-foreground transition p-0.5"
+                  className="text-muted-foreground hover:text-foreground transition p-0.5 shrink-0"
                 >
-                  {hideBalance ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {hideBalance ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                 </button>
               </div>
-              <div className="text-[11px] text-muted-foreground mt-0.5">Available to withdraw</div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">Available to withdraw</div>
               <button
                 type="button"
                 onClick={() => setWithdrawOpen(true)}
                 disabled={available < 1000}
-                className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-primary text-white text-xs font-semibold px-4 py-2 hover:bg-primary/90 transition disabled:opacity-50"
+                className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold px-3 py-2 hover:bg-primary/90 transition disabled:opacity-50"
               >
                 Withdraw Funds <ArrowRight className="h-3.5 w-3.5" />
               </button>
             </div>
-            <div className="sm:border-l sm:border-border sm:pl-6 min-w-0">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+            <div className="border-l border-border pl-4 min-w-0">
+              <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                 <ShieldCheck className="h-3.5 w-3.5" /> Active Escrow
               </div>
-              <div className="mt-1.5 text-2xl sm:text-3xl font-extrabold tracking-tight">
+              <div className="mt-1.5 text-xl sm:text-2xl font-extrabold tracking-tight text-primary truncate">
                 {formatNgn(escrow)}
               </div>
-              <div className="text-[11px] text-muted-foreground mt-0.5">In progress</div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">In progress</div>
               <Link
                 to="/my-orders"
-                className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-primary/10 text-primary text-xs font-semibold px-3 py-2 hover:bg-primary/15 transition"
               >
                 View Escrow <ArrowRight className="h-3.5 w-3.5" />
               </Link>
