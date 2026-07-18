@@ -291,7 +291,7 @@ function OrdersTab() {
   const [selected, setSelected] = useState<ProductOrder | null>(null);
   const [reviewing, setReviewing] = useState<ProductOrder | null>(null);
   const [reviewed, setReviewed] = useState<Set<string>>(new Set());
-  const [filter, setFilter] = useState<"all" | "service" | "product">("all");
+  // Orders are split into two clearly labeled sections (Shop Orders & Service Orders).
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -353,34 +353,10 @@ function OrdersTab() {
   }, [user, load]);
   useLiveData(["orders", "product_reviews"], load);
 
-  const filtered = useMemo(() => {
-    if (filter === "all") return orders;
-    if (filter === "service") return orders.filter((o) => o.kind === "service" || !o.kind);
-    return orders.filter((o) => o.kind === "product");
-  }, [orders, filter]);
-
-  const FilterTabs = (
-    <div className="mb-4 inline-flex items-center gap-1 p-1 rounded-full bg-muted/70">
-      {(["all", "service", "product"] as const).map((k) => {
-        const active = filter === k;
-        const label = k === "all" ? "All" : k === "service" ? "Services" : "Products";
-        return (
-          <button
-            key={k}
-            type="button"
-            onClick={() => setFilter(k)}
-            className={
-              "px-4 h-8 rounded-full text-xs font-semibold transition " +
-              (active
-                ? "bg-primary text-primary-foreground shadow-[0_6px_16px_-8px_color-mix(in_oklab,var(--primary)_60%,transparent)]"
-                : "text-muted-foreground hover:text-foreground")
-            }
-          >
-            {label}
-          </button>
-        );
-      })}
-    </div>
+  const shopOrders = useMemo(() => orders.filter((o) => o.kind === "product"), [orders]);
+  const serviceOrders = useMemo(
+    () => orders.filter((o) => o.kind === "service" || !o.kind),
+    [orders],
   );
 
   if (loading) {
@@ -391,31 +367,7 @@ function OrdersTab() {
     );
   }
 
-  if (orders.length === 0) {
-    return (
-      <div>
-        {FilterTabs}
-        <EmptyState
-          icon={<ShoppingBag className="h-6 w-6" />}
-          title="No orders yet"
-          body="Start exploring! 🛍️"
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      {FilterTabs}
-      {filtered.length === 0 ? (
-        <EmptyState
-          icon={<ShoppingBag className="h-6 w-6" />}
-          title="No orders in this filter"
-          body="Try a different tab."
-        />
-      ) : (
-      <div className="space-y-3">
-      {filtered.map((o) => {
+  const renderOrder = (o: ProductOrder) => {
         const cover = o.product?.image_urls?.[0];
         const isSeller = o.provider_id === user?.id;
         const counterparty = isSeller ? o.customer : o.provider;
@@ -463,7 +415,45 @@ function OrdersTab() {
             </button>
           </div>
         );
-      })}
+  };
+
+  return (
+    <div className="space-y-8">
+      <section>
+        <div className="flex items-center gap-2 mb-3">
+          <h2 className="text-lg font-extrabold tracking-tight">🛍️ Shop Orders</h2>
+          <span className="text-xs text-muted-foreground">
+            Products purchased through the Shop
+          </span>
+        </div>
+        {shopOrders.length === 0 ? (
+          <EmptyState
+            icon={<ShoppingBag className="h-6 w-6" />}
+            title="No shop orders yet"
+            body="Browse products and buy something! 🛍️"
+          />
+        ) : (
+          <div className="space-y-3">{shopOrders.map(renderOrder)}</div>
+        )}
+      </section>
+
+      <section>
+        <div className="flex items-center gap-2 mb-3">
+          <h2 className="text-lg font-extrabold tracking-tight">🤝 Service Orders</h2>
+          <span className="text-xs text-muted-foreground">
+            Jobs booked through agreements
+          </span>
+        </div>
+        {serviceOrders.length === 0 ? (
+          <EmptyState
+            icon={<Handshake className="h-6 w-6" />}
+            title="No service orders yet"
+            body="Explore professionals and start a deal! 🤝"
+          />
+        ) : (
+          <div className="space-y-3">{serviceOrders.map(renderOrder)}</div>
+        )}
+      </section>
 
       {reviewing && (
         <ReviewOrderDialog
@@ -481,8 +471,6 @@ function OrdersTab() {
             setReviewing(null);
           }}
         />
-      )}
-      </div>
       )}
 
       <OrderDetailSheet
