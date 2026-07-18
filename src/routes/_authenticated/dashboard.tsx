@@ -250,7 +250,6 @@ function Dashboard() {
 
   const quickActions: { Icon: typeof Search; label: string; to: string; show: boolean }[] = isPro
     ? [
-        { Icon: Sparkles, label: "My Services", to: "/my-services", show: true },
         { Icon: Package, label: "My Products", to: "/my-products", show: true },
         { Icon: CalendarCheck, label: "Orders", to: "/my-orders", show: true },
         { Icon: MessageCircle, label: "Messages", to: "/messages", show: true },
