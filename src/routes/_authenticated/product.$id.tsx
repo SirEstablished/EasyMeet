@@ -10,7 +10,7 @@ import { StarRating } from "@/components/StarRating";
 import { ArrowLeft, ChevronLeft, ChevronRight, Loader2, ShoppingBag, Star } from "lucide-react";
 import { toast } from "sonner";
 import { payWithPaystack } from "@/lib/paystack";
-import { recordProductOrder } from "@/lib/product-orders.functions";
+import { verifyPaystackTransaction } from "@/lib/paystack.functions";
 
 export const Route = createFileRoute("/_authenticated/product/$id")({
   component: ProductDetail,
@@ -86,14 +86,80 @@ function ProductDetail() {
         amountNgn: Number(product.price),
         metadata: { product_id: product.id, kind: "product" },
       });
-      const rec = await recordProductOrder({
-        data: { productId: product.id, reference: res.reference },
+
+      // Server-side Paystack verification
+      const verify = await verifyPaystackTransaction({
+        data: { reference: res.reference, expectedAmountNgn: Number(product.price) },
       });
-      if (!rec.ok) {
-        toast.error(rec.message || "Could not save order");
+      if (!verify.ok) {
+        toast.error(verify.message || "Payment verification failed");
         return;
       }
-      toast.success("Payment successful! 🎉");
+
+      // Idempotency — if this reference already recorded, skip insert
+      const price = Number(product.price);
+      const { data: existing } = await (supabase.from("orders") as any)
+        .select("id")
+        .eq("payment_ref", res.reference)
+        .maybeSingle();
+
+      let orderId: string | undefined = existing?.id;
+      if (!orderId) {
+        const { data: inserted, error: insErr } = await (supabase.from("orders") as any)
+          .insert({
+            customer_id: user.id,
+            provider_id: product.seller_id,
+            product_id: product.id,
+            service_title: product.title,
+            amount: price,
+            payment_ref: res.reference,
+            payment_status: "paid",
+            status: "confirmed",
+            currency: "NGN",
+            kind: "product",
+          })
+          .select("id")
+          .single();
+        if (insErr || !inserted) {
+          toast.error(insErr?.message || "Could not save order");
+          return;
+        }
+        orderId = inserted.id;
+
+        // Credit seller wallet (full price, zero commission for product sales)
+        const { error: creditErr } = await supabase.rpc(
+          "credit_wallet_after_release" as never,
+          {
+            p_user_id: product.seller_id,
+            p_amount: price,
+            p_commission: 0,
+            p_order_id: orderId,
+            p_escrow_id: null,
+          } as never,
+        );
+        if (creditErr) console.error("Wallet credit failed", creditErr);
+
+        // Notify seller (best-effort)
+        try {
+          const { data: buyer } = await supabase
+            .from("profiles")
+            .select("full_name, username")
+            .eq("id", user.id)
+            .maybeSingle();
+          const buyerName =
+            (buyer as any)?.full_name || (buyer as any)?.username || "Someone";
+          await supabase.from("notifications").insert({
+            user_id: product.seller_id,
+            title: "New Product Sale! 🛍️",
+            message: `${buyerName} just purchased ${product.title} for ₦${price.toLocaleString()}. Check your wallet!`,
+            type: "sale",
+          } as never);
+        } catch (e) {
+          console.error("Sale notification failed", e);
+        }
+      }
+
+      toast.success("Purchase successful! 🎉");
       navigate({ to: "/shop", search: { tab: "orders" } });
     } catch (e) {
       if (e instanceof Error && e.message === "Payment cancelled") {
