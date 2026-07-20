@@ -101,7 +101,7 @@ export function EscrowOrdersSection() {
         ),
       );
       setCompleting(null);
-      toast.success("Marked complete — payment released to seller");
+      // No completion popup — confirmation lives in the chat Deal Summary card.
       void load();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not release payment");

@@ -180,6 +180,16 @@ function Dashboard() {
         .select("id, status, escrow_status, payout_amount, amount, customer_id, created_at")
         .eq("provider_id", user.id),
       supabase
+        .from("escrow" as never)
+        .select("amount, amount_ngn, payout_amount")
+        .or(`customer_id.eq.${user.id},provider_id.eq.${user.id},professional_id.eq.${user.id}`)
+        .eq("status", "holding"),
+      supabase
+        .from("orders")
+        .select("id, status")
+        .or(`customer_id.eq.${user.id},provider_id.eq.${user.id}`)
+        .in("status", ["confirmed", "pending"]),
+      supabase
         .from("notifications")
         .select("id, title, message, type, created_at")
         .eq("user_id", user.id)
@@ -188,7 +198,16 @@ function Dashboard() {
     ]);
     const w = walletRes.data as { available_balance?: number; escrow_balance?: number } | null;
     setAvailable(Number(w?.available_balance ?? 0));
-    setEscrow(Number(w?.escrow_balance ?? 0));
+    const walletEscrow = Number(w?.escrow_balance ?? 0);
+    const liveEscrow = ((escrowHoldRes.data ?? []) as {
+      amount: number | null;
+      amount_ngn: number | null;
+      payout_amount: number | null;
+    }[]).reduce(
+      (sum, e) => sum + Number(e.payout_amount ?? e.amount_ngn ?? e.amount ?? 0),
+      0,
+    );
+    setEscrow(Math.max(walletEscrow, liveEscrow));
     const orders = (ordersRes.data ?? []) as {
       status: string | null;
       escrow_status: string | null;
@@ -246,7 +265,7 @@ function Dashboard() {
   useEffect(() => {
     void loadSummary();
   }, [loadSummary]);
-  useLiveData(user && isPro ? ["wallets", "orders", "notifications"] : [], loadSummary);
+  useLiveData(user && isPro ? ["wallets", "orders", "escrow", "notifications"] : [], loadSummary);
 
   const loadCustomerData = useCallback(async () => {
     if (!user || isPro) return;

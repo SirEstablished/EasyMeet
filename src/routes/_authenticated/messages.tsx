@@ -259,11 +259,19 @@ function MessagesPage() {
             filtered.map((c) => {
               const name = c.other?.full_name || c.other?.username || "User";
               const unread = c.unread_count > 0;
-              const preview = c.last_message?.body
-                ? c.last_message.body.length > 40
-                  ? c.last_message.body.slice(0, 40) + "…"
-                  : c.last_message.body
-                : "No messages yet";
+              const lm = c.last_message as
+                | (Message & { media_url?: string | null; media_type?: string | null })
+                | null;
+              let preview = "No messages yet";
+              if (lm) {
+                const mediaType = (lm.media_type || "").toLowerCase();
+                if (mediaType.startsWith("image")) preview = "📷 Photo";
+                else if (mediaType.startsWith("video")) preview = "🎥 Video";
+                else if (lm.media_url && !lm.body) preview = "📎 Attachment";
+                else if (lm.body) {
+                  preview = lm.body.length > 40 ? lm.body.slice(0, 40) + "…" : lm.body;
+                }
+              }
               const role = c.other?.role;
               const isSelected = activeId === c.id;
               return (
