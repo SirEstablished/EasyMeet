@@ -177,7 +177,7 @@ function Dashboard() {
         .maybeSingle(),
       supabase
         .from("orders")
-        .select("id, status, escrow_status, payout_amount, amount_ngn, amount, customer_id, created_at")
+        .select("id, status, escrow_status, payout_amount, amount, customer_id, created_at")
         .eq("provider_id", user.id),
       supabase
         .from("notifications")
@@ -193,7 +193,6 @@ function Dashboard() {
       status: string | null;
       escrow_status: string | null;
       payout_amount: number | null;
-      amount_ngn: number | null;
       amount: number | null;
       customer_id: string | null;
       created_at: string;
@@ -208,7 +207,7 @@ function Dashboard() {
       const es = (o.escrow_status || "").toLowerCase();
       const os = (o.status || "").toLowerCase();
       const isCompleted = es === "released" || es === "completed" || os === "completed";
-      const rev = Number(o.payout_amount ?? o.amount_ngn ?? o.amount ?? 0) || 0;
+      const rev = Number(o.payout_amount ?? o.amount ?? 0) || 0;
       const created = new Date(o.created_at);
       if (isCompleted) {
         total += rev;

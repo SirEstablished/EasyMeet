@@ -7,11 +7,12 @@ import {
   FileText,
   Lock,
   CheckCircle2,
-  Receipt,
   Shield,
   Clock,
   ArrowRight,
   Wallet,
+  AlertTriangle,
+  PartyPopper,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -21,7 +22,20 @@ import { cn } from "@/lib/utils";
 //   [[card:agreement]]{"agreement_id":"...", ...}
 // A plain-text fallback (rendered on old clients) follows after \n\n.
 
-export type CardKind = "agreement" | "payment" | "completion" | "deal_summary";
+export type CardKind =
+  | "agreement"
+  | "payment"
+  | "completion"
+  | "deal_summary"
+  | "agreement_received"
+  | "agreement_accepted"
+  | "escrow_funded"
+  | "work_in_progress"
+  | "job_completed"
+  | "customer_decision"
+  | "payment_released"
+  | "dispute_opened"
+  | "dispute_resolved";
 
 type BaseCardPayload = Record<string, unknown>;
 
@@ -56,6 +70,62 @@ export interface DealSummaryCardPayload extends BaseCardPayload {
   paystack_fee: number;
   released: number;
   status: string;
+}
+
+export interface AgreementReceivedCardPayload extends BaseCardPayload {
+  agreement_id: string;
+  title: string;
+  agreement_type: string;
+  amount: number;
+  sender_id: string;
+}
+export interface AgreementAcceptedCardPayload extends BaseCardPayload {
+  agreement_id: string;
+  title: string;
+  agreement_type: string;
+  amount: number;
+  sender_id: string;
+}
+export interface EscrowFundedCardPayload extends BaseCardPayload {
+  escrow_id: string;
+  amount: number;
+  title: string;
+}
+export interface WorkInProgressCardPayload extends BaseCardPayload {
+  escrow_id: string;
+  amount: number;
+  title: string;
+}
+export interface JobCompletedCardPayload extends BaseCardPayload {
+  escrow_id: string;
+  amount: number;
+  title: string;
+}
+export interface CustomerDecisionCardPayload extends BaseCardPayload {
+  escrow_id: string;
+  amount: number;
+  title: string;
+}
+export interface PaymentReleasedCardPayload extends BaseCardPayload {
+  escrow_id: string;
+  amount: number;
+  protection_fee: number;
+  payout: number;
+  title: string;
+  released_at: string;
+}
+export interface DisputeOpenedCardPayload extends BaseCardPayload {
+  escrow_id: string;
+  amount: number;
+  title: string;
+  reason: string;
+}
+export interface DisputeResolvedCardPayload extends BaseCardPayload {
+  escrow_id: string;
+  amount: number;
+  title: string;
+  resolution: string;
+  payout: number;
 }
 
 export function encodeCard(kind: CardKind, payload: BaseCardPayload, fallback: string): string {
@@ -105,45 +175,106 @@ export function EscrowChatCard({
   mine: boolean;
   onEdit?: (agreementId: string) => void;
 }) {
-  if (kind === "agreement") {
-    return (
-      <AgreementCard payload={payload as AgreementCardPayload} meId={meId} onEdit={onEdit} />
-    );
+  switch (kind) {
+    case "agreement":
+      return (
+        <AgreementCard
+          payload={payload as AgreementCardPayload}
+          meId={meId}
+          mine={mine}
+          onEdit={onEdit}
+        />
+      );
+    case "agreement_received":
+      return (
+        <AgreementReceivedCard
+          payload={payload as AgreementReceivedCardPayload}
+          meId={meId}
+          mine={mine}
+        />
+      );
+    case "agreement_accepted":
+      return (
+        <AgreementAcceptedCard
+          payload={payload as AgreementAcceptedCardPayload}
+          meId={meId}
+          mine={mine}
+        />
+      );
+    case "escrow_funded":
+      return <EscrowFundedCard payload={payload as EscrowFundedCardPayload} />;
+    case "work_in_progress":
+      return <WorkInProgressCard payload={payload as WorkInProgressCardPayload} />;
+    case "job_completed":
+      return <JobCompletedCard payload={payload as JobCompletedCardPayload} />;
+    case "customer_decision":
+      return <CustomerDecisionCard payload={payload as CustomerDecisionCardPayload} />;
+    case "payment_released":
+      return <PaymentReleasedCard payload={payload as PaymentReleasedCardPayload} />;
+    case "dispute_opened":
+      return <DisputeOpenedCard payload={payload as DisputeOpenedCardPayload} />;
+    case "dispute_resolved":
+      return <DisputeResolvedCard payload={payload as DisputeResolvedCardPayload} />;
+    case "payment":
+      return <PaymentCard payload={payload as PaymentCardPayload} />;
+    case "completion":
+      return <CompletionCard payload={payload as CompletionCardPayload} />;
+    case "deal_summary":
+      return <DealSummaryCard payload={payload as DealSummaryCardPayload} />;
+    default:
+      return null;
   }
-  if (kind === "payment") return <PaymentCard payload={payload as PaymentCardPayload} />;
-  if (kind === "completion") return <CompletionCard payload={payload as CompletionCardPayload} />;
-  if (kind === "deal_summary") return <DealSummaryCard payload={payload as DealSummaryCardPayload} />;
-  return null;
 }
+
+// -------- CardShell --------
 
 function CardShell({
   accent,
   children,
   align,
 }: {
-  accent: "primary" | "accent" | "coral" | "payment";
+  accent: "primary" | "green" | "red" | "blue" | "yellow" | "payment";
   children: React.ReactNode;
   align?: "start" | "end";
 }) {
   const border =
     accent === "primary"
       ? "border-primary/20"
-      : accent === "coral"
-        ? "border-coral/30"
-        : accent === "payment"
-          ? "border-payment/25"
-          : "border-accent/25";
+      : accent === "green"
+        ? "border-emerald-200 bg-emerald-50/30"
+        : accent === "red"
+          ? "border-red-200 bg-red-50/30"
+          : accent === "blue"
+            ? "border-blue-200 bg-blue-50/30"
+            : accent === "yellow"
+              ? "border-amber-200 bg-amber-50/30"
+              : "border-payment/25";
+
+  const accentBg =
+    accent === "primary"
+      ? ""
+      : accent === "green"
+        ? "bg-emerald-50/30"
+        : accent === "red"
+          ? "bg-red-50/30"
+          : accent === "blue"
+            ? "bg-blue-50/30"
+            : accent === "yellow"
+              ? "bg-amber-50/30"
+              : "";
+
   return (
     <div
       className={cn(
-        "w-full max-w-[92%] sm:max-w-[420px] my-2",
+        "w-full max-w-[85%] my-2",
         align === "end" ? "self-end ml-auto" : "self-start mr-auto",
       )}
     >
       <div
         className={cn(
-          "rounded-2xl border bg-card shadow-[0_6px_20px_-12px_rgba(15,23,42,0.18)]",
+          "rounded-2xl border bg-card shadow-[0_2px_8px_rgba(0,0,0,0.06)]",
           border,
+          accentBg,
         )}
       >
         {children}
@@ -152,14 +283,81 @@ function CardShell({
   );
 }
 
-// ---- Agreement Card ----
+// -------- Row helper --------
+
+function Row({
+  label,
+  value,
+  muted,
+  bold,
+  green,
+}: {
+  label: string;
+  value: string;
+  muted?: boolean;
+  bold?: boolean;
+  green?: boolean;
+}) {
+  return (
+    <div className="flex justify-between items-center px-3 py-2 text-[13px]">
+      <span className={muted ? "text-muted-foreground" : "text-foreground"}>{label}</span>
+      <span
+        className={cn(
+          bold ? "font-bold" : "font-semibold",
+          green ? "text-emerald-600" : "text-foreground",
+        )}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+// -------- EscrowProgress --------
+
+function EscrowProgress({ currentStep }: { currentStep: number }) {
+  const steps = ["Agreement", "Paid", "In Progress", "Completed", "Released"];
+  return (
+    <div className="flex items-center gap-1 pt-1">
+      {steps.map((s, i) => {
+        const stepNum = i + 1;
+        const isActive = stepNum <= currentStep;
+        const isCurrent = stepNum === currentStep;
+        return (
+          <div key={s} className="flex-1 flex flex-col items-center gap-1">
+            <div className="relative w-full flex items-center">
+              <div
+                className={cn(
+                  "h-1.5 rounded-full w-full",
+                  isActive ? "bg-emerald-500" : "bg-gray-200",
+                )}
+              />
+              {isCurrent && (
+                <div className="absolute left-1/2 -translate-x-1/2 -top-[1px]">
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse border-2 border-white" />
+                </div>
+              )}
+            </div>
+            <span className="text-[9px] text-muted-foreground leading-none whitespace-nowrap">
+              {s}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ---- Agreement Card (Stage 1 - Sent) ----
 function AgreementCard({
   payload,
   meId,
+  mine,
   onEdit,
 }: {
   payload: AgreementCardPayload;
   meId: string;
+  mine: boolean;
   onEdit?: (agreementId: string) => void;
 }) {
   const [status, setStatus] = useState<string | null>(null);
@@ -197,12 +395,13 @@ function AgreementCard({
               <FileText className="h-5 w-5 text-primary" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Escrow Agreement
-                </span>
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Agreement Sent
               </div>
-              <div className="font-semibold text-[15px] text-foreground truncate mt-0.5">
+              <div className="text-[11px] text-muted-foreground mt-0.5">
+                Waiting for customer response
+              </div>
+              <div className="font-semibold text-[15px] text-foreground truncate mt-1">
                 {payload.title}
               </div>
               <div className="flex items-center gap-2 mt-1.5 flex-wrap">
@@ -224,7 +423,7 @@ function AgreementCard({
           <div className="flex items-end justify-between pt-1">
             <div>
               <div className="text-[11px] text-muted-foreground">Total amount</div>
-              <div className="text-xl font-extrabold text-gradient-brand">
+              <div className="text-xl font-extrabold text-foreground">
                 {formatNgn(payload.amount)}
               </div>
             </div>
@@ -242,7 +441,7 @@ function AgreementCard({
             {canEdit && (
               <Button
                 size="sm"
-                className="bg-gradient-brand"
+                variant="secondary"
                 onClick={() => {
                   if (onEdit) return onEdit(payload.agreement_id);
                   if (typeof window !== "undefined") {
@@ -269,7 +468,459 @@ function AgreementCard({
   );
 }
 
-// ---- Payment Card ----
+// ---- Agreement Received Card (Stage 2) ----
+function AgreementReceivedCard({
+  payload,
+  meId,
+  mine,
+}: {
+  payload: AgreementReceivedCardPayload;
+  meId: string;
+  mine: boolean;
+}) {
+  const [status, setStatus] = useState<string | null>(null);
+  const [viewOpen, setViewOpen] = useState(false);
+
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      const { data } = await supabase
+        .from("service_agreements")
+        .select("status")
+        .eq("id", payload.agreement_id)
+        .maybeSingle();
+      if (!cancel && data) setStatus((data as { status: string }).status);
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [payload.agreement_id]);
+
+  const statusStyle =
+    status === "accepted"
+      ? "bg-accent/15 text-accent border-accent/30"
+      : status === "rejected" || status === "cancelled"
+        ? "bg-destructive/10 text-destructive border-destructive/30"
+        : "bg-primary/10 text-primary border-primary/30";
+
+  return (
+    <>
+      <CardShell accent="blue">
+        <div className="p-4 space-y-3">
+          <div className="flex items-start gap-3">
+            <div className="h-10 w-10 rounded-xl bg-blue-100 grid place-items-center shrink-0">
+              <FileText className="h-5 w-5 text-blue-600" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Agreement Received
+              </div>
+              <div className="text-[11px] text-muted-foreground mt-0.5">
+                Review and respond to continue
+              </div>
+              <div className="font-semibold text-[15px] text-foreground truncate mt-1">
+                {payload.title}
+              </div>
+              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                <Badge variant="outline" className="text-[10px] capitalize">
+                  {agreementTypeLabel(payload.agreement_type)}
+                </Badge>
+                <span
+                  className={cn(
+                    "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold capitalize",
+                    statusStyle,
+                  )}
+                >
+                  {status ?? "pending"}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-end justify-between pt-1">
+            <div>
+              <div className="text-[11px] text-muted-foreground">Total amount</div>
+              <div className="text-xl font-extrabold text-foreground">
+                {formatNgn(payload.amount)}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-2 pt-1">
+            <Button
+              size="sm"
+              variant="secondary"
+              className="flex-1"
+              onClick={() => setViewOpen(true)}
+            >
+              View Agreement
+            </Button>
+            <Button size="sm" className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white">
+              Accept
+            </Button>
+            <Button size="sm" variant="outline" className="flex-1">
+              Request Changes
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-1 border-red-300 text-red-600 hover:bg-red-50"
+            >
+              Reject
+            </Button>
+          </div>
+        </div>
+      </CardShell>
+      <ViewAgreementModal
+        open={viewOpen}
+        onOpenChange={setViewOpen}
+        agreementId={payload.agreement_id}
+      />
+    </>
+  );
+}
+
+// ---- Agreement Accepted Card (Stage 3) ----
+function AgreementAcceptedCard({
+  payload,
+  meId,
+  mine,
+}: {
+  payload: AgreementAcceptedCardPayload;
+  meId: string;
+  mine: boolean;
+}) {
+  return (
+    <CardShell accent="green">
+      <div className="p-4 space-y-3">
+        <div className="flex items-start gap-3">
+          <div className="h-10 w-10 rounded-xl bg-emerald-100 grid place-items-center shrink-0">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Agreement Accepted
+            </div>
+            <div className="font-semibold text-[15px] text-foreground truncate mt-1">
+              {payload.title}
+            </div>
+            <div className="flex items-center gap-2 mt-1.5">
+              <Badge variant="outline" className="text-[10px] capitalize">
+                {agreementTypeLabel(payload.agreement_type)}
+              </Badge>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-end justify-between pt-1">
+          <div>
+            <div className="text-[11px] text-muted-foreground">Total amount</div>
+            <div className="text-xl font-extrabold text-foreground">
+              {formatNgn(payload.amount)}
+            </div>
+          </div>
+        </div>
+
+        <EscrowProgress currentStep={1} />
+
+        <Button size="sm" className="w-full bg-emerald-500 hover:bg-emerald-600 text-white">
+          Pay into Escrow
+        </Button>
+      </div>
+    </CardShell>
+  );
+}
+
+// ---- Escrow Funded Card (Stage 4) ----
+function EscrowFundedCard({ payload }: { payload: EscrowFundedCardPayload }) {
+  return (
+    <CardShell accent="green">
+      <div className="p-4 space-y-3">
+        <div className="flex items-start gap-3">
+          <div className="h-10 w-10 rounded-xl bg-emerald-100 grid place-items-center shrink-0">
+            <Lock className="h-5 w-5 text-emerald-600" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Funds in Escrow
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">
+              Payment secured by EasyMeet
+            </div>
+            <div className="font-semibold text-[15px] text-foreground truncate mt-1">
+              {payload.title}
+            </div>
+          </div>
+        </div>
+
+        <div className="pt-1">
+          <div className="text-xl font-extrabold text-emerald-600">{formatNgn(payload.amount)}</div>
+          <div className="text-[11px] text-muted-foreground font-mono mt-0.5">
+            Escrow {payload.escrow_id?.slice(0, 8)}...
+          </div>
+        </div>
+
+        <EscrowProgress currentStep={2} />
+      </div>
+    </CardShell>
+  );
+}
+
+// ---- Work in Progress Card (Stage 5) ----
+function WorkInProgressCard({ payload }: { payload: WorkInProgressCardPayload }) {
+  return (
+    <CardShell accent="yellow">
+      <div className="p-4 space-y-3">
+        <div className="flex items-start gap-3">
+          <div className="h-10 w-10 rounded-xl bg-amber-100 grid place-items-center shrink-0">
+            <Clock className="h-5 w-5 text-amber-600" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Work in Progress
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">
+              Professional is working on your job
+            </div>
+            <div className="font-semibold text-[15px] text-foreground truncate mt-1">
+              {payload.title}
+            </div>
+          </div>
+        </div>
+
+        <div className="pt-1">
+          <div className="text-xl font-extrabold text-foreground">{formatNgn(payload.amount)}</div>
+          <div className="text-[11px] text-muted-foreground font-mono mt-0.5">
+            Escrow {payload.escrow_id?.slice(0, 8)}...
+          </div>
+        </div>
+
+        <EscrowProgress currentStep={3} />
+
+        <Button size="sm" variant="outline" className="w-full">
+          Review Work
+        </Button>
+      </div>
+    </CardShell>
+  );
+}
+
+// ---- Job Completed Card (Stage 6) ----
+function JobCompletedCard({ payload }: { payload: JobCompletedCardPayload }) {
+  return (
+    <CardShell accent="green">
+      <div className="p-4 space-y-3">
+        <div className="flex items-start gap-3">
+          <div className="h-10 w-10 rounded-xl bg-emerald-100 grid place-items-center shrink-0">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Job Completed
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">Please review the work</div>
+            <div className="font-semibold text-[15px] text-foreground truncate mt-1">
+              {payload.title}
+            </div>
+          </div>
+        </div>
+
+        <div className="pt-1">
+          <div className="text-xl font-extrabold text-foreground">{formatNgn(payload.amount)}</div>
+          <div className="text-[11px] text-muted-foreground font-mono mt-0.5">
+            Escrow {payload.escrow_id?.slice(0, 8)}...
+          </div>
+        </div>
+
+        <EscrowProgress currentStep={4} />
+
+        <Button size="sm" className="w-full bg-emerald-500 hover:bg-emerald-600 text-white">
+          Review Work
+        </Button>
+      </div>
+    </CardShell>
+  );
+}
+
+// ---- Customer Decision Card (Stage 7) ----
+function CustomerDecisionCard({ payload }: { payload: CustomerDecisionCardPayload }) {
+  return (
+    <CardShell accent="yellow">
+      <div className="p-4 space-y-3">
+        <div className="flex items-start gap-3">
+          <div className="h-10 w-10 rounded-xl bg-amber-100 grid place-items-center shrink-0">
+            <AlertTriangle className="h-5 w-5 text-amber-600" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Action Required
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">
+              Review the work and take action
+            </div>
+            <div className="font-semibold text-[15px] text-foreground truncate mt-1">
+              {payload.title}
+            </div>
+          </div>
+        </div>
+
+        <div className="pt-1">
+          <div className="text-xl font-extrabold text-foreground">{formatNgn(payload.amount)}</div>
+          <div className="text-[11px] text-muted-foreground font-mono mt-0.5">
+            Escrow {payload.escrow_id?.slice(0, 8)}...
+          </div>
+        </div>
+
+        <div className="flex gap-2 pt-1">
+          <Button size="sm" className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white">
+            Release Payment
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="flex-1 border-red-300 text-red-600 hover:bg-red-50"
+          >
+            Report Issue
+          </Button>
+          <Button size="sm" variant="outline" className="flex-1">
+            Request Changes
+          </Button>
+        </div>
+      </div>
+    </CardShell>
+  );
+}
+
+// ---- Payment Released Card (Stage 8) ----
+function PaymentReleasedCard({ payload }: { payload: PaymentReleasedCardPayload }) {
+  return (
+    <CardShell accent="green">
+      <div className="p-4 space-y-3">
+        <div className="flex items-start gap-3">
+          <div className="h-10 w-10 rounded-xl bg-emerald-100 grid place-items-center shrink-0">
+            <PartyPopper className="h-5 w-5 text-emerald-600" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Payment Released
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">
+              Deal completed successfully
+            </div>
+            <div className="font-semibold text-[15px] text-foreground truncate mt-1">
+              {payload.title}
+            </div>
+          </div>
+        </div>
+
+        <div className="text-[11px] text-muted-foreground font-mono">
+          Escrow {payload.escrow_id?.slice(0, 8)}...
+        </div>
+
+        <div className="rounded-xl bg-muted/40 border border-border/60 divide-y divide-border/60">
+          <Row label="Customer paid" value={formatNgn(payload.amount)} bold />
+          <Row
+            label="EasyMeet Protection Fee"
+            value={`− ${formatNgn(payload.protection_fee)}`}
+            muted
+          />
+          <Row label="Professional received" value={formatNgn(payload.payout)} green bold />
+        </div>
+
+        <Button size="sm" className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
+          Leave a Review
+        </Button>
+      </div>
+    </CardShell>
+  );
+}
+
+// ---- Dispute Opened Card (Stage 9A) ----
+function DisputeOpenedCard({ payload }: { payload: DisputeOpenedCardPayload }) {
+  return (
+    <CardShell accent="red">
+      <div className="p-4 space-y-3">
+        <div className="flex items-start gap-3">
+          <div className="h-10 w-10 rounded-xl bg-red-100 grid place-items-center shrink-0">
+            <AlertTriangle className="h-5 w-5 text-red-600" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Dispute Opened
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">
+              Our team will investigate
+            </div>
+            <div className="font-semibold text-[15px] text-foreground truncate mt-1">
+              {payload.title}
+            </div>
+          </div>
+        </div>
+
+        <div className="text-[11px] text-muted-foreground font-mono">
+          Escrow {payload.escrow_id?.slice(0, 8)}...
+        </div>
+
+        <div className="rounded-xl bg-red-50/50 border border-red-100 p-3">
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-red-600 mb-1">
+            What happens next
+          </div>
+          <p className="text-[13px] text-foreground/80 leading-snug">
+            Our dispute resolution team will review the evidence from both parties and reach a fair
+            resolution within 3-5 business days. Funds remain securely held in escrow during the
+            investigation.
+          </p>
+        </div>
+
+        <Button size="sm" variant="outline" className="w-full">
+          View Dispute
+        </Button>
+      </div>
+    </CardShell>
+  );
+}
+
+// ---- Dispute Resolved Card (Stage 9B) ----
+function DisputeResolvedCard({ payload }: { payload: DisputeResolvedCardPayload }) {
+  return (
+    <CardShell accent="green">
+      <div className="p-4 space-y-3">
+        <div className="flex items-start gap-3">
+          <div className="h-10 w-10 rounded-xl bg-emerald-100 grid place-items-center shrink-0">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Dispute Resolved
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">
+              {payload.resolution === "resolved_release"
+                ? "Payment released to professional"
+                : "Payment refunded to customer"}
+            </div>
+            <div className="font-semibold text-[15px] text-foreground truncate mt-1">
+              {payload.title}
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-xl bg-muted/40 border border-border/60 divide-y divide-border/60">
+          <Row label="Dispute amount" value={formatNgn(payload.amount)} bold />
+          <Row label="Resolution" value={payload.resolution?.replace(/_/g, " ") ?? "Resolved"} />
+          {payload.resolution === "resolved_release" && (
+            <Row label="Professional received" value={formatNgn(payload.payout)} green bold />
+          )}
+        </div>
+
+        <Button size="sm" className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
+          Leave a Review
+        </Button>
+      </div>
+    </CardShell>
+  );
+}
+
+// ---- Payment Card (legacy) ----
 function PaymentCard({ payload }: { payload: PaymentCardPayload }) {
   return (
     <CardShell accent="payment">
@@ -307,40 +958,21 @@ function PaymentCard({ payload }: { payload: PaymentCardPayload }) {
             {payload.release_condition ??
               "Funds are released to the professional when the customer marks the job as complete."}
           </p>
-          <EscrowProgress stage="holding" />
+          <EscrowProgress currentStep={2} />
         </div>
       </div>
     </CardShell>
   );
 }
 
-function EscrowProgress({ stage }: { stage: "holding" | "completed" }) {
-  const steps = ["Agreement", "Paid", "Working", "Completed"];
-  const activeIdx = stage === "completed" ? 3 : 2;
-  return (
-    <div className="flex items-center gap-1.5 pt-1">
-      {steps.map((s, i) => (
-        <div key={s} className="flex-1 flex items-center gap-1.5">
-          <div
-            className={cn(
-              "h-1.5 rounded-full flex-1",
-              i <= activeIdx ? "bg-payment" : "bg-border/60",
-            )}
-          />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ---- Completion Card ----
+// ---- Completion Card (legacy) ----
 function CompletionCard({ payload }: { payload: CompletionCardPayload }) {
   return (
-    <CardShell accent="accent">
+    <CardShell accent="green">
       <div className="p-4 space-y-3">
         <div className="flex items-start gap-3">
-          <div className="h-10 w-10 rounded-xl bg-payment/15 grid place-items-center shrink-0">
-            <CheckCircle2 className="h-5 w-5 text-payment" strokeWidth={2.5} />
+          <div className="h-10 w-10 rounded-xl bg-emerald-100 grid place-items-center shrink-0">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600" strokeWidth={2.5} />
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -374,126 +1006,87 @@ function CompletionCard({ payload }: { payload: CompletionCardPayload }) {
 
 // ---- Deal Summary Card ----
 function DealSummaryCard({ payload }: { payload: DealSummaryCardPayload }) {
-  const [detailsOpen, setDetailsOpen] = useState(false);
   return (
-    <>
-      <CardShell accent="primary">
-        <div className="p-4 space-y-3">
-          <div className="flex items-start gap-3">
-            <div className="h-10 w-10 rounded-xl bg-primary/10 grid place-items-center shrink-0">
-              <Receipt className="h-5 w-5 text-primary" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Deal summary
-              </div>
-              <div className="font-semibold text-[15px] text-foreground truncate mt-0.5">
-                {payload.title}
-              </div>
-              <div className="flex items-center gap-2 mt-1.5">
-                <Badge variant="outline" className="text-[10px] capitalize">
-                  {agreementTypeLabel(payload.agreement_type)}
-                </Badge>
-                <Badge variant="secondary" className="text-[10px] capitalize">
-                  {payload.status}
-                </Badge>
-              </div>
-            </div>
+    <CardShell accent="green">
+      <div className="p-4 space-y-3">
+        <div className="flex items-start gap-3">
+          <div className="h-10 w-10 rounded-xl bg-emerald-100 grid place-items-center shrink-0">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600" />
           </div>
-
-          <div className="rounded-xl bg-muted/40 border border-border/60 divide-y divide-border/60">
-            <Row label="Total amount" value={formatNgn(payload.total)} />
-            <Row
-              label="EasyMeet Protection Fee"
-              value={formatNgn(payload.protection_fee)}
-              muted
-            />
-            <Row label="Paystack fee" value={formatNgn(payload.paystack_fee)} muted />
-            <Row label="Amount released" value={formatNgn(payload.released)} green bold />
-          </div>
-
-          <Button
-            size="sm"
-            variant="secondary"
-            className="w-full"
-            onClick={() => setDetailsOpen(true)}
-          >
-            View Details <ArrowRight className="h-3.5 w-3.5 ml-1" />
-          </Button>
-        </div>
-      </CardShell>
-
-      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-        <DialogContent className="sm:max-w-lg rounded-3xl overflow-hidden">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Wallet className="h-5 w-5 text-primary" /> Transaction details
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <div className="text-xs text-muted-foreground">Agreement</div>
-              <div className="font-semibold">{payload.title}</div>
-              <div className="text-xs text-muted-foreground capitalize mt-0.5">
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Deal Completed
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">
+              Payment released to professional
+            </div>
+            <div className="font-semibold text-[15px] text-foreground truncate mt-1">
+              {payload.title}
+            </div>
+            <div className="flex items-center gap-2 mt-1.5">
+              <Badge variant="outline" className="text-[10px] capitalize">
                 {agreementTypeLabel(payload.agreement_type)}
-              </div>
-            </div>
-            <div className="rounded-xl bg-muted/40 border border-border/60 divide-y divide-border/60">
-              <Row label="Total customer paid" value={formatNgn(payload.total + payload.paystack_fee)} />
-              <Row label="Escrow subtotal" value={formatNgn(payload.total)} />
-              <Row label="Paystack fee" value={formatNgn(payload.paystack_fee)} muted />
-              <Row
-                label="EasyMeet Protection Fee"
-                value={formatNgn(payload.protection_fee)}
-                muted
-              />
-              <Row
-                label="Professional received"
-                value={formatNgn(payload.released)}
-                green
-                bold
-              />
-              <Row label="Status" value={payload.status} />
+              </Badge>
+              <span className="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 px-2 py-0.5 text-[10px] font-semibold capitalize">
+                Completed
+              </span>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
-    </>
+        </div>
+
+        <div className="rounded-xl bg-gray-50 border border-border/60 divide-y divide-border/60">
+          <Row label={payload.title} value={formatNgn(payload.total)} bold />
+          <Row label="Customer paid" value={formatNgn(payload.total + payload.paystack_fee)} />
+          <Row
+            label="EasyMeet Protection Fee"
+            value={`− ${formatNgn(payload.protection_fee)}`}
+            muted
+          />
+          <Row label="Professional received" value={formatNgn(payload.released)} green bold />
+          <Row
+            label="Completed on"
+            value={new Date().toLocaleString(undefined, {
+              dateStyle: "medium",
+              timeStyle: "short",
+            })}
+            muted
+          />
+        </div>
+
+        <div className="flex justify-end pt-1">
+          <button className="text-[13px] font-semibold text-primary hover:underline">
+            View Full Deal Details ›
+          </button>
+        </div>
+      </div>
+    </CardShell>
   );
 }
 
-function Row({
-  label,
-  value,
-  muted,
-  bold,
-  accent,
-  green,
-}: {
-  label: string;
-  value: string;
-  muted?: boolean;
-  bold?: boolean;
-  accent?: boolean;
-  green?: boolean;
-}) {
+// -------- StatusLegend --------
+
+export function StatusLegend() {
+  const items = [
+    { color: "bg-emerald-500", label: "Secure & Protected" },
+    { color: "bg-amber-500", label: "Waiting" },
+    { color: "bg-orange-500", label: "Action Required" },
+    { color: "bg-emerald-500", label: "Completed" },
+    { color: "bg-red-500", label: "Issue/Dispute" },
+  ];
   return (
-    <div className="flex justify-between items-center px-3 py-2 text-[13px]">
-      <span className={muted ? "text-muted-foreground" : "text-foreground"}>{label}</span>
-      <span
-        className={cn(
-          bold ? "font-bold" : "font-semibold",
-          green ? "text-payment" : accent ? "text-accent" : "text-foreground",
-          "capitalize",
-        )}
-      >
-        {value}
-      </span>
+    <div className="flex flex-wrap gap-3 py-2 px-1">
+      {items.map((item) => (
+        <div key={item.label} className="flex items-center gap-1.5">
+          <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", item.color)} />
+          <span className="text-[10px] text-muted-foreground">{item.label}</span>
+        </div>
+      ))}
     </div>
   );
 }
 
 // -------- View Agreement full-screen modal --------
+
 function ViewAgreementModal({
   open,
   onOpenChange,
@@ -527,72 +1120,78 @@ function ViewAgreementModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl sm:rounded-[28px] rounded-[24px] overflow-hidden max-h-[92vh] overflow-y-auto p-0">
-        <div className="bg-gradient-brand text-primary-foreground px-6 py-6">
-          <div className="flex items-center gap-2 text-[11px] uppercase tracking-widest opacity-90">
-            <Shield className="h-3.5 w-3.5" /> Escrow Agreement
+        <div className="rounded-2xl border border-primary/20 bg-card shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
+          <div className="bg-gradient-brand text-primary-foreground px-6 py-6">
+            <div className="flex items-center gap-2 text-[11px] uppercase tracking-widest opacity-90">
+              <Shield className="h-3.5 w-3.5" /> Escrow Agreement
+            </div>
+            <h2 className="text-xl font-extrabold mt-2 leading-tight">
+              {(a.job_title as string) ?? "Agreement"}
+            </h2>
+            <div className="flex items-center gap-2 mt-3">
+              <span className="rounded-full bg-white/15 backdrop-blur px-2.5 py-1 text-[11px] font-semibold capitalize">
+                {agreementTypeLabel(type)}
+              </span>
+              <span className="rounded-full bg-white/15 backdrop-blur px-2.5 py-1 text-[11px] font-semibold capitalize">
+                {(a.status as string) ?? "pending"}
+              </span>
+            </div>
           </div>
-          <h2 className="text-xl font-extrabold mt-2 leading-tight">
-            {(a.job_title as string) ?? "Agreement"}
-          </h2>
-          <div className="flex items-center gap-2 mt-3">
-            <span className="rounded-full bg-white/15 backdrop-blur px-2.5 py-1 text-[11px] font-semibold capitalize">
-              {agreementTypeLabel(type)}
-            </span>
-            <span className="rounded-full bg-white/15 backdrop-blur px-2.5 py-1 text-[11px] font-semibold capitalize">
-              {(a.status as string) ?? "pending"}
-            </span>
+          <div className="p-6 space-y-4">
+            {loading ? (
+              <div className="text-sm text-muted-foreground">Loading…</div>
+            ) : (
+              <>
+                {a.job_description ? (
+                  <Section title="Description">
+                    <p className="text-sm text-foreground/90 whitespace-pre-wrap">
+                      {a.job_description as string}
+                    </p>
+                  </Section>
+                ) : null}
+
+                <Section title="Amounts">
+                  <div className="rounded-xl bg-muted/40 border border-border/60 divide-y divide-border/60">
+                    {Number(a.materials_cost ?? 0) > 0 && (
+                      <Row
+                        label="Materials (released immediately)"
+                        value={formatNgn(Number(a.materials_cost))}
+                      />
+                    )}
+                    {Number(a.labor_cost ?? 0) > 0 && (
+                      <Row label="Labor / Service fee" value={formatNgn(Number(a.labor_cost))} />
+                    )}
+                    {Number(a.contingency_cost ?? 0) > 0 && (
+                      <Row
+                        label="Contingency"
+                        value={formatNgn(Number(a.contingency_cost))}
+                        muted
+                      />
+                    )}
+                    <Row label="Total" value={formatNgn(price)} bold />
+                  </div>
+                </Section>
+
+                {a.terms ? (
+                  <Section title="Terms">
+                    <p className="text-sm text-foreground/90 whitespace-pre-wrap">
+                      {a.terms as string}
+                    </p>
+                  </Section>
+                ) : null}
+
+                {a.delivery_date ? (
+                  <Section title="Delivery / Completion date">
+                    <p className="text-sm text-foreground/90">
+                      {new Date(a.delivery_date as string).toLocaleDateString(undefined, {
+                        dateStyle: "long",
+                      })}
+                    </p>
+                  </Section>
+                ) : null}
+              </>
+            )}
           </div>
-        </div>
-        <div className="p-6 space-y-4">
-          {loading ? (
-            <div className="text-sm text-muted-foreground">Loading…</div>
-          ) : (
-            <>
-              {a.job_description ? (
-                <Section title="Description">
-                  <p className="text-sm text-foreground/90 whitespace-pre-wrap">
-                    {a.job_description as string}
-                  </p>
-                </Section>
-              ) : null}
-
-              <Section title="Amounts">
-                <div className="rounded-xl bg-muted/40 border border-border/60 divide-y divide-border/60">
-                  {Number(a.materials_cost ?? 0) > 0 && (
-                    <Row
-                      label="Materials (released immediately)"
-                      value={formatNgn(Number(a.materials_cost))}
-                    />
-                  )}
-                  {Number(a.labor_cost ?? 0) > 0 && (
-                    <Row label="Labor / Service fee" value={formatNgn(Number(a.labor_cost))} />
-                  )}
-                  {Number(a.contingency_cost ?? 0) > 0 && (
-                    <Row label="Contingency" value={formatNgn(Number(a.contingency_cost))} muted />
-                  )}
-                  <Row label="Total" value={formatNgn(price)} bold />
-                </div>
-              </Section>
-
-              {a.terms ? (
-                <Section title="Terms">
-                  <p className="text-sm text-foreground/90 whitespace-pre-wrap">
-                    {a.terms as string}
-                  </p>
-                </Section>
-              ) : null}
-
-              {a.delivery_date ? (
-                <Section title="Delivery / Completion date">
-                  <p className="text-sm text-foreground/90">
-                    {new Date(a.delivery_date as string).toLocaleDateString(undefined, {
-                      dateStyle: "long",
-                    })}
-                  </p>
-                </Section>
-              ) : null}
-            </>
-          )}
         </div>
       </DialogContent>
     </Dialog>
