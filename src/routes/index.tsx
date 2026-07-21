@@ -130,16 +130,16 @@ function Landing() {
           />
         </div>
 
-        <div className="relative max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 py-16 sm:py-32 text-center">
-          <div className="inline-flex items-center gap-2 rounded-full glass-card px-3 py-1 text-xs font-medium text-muted-foreground mb-6">
+        <div className="relative max-w-7xl mx-auto px-6 mt-14 sm:px-10 lg:px-12 py-16 sm:py-32 text-center">
+          {/* <div className="inline-flex items-center gap-2 rounded-full glass-card px-3 py-1 text-xs font-medium text-muted-foreground mb-6">
             <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
             Now live in Nigeria
-          </div>
+          </div> */}
           <h1 className="text-[3rem] leading-[1.05] sm:text-8xl font-extrabold tracking-tight max-w-4xl mx-auto">
             Find <span className="text-primary">Verified Professionals</span> Near You
           </h1>
           <p className="mt-4 sm:mt-6 max-w-2xl mx-auto text-base sm:text-xl text-muted-foreground px-2">
-            EasyMeet is Nigeria's top service marketplace — connecting customers with trusted local
+            EasyMeet is a top service marketplace connecting customers with trusted local
             professionals and businesses, in minutes.
           </p>
           <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 max-w-sm sm:max-w-none mx-auto">

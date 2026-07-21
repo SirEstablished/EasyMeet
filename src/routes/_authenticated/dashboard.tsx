@@ -3,7 +3,10 @@ import { useAuth } from "@/lib/providers";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchCompletion } from "@/lib/profileCompletion";
 import { WithdrawDialog } from "@/components/WithdrawDialog";
-import { supabase, formatNgn } from "@/integrations/supabase/client";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { VerificationTicks } from "@/components/VerificationTicks";
+import { StarRating } from "@/components/StarRating";
+import { supabase, formatNgn, SERVICE_CATEGORIES, type Profile } from "@/integrations/supabase/client";
 import { useLiveData } from "@/hooks/use-live-data";
 import {
   ShieldCheck,
@@ -11,7 +14,6 @@ import {
   MessageCircle,
   Sparkles,
   Search,
-  Users,
   Wallet as WalletIcon,
   ArrowRight,
   ArrowUpRight,
@@ -20,12 +22,22 @@ import {
   CheckCircle2,
   FileText,
   Compass,
-  Package,
   Plus,
   ChevronRight,
   X,
   Eye,
   EyeOff,
+  ShoppingCart,
+  Clock,
+  Paintbrush,
+  Briefcase,
+  Cpu,
+  UtensilsCrossed,
+  GraduationCap,
+  Scale,
+  Banknote,
+  Building2,
+  PartyPopper,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -115,6 +127,16 @@ function Dashboard() {
   >([]);
   const [promoDismissed, setPromoDismissed] = useState(false);
 
+  const [customerOrders, setCustomerOrders] = useState<
+    { id: string; service_title: string; amount: number; status: string | null; escrow_status: string | null; kind: string | null; created_at: string; provider_id: string | null }[]
+  >([]);
+  const [customerSpent, setCustomerSpent] = useState(0);
+  const [customerEscrow, setCustomerEscrow] = useState(0);
+  const [customerCompletedCount, setCustomerCompletedCount] = useState(0);
+  const [customerTotalOrders, setCustomerTotalOrders] = useState(0);
+  const [topPros, setTopPros] = useState<Profile[]>([]);
+  const [providerNames, setProviderNames] = useState<Map<string, string>>(new Map());
+
   // Sparkline data: generate some dummy trend data based on earnings
   const monthSparkline = useMemo(() => {
     const base = monthEarnings || 0;
@@ -155,7 +177,7 @@ function Dashboard() {
         .maybeSingle(),
       supabase
         .from("orders")
-        .select("id, status, escrow_status, payout_amount, amount_ngn, amount, customer_id, created_at")
+        .select("id, status, escrow_status, payout_amount, amount, customer_id, created_at")
         .eq("provider_id", user.id),
       supabase
         .from("escrow" as never)
@@ -190,7 +212,6 @@ function Dashboard() {
       status: string | null;
       escrow_status: string | null;
       payout_amount: number | null;
-      amount_ngn: number | null;
       amount: number | null;
       customer_id: string | null;
       created_at: string;
@@ -205,7 +226,7 @@ function Dashboard() {
       const es = (o.escrow_status || "").toLowerCase();
       const os = (o.status || "").toLowerCase();
       const isCompleted = es === "released" || es === "completed" || os === "completed";
-      const rev = Number(o.payout_amount ?? o.amount_ngn ?? o.amount ?? 0) || 0;
+      const rev = Number(o.payout_amount ?? o.amount ?? 0) || 0;
       const created = new Date(o.created_at);
       if (isCompleted) {
         total += rev;
@@ -246,17 +267,91 @@ function Dashboard() {
   }, [loadSummary]);
   useLiveData(user && isPro ? ["wallets", "orders", "escrow", "notifications"] : [], loadSummary);
 
+  const loadCustomerData = useCallback(async () => {
+    if (!user || isPro) return;
+    const [ordersRes, notifRes, prosRes] = await Promise.all([
+      supabase
+        .from("orders")
+        .select("id, service_title, amount, status, escrow_status, kind, created_at, provider_id")
+        .eq("customer_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(10),
+      supabase
+        .from("notifications")
+        .select("id, title, message, type, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(4),
+      supabase
+        .from("profiles")
+        .select("*")
+        .in("role", ["professional", "business"])
+        .eq("is_banned", false)
+        .order("avg_rating", { ascending: false })
+        .limit(6),
+    ]);
+
+    const orders = (ordersRes.data ?? []) as {
+      id: string; service_title: string; amount: number; status: string | null;
+      escrow_status: string | null; kind: string | null; created_at: string; provider_id: string | null;
+    }[];
+    setCustomerOrders(orders);
+    setCustomerTotalOrders(orders.length);
+
+    let totalSpent = 0;
+    let inEscrow = 0;
+    let completed = 0;
+    for (const o of orders) {
+      const rev = Number(o.amount ?? 0) || 0;
+      const es = (o.escrow_status || "").toLowerCase();
+      const os = (o.status || "").toLowerCase();
+      const isCompleted = es === "released" || es === "completed" || os === "completed";
+      const isActive = es === "holding" || es === "in_progress" || es === "pending_payment" || os === "pending" || os === "confirmed";
+      if (isCompleted) { totalSpent += rev; completed++; }
+      if (isActive) inEscrow += rev;
+    }
+    setCustomerSpent(totalSpent);
+    setCustomerEscrow(inEscrow);
+    setCustomerCompletedCount(completed);
+
+    const pros = (prosRes.data ?? []) as Profile[];
+    setTopPros(pros);
+
+    const providerIds = [...new Set(orders.map((o) => o.provider_id).filter(Boolean))] as string[];
+    if (providerIds.length > 0) {
+      const { data: provProfiles } = await supabase
+        .from("profiles")
+        .select("id, full_name, username")
+        .in("id", providerIds);
+      const nameMap = new Map<string, string>();
+      (provProfiles ?? []).forEach((p: { id: string; full_name: string | null; username: string | null }) => {
+        nameMap.set(p.id, p.username ? `@${p.username}` : (p.full_name || "Provider"));
+      });
+      setProviderNames(nameMap);
+    }
+
+    setActivity(
+      (notifRes.data ?? []) as {
+        id: string; title: string; message: string | null; type: string | null; created_at: string;
+      }[],
+    );
+  }, [user, isPro]);
+
+  useEffect(() => {
+    void loadCustomerData();
+  }, [loadCustomerData]);
+  useLiveData(user && !isPro ? ["orders", "notifications"] : [], loadCustomerData);
+
   const roleLabel = role.charAt(0).toUpperCase() + role.slice(1) + " Account";
 
   const quickActions: { Icon: typeof Search; label: string; to: string; show: boolean }[] = isPro
     ? [
-        { Icon: Package, label: "My Products", to: "/my-products", show: true },
+        { Icon: Plus, label: "My Services", to: "/my-services", show: true },
         { Icon: CalendarCheck, label: "Orders", to: "/my-orders", show: true },
         { Icon: MessageCircle, label: "Messages", to: "/messages", show: true },
         { Icon: WalletIcon, label: "Wallet", to: "/wallet", show: true },
         { Icon: FileText, label: "Transactions", to: "/transactions", show: true },
         { Icon: Compass, label: "Explore", to: "/explore", show: true },
-        { Icon: Plus, label: "Add Service", to: "/my-services", show: true },
       ]
     : [
         { Icon: Search, label: "Browse", to: "/explore", show: true },
@@ -309,10 +404,10 @@ function Dashboard() {
 
       {/* Wallet + Escrow card */}
       {isPro && (
-        <section className="rounded-2xl bg-card border border-border p-4 sm:p-5 shadow-sm">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <section className="rounded-2xl bg-primary/5 border border-primary/10 p-4 sm:p-5 shadow-sm">
+          <div className="flex flex-row items-center gap-4 sm:gap-0 sm:justify-between">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
                 <WalletIcon className="h-3.5 w-3.5" /> Wallet Balance
               </div>
               <div className="mt-1.5 flex items-center gap-2">
@@ -337,8 +432,8 @@ function Dashboard() {
                 Withdraw Funds <ArrowRight className="h-3.5 w-3.5" />
               </button>
             </div>
-            <div className="border-l border-border pl-4 min-w-0">
-              <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <div className="sm:border-l sm:border-border sm:pl-6 min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
                 <ShieldCheck className="h-3.5 w-3.5" /> Active Escrow
               </div>
               <div className="mt-1.5 text-xl sm:text-2xl font-extrabold tracking-tight text-primary truncate">
@@ -357,7 +452,91 @@ function Dashboard() {
       )}
 
       {/* Customer stats */}
-      {!isPro && <CustomerStats completion={completion} />}
+      {!isPro && (
+        <>
+          {/* Spending Summary Card */}
+          <section className="rounded-2xl bg-primary/5 border border-primary/10 p-4 sm:p-5 shadow-sm">
+            <div className="flex flex-row items-center gap-4 sm:gap-0 sm:justify-between">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                  <WalletIcon className="h-3.5 w-3.5" /> Total Spent
+                </div>
+                <div className="mt-1.5 flex items-center gap-2">
+                  <span className="text-2xl sm:text-3xl font-extrabold tracking-tight text-primary">
+                    {hideBalance ? "••••••" : formatNgn(customerSpent)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setHideBalance(!hideBalance)}
+                    className="text-muted-foreground hover:text-foreground transition p-0.5"
+                  >
+                    {hideBalance ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">All time purchases</div>
+              </div>
+              <div className="sm:border-l sm:border-border sm:pl-6 min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                  <ShieldCheck className="h-3.5 w-3.5" /> In Escrow
+                </div>
+                <div className="mt-1.5 text-2xl sm:text-3xl font-extrabold tracking-tight">
+                  {formatNgn(customerEscrow)}
+                </div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">Protected payments</div>
+                <Link
+                  to="/my-orders"
+                  className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                >
+                  View orders <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </div>
+            </div>
+          </section>
+
+          {/* Order Stats Overview */}
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-bold text-lg">Your Overview</h2>
+              <Link
+                to="/my-orders"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+              >
+                View all orders <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <CustomerStatTile
+                icon={<ShoppingCart className="h-4 w-4" />}
+                label="Total Orders"
+                value={String(customerTotalOrders)}
+                sub="All time"
+                color="var(--primary)"
+              />
+              <CustomerStatTile
+                icon={<ShieldCheck className="h-4 w-4" />}
+                label="In Escrow"
+                value={formatNgn(customerEscrow)}
+                sub="Protected"
+                color="#f59e0b"
+              />
+              <CustomerStatTile
+                icon={<CheckCircle2 className="h-4 w-4" />}
+                label="Completed"
+                value={String(customerCompletedCount)}
+                sub="Orders done"
+                color="#10b981"
+              />
+              <CustomerStatTile
+                icon={<TrendingUp className="h-4 w-4" />}
+                label="Total Spent"
+                value={formatNgn(customerSpent)}
+                sub="Lifetime"
+                color="#3b82f6"
+              />
+            </div>
+          </section>
+        </>
+      )}
 
       {/* Quick Actions */}
       <section>
@@ -378,11 +557,7 @@ function Dashboard() {
               className="group flex flex-col items-center gap-2 rounded-2xl bg-card border border-border p-3 sm:p-4 hover:border-primary/40 hover:shadow-[0_10px_25px_-15px_color-mix(in_oklab,var(--primary)_50%,transparent)] transition"
             >
               <span
-                className={`h-11 w-11 rounded-full flex items-center justify-center transition ${
-                  label === "Add Service"
-                    ? "bg-primary text-white group-hover:bg-primary/90"
-                    : "bg-primary/10 text-primary group-hover:bg-primary/15"
-                }`}
+                className="h-11 w-11 rounded-full flex items-center justify-center transition bg-primary/10 text-primary group-hover:bg-primary/15"
               >
                 <Icon className="h-5 w-5" />
               </span>
@@ -393,6 +568,122 @@ function Dashboard() {
           ))}
         </div>
       </section>
+
+      {/* Service Categories */}
+      {!isPro && (
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-bold text-lg">Browse Categories</h2>
+            <Link
+              to="/explore"
+              className="text-xs font-semibold text-primary hover:underline"
+            >
+              View all
+            </Link>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
+            {SERVICE_CATEGORIES.map((cat) => (
+              <Link
+                key={cat}
+                to="/explore"
+                className="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:border-primary/40 hover:text-primary transition"
+              >
+                {categoryIcon(cat)}
+                {cat}
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Top Rated Pros */}
+      {!isPro && topPros.length > 0 && (
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-bold text-lg">Top Professionals</h2>
+            <Link
+              to="/explore"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+            >
+              View all <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {topPros.slice(0, 6).map((pro) => {
+              const initials = (pro.full_name || pro.username || "U")
+                .split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase();
+              const displayName = pro.username ? `@${pro.username}` : (pro.full_name || "Professional");
+              return (
+                <Link
+                  key={pro.id}
+                  to="/profile/$id"
+                  params={{ id: pro.id }}
+                  className="group rounded-2xl bg-card border border-border p-4 hover:border-primary/40 hover:shadow-[0_10px_25px_-15px_color-mix(in_oklab,var(--primary)_50%,transparent)] transition"
+                >
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-12 w-12 border-2 border-background shrink-0">
+                      <AvatarImage src={pro.avatar_url ?? undefined} />
+                      <AvatarFallback className="bg-primary text-primary-foreground text-sm">{initials}</AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1">
+                        <span className="text-sm font-semibold truncate group-hover:text-primary transition-colors">
+                          {displayName}
+                        </span>
+                        <VerificationTicks blue={pro.blue_tick} white={pro.white_tick} gold={pro.gold_tick} size="sm" />
+                      </div>
+                      <div className="text-[11px] text-muted-foreground truncate">
+                        {pro.profession || pro.business_type || pro.role}
+                      </div>
+                      <StarRating value={pro.avg_rating} count={pro.review_count} />
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Recent Orders */}
+      {!isPro && customerOrders.length > 0 && (
+        <section className="rounded-2xl bg-card border border-border p-4 sm:p-5 shadow-sm">
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <h2 className="font-bold text-lg">Recent Orders</h2>
+            <Link
+              to="/my-orders"
+              className="shrink-0 text-xs font-semibold text-primary hover:underline"
+            >
+              View all
+            </Link>
+          </div>
+          <ul className="divide-y divide-border">
+            {customerOrders.slice(0, 5).map((order) => {
+              const statusTone = orderStatusTone(order.escrow_status || order.status);
+              const providerName = providerNames.get(order.provider_id || "") || "Provider";
+              return (
+                <li key={order.id} className="flex items-center gap-3 py-3">
+                  <span className={`h-9 w-9 shrink-0 rounded-full ${statusTone.bg} ${statusTone.fg} flex items-center justify-center`}>
+                    {statusTone.icon}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-semibold truncate">{order.service_title}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {providerName} &middot; {formatNgn(order.amount)}
+                    </div>
+                  </div>
+                  <div className="shrink-0 flex items-center gap-2">
+                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${statusTone.badge}`}>
+                      {statusTone.label}
+                    </span>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground/50" />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
       {/* Analytics Overview */}
       {isPro && (
@@ -543,55 +834,86 @@ function AnalyticsTile({
   );
 }
 
-function CustomerStats({ completion }: { completion: number | null }) {
+function categoryIcon(cat: string) {
+  const cls = "h-3.5 w-3.5";
+  switch (cat) {
+    case "Technology": return <Cpu className={cls} />;
+    case "Design": return <Paintbrush className={cls} />;
+    case "Food & Catering": return <UtensilsCrossed className={cls} />;
+    case "Beauty & Wellness": return <Sparkles className={cls} />;
+    case "Education": return <GraduationCap className={cls} />;
+    case "Legal": return <Scale className={cls} />;
+    case "Finance": return <Banknote className={cls} />;
+    case "Construction": return <Building2 className={cls} />;
+    case "Events": return <PartyPopper className={cls} />;
+    default: return <Briefcase className={cls} />;
+  }
+}
+
+function orderStatusTone(status: string | null): { bg: string; fg: string; icon: React.ReactNode; badge: string; label: string } {
+  const s = (status || "").toLowerCase();
+  if (s === "released" || s === "completed")
+    return {
+      bg: "bg-emerald-500/10", fg: "text-emerald-600",
+      icon: <CheckCircle2 className="h-4 w-4" />,
+      badge: "text-emerald-600 bg-emerald-500/10", label: "Completed",
+    };
+  if (s === "holding" || s === "in_progress" || s === "pending_payment")
+    return {
+      bg: "bg-amber-500/10", fg: "text-amber-600",
+      icon: <Clock className="h-4 w-4" />,
+      badge: "text-amber-600 bg-amber-500/10", label: "In Progress",
+    };
+  if (s === "disputed")
+    return {
+      bg: "bg-rose-500/10", fg: "text-rose-600",
+      icon: <MessageCircle className="h-4 w-4" />,
+      badge: "text-rose-600 bg-rose-500/10", label: "Disputed",
+    };
+  if (s === "refunded")
+    return {
+      bg: "bg-blue-500/10", fg: "text-blue-600",
+      icon: <ArrowUpRight className="h-4 w-4" />,
+      badge: "text-blue-600 bg-blue-500/10", label: "Refunded",
+    };
+  if (s === "cancelled")
+    return {
+      bg: "bg-muted", fg: "text-muted-foreground",
+      icon: <X className="h-4 w-4" />,
+      badge: "text-muted-foreground bg-muted", label: "Cancelled",
+    };
+  return {
+    bg: "bg-primary/10", fg: "text-primary",
+    icon: <Clock className="h-4 w-4" />,
+    badge: "text-primary bg-primary/10", label: "Pending",
+  };
+}
+
+function CustomerStatTile({
+  icon,
+  label,
+  value,
+  sub,
+  color,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  sub: string;
+  color: string;
+}) {
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
-      <div className="rounded-2xl bg-card border border-border p-4 shadow-sm min-w-0">
-        <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          <MessageCircle className="h-3.5 w-3.5 shrink-0" /> Conversations
-        </div>
-        <div className="mt-2 text-xl sm:text-2xl font-extrabold tracking-tight text-primary">0</div>
-        <div className="text-[11px] text-muted-foreground mt-0.5">Active chats</div>
-        <Link
-          to="/messages"
-          className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
-        >
-          Open messages <ArrowUpRight className="h-3 w-3" />
-        </Link>
+    <div className="rounded-2xl bg-card border border-border p-3 sm:p-4 min-w-0">
+      <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
+        <span style={{ color }} className="shrink-0">{icon}</span> {label}
       </div>
-      <div className="rounded-2xl bg-card border border-border p-4 shadow-sm min-w-0">
-        <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          <CalendarCheck className="h-3.5 w-3.5 shrink-0" /> Bookings
-        </div>
-        <div className="mt-2 text-xl sm:text-2xl font-extrabold tracking-tight text-primary">0</div>
-        <div className="text-[11px] text-muted-foreground mt-0.5">This month</div>
-        <Link
-          to="/my-orders"
-          className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
-        >
-          View orders <ArrowUpRight className="h-3 w-3" />
-        </Link>
+      <div
+        className="mt-1 text-lg sm:text-xl font-extrabold tracking-tight truncate"
+        style={{ color }}
+      >
+        {value}
       </div>
-      <div className="rounded-2xl bg-card border border-border p-4 shadow-sm min-w-0 col-span-2 lg:col-span-1">
-        <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          <Users className="h-3.5 w-3.5 shrink-0" /> Profile completion
-        </div>
-        <div className="mt-2 text-xl sm:text-2xl font-extrabold tracking-tight text-primary">
-          {completion === null ? "—" : `${completion}%`}
-        </div>
-        <div className="mt-2 h-1.5 w-full rounded-full bg-muted overflow-hidden">
-          <div
-            className="h-full bg-primary transition-[width] duration-700"
-            style={{ width: `${Math.max(4, completion ?? 0)}%` }}
-          />
-        </div>
-        <Link
-          to="/profile"
-          className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
-        >
-          Complete profile <ArrowUpRight className="h-3 w-3" />
-        </Link>
-      </div>
+      <div className="text-[11px] text-muted-foreground mt-0.5">{sub}</div>
     </div>
   );
 }
