@@ -1359,7 +1359,6 @@ function ViewAgreementModal({
               </span>
             </div>
           </div>
-        </div>
         <div className="p-6 space-y-4">
           {loading ? (
             <div className="text-sm text-muted-foreground">Loading…</div>
