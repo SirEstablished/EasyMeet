@@ -1304,20 +1304,56 @@ function DealSummaryCard({ payload }: { payload: DealSummaryCardPayload }) {
 
 export function StatusLegend() {
   const items = [
-    { color: "bg-emerald-500", label: "Secure & Protected" },
-    { color: "bg-amber-500", label: "Waiting" },
-    { color: "bg-orange-500", label: "Action Required" },
-    { color: "bg-emerald-500", label: "Completed" },
-    { color: "bg-red-500", label: "Issue/Dispute" },
+    {
+      icon: <Lock className="h-3.5 w-3.5 text-emerald-600" />,
+      tint: "bg-emerald-100",
+      label: "Secure & Protected",
+      caption: "Your money is safe in escrow",
+    },
+    {
+      icon: <Clock className="h-3.5 w-3.5 text-amber-600" />,
+      tint: "bg-amber-100",
+      label: "Waiting",
+      caption: "Action by other party",
+    },
+    {
+      icon: <Zap className="h-3.5 w-3.5 text-orange-600" />,
+      tint: "bg-orange-100",
+      label: "Action Required",
+      caption: "You need to take action",
+    },
+    {
+      icon: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />,
+      tint: "bg-emerald-100",
+      label: "Completed",
+      caption: "This step is completed",
+    },
+    {
+      icon: <AlertTriangle className="h-3.5 w-3.5 text-red-600" />,
+      tint: "bg-red-100",
+      label: "Issue / Dispute",
+      caption: "We're reviewing this",
+    },
   ];
   return (
-    <div className="flex flex-wrap gap-3 py-2 px-1">
-      {items.map((item) => (
-        <div key={item.label} className="flex items-center gap-1.5">
-          <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", item.color)} />
-          <span className="text-[10px] text-muted-foreground">{item.label}</span>
-        </div>
-      ))}
+    <div className="rounded-2xl border border-border/50 bg-card/60 px-3 py-2.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-x-3 gap-y-2">
+        {items.map((item) => (
+          <div key={item.label} className="flex items-start gap-2 min-w-0">
+            <span
+              className={cn("h-6 w-6 rounded-lg grid place-items-center shrink-0", item.tint)}
+            >
+              {item.icon}
+            </span>
+            <div className="min-w-0">
+              <div className="text-[10px] font-semibold text-foreground leading-tight truncate">
+                {item.label}
+              </div>
+              <div className="text-[9px] text-muted-foreground leading-tight">{item.caption}</div>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
