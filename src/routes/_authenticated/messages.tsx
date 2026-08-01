@@ -805,15 +805,22 @@ function Thread({
                 Start a protected deal to work with peace of mind
               </p>
             </div>
-            <Button
-              size="sm"
-              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-[12px] shrink-0 h-8 px-3 rounded-lg shadow-[0_2px_8px_-4px_color-mix(in_oklab,var(--primary)_60%,transparent)]"
-            >
-              <Plus className="h-3.5 w-3.5 mr-1" />
-              Start Deal
-            </Button>
-          </div>
-        )}
+            {profile?.role !== "customer" && (
+              <Button
+                size="sm"
+                onClick={() =>
+                  window.dispatchEvent(
+                    new CustomEvent("escrow:new-deal", {
+                      detail: { conversation_id: conversation.id },
+                    }),
+                  )
+                }
+                className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-[12px] shrink-0 h-8 px-3 rounded-lg shadow-[0_2px_8px_-4px_color-mix(in_oklab,var(--primary)_60%,transparent)]"
+              >
+                <Plus className="h-3.5 w-3.5 mr-1" />
+                Start Protected Deal
+              </Button>
+            )}
           </div>
         )}
 
