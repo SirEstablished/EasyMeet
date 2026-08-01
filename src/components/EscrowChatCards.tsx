@@ -968,42 +968,6 @@ function PaymentCard({ payload }: { payload: PaymentCardPayload }) {
   );
 }
 
-// ---- Completion Card (legacy) ----
-function EscrowProgress({ stage }: { stage: "holding" | "completed" }) {
-  const steps = ["Negotiate", "Agreement", "Payment", "Complete"];
-  // Payment held = stage 3 (3/4 fills). Completed = stage 4 (4/4 fills).
-  const activeIdx = stage === "completed" ? 3 : 2;
-  return (
-    <div className="pt-2">
-      <div className="flex items-center gap-1.5">
-        {steps.map((s, i) => (
-          <div
-            key={s}
-            className={cn(
-              "h-2 rounded-full flex-1 transition-all duration-500 ease-out",
-              i <= activeIdx
-                ? "bg-gradient-to-r from-emerald-500 to-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.4)]"
-                : "bg-border/60",
-            )}
-          />
-        ))}
-      </div>
-      <div className="mt-1.5 flex items-center gap-1.5">
-        {steps.map((s, i) => (
-          <div
-            key={s}
-            className={cn(
-              "flex-1 text-center text-[9px] font-semibold uppercase tracking-wide transition-colors",
-              i <= activeIdx ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground/60",
-            )}
-          >
-            {s}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 // ---- Completion Card ----
 function CompletionCard({ payload }: { payload: CompletionCardPayload }) {
@@ -1125,6 +1089,7 @@ function DealSummaryCard({ payload }: { payload: DealSummaryCardPayload }) {
     : completedAtFromPayload;
 
   return (
+    <>
     <CardShell accent="green">
       <div className="p-4 space-y-3">
         <div className="flex items-start gap-3">
@@ -1358,40 +1323,6 @@ function ViewAgreementModal({
               </span>
             </div>
           </div>
-          <div className="p-6 space-y-4">
-            {loading ? (
-              <div className="text-sm text-muted-foreground">Loading…</div>
-            ) : (
-              <>
-                {a.job_description ? (
-                  <Section title="Description">
-                    <p className="text-sm text-foreground/90 whitespace-pre-wrap">
-                      {a.job_description as string}
-                    </p>
-                  </Section>
-                ) : null}
-
-                <Section title="Amounts">
-                  <div className="rounded-xl bg-muted/40 border border-border/60 divide-y divide-border/60">
-                    {Number(a.materials_cost ?? 0) > 0 && (
-                      <Row
-                        label="Materials (released immediately)"
-                        value={formatNgn(Number(a.materials_cost))}
-                      />
-                    )}
-                    {Number(a.labor_cost ?? 0) > 0 && (
-                      <Row label="Labor / Service fee" value={formatNgn(Number(a.labor_cost))} />
-                    )}
-                    {Number(a.contingency_cost ?? 0) > 0 && (
-                      <Row
-                        label="Contingency"
-                        value={formatNgn(Number(a.contingency_cost))}
-                        muted
-                      />
-                    )}
-                    <Row label="Total" value={formatNgn(price)} bold />
-                  </div>
-        </div>
         <div className="p-6 space-y-4">
           {loading ? (
             <div className="text-sm text-muted-foreground">Loading…</div>
@@ -1518,24 +1449,7 @@ function ViewAgreementModal({
                     })}
                   </p>
                 </Section>
-
-                {a.terms ? (
-                  <Section title="Terms">
-                    <p className="text-sm text-foreground/90 whitespace-pre-wrap">
-                      {a.terms as string}
-                    </p>
-                  </Section>
-                ) : null}
-
-                {a.delivery_date ? (
-                  <Section title="Delivery / Completion date">
-                    <p className="text-sm text-foreground/90">
-                      {new Date(a.delivery_date as string).toLocaleDateString(undefined, {
-                        dateStyle: "long",
-                      })}
-                    </p>
-                  </Section>
-                ) : null}
+              ) : null}
               </>
             )}
           </div>
