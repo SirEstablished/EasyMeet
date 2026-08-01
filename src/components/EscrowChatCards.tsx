@@ -968,41 +968,6 @@ function PaymentCard({ payload }: { payload: PaymentCardPayload }) {
   );
 }
 
-// ---- Completion Card (legacy) ----
-function EscrowProgress({ stage }: { stage: "holding" | "completed" }) {
-  const steps = ["Negotiate", "Agreement", "Payment", "Complete"];
-  // Payment held = stage 3 (3/4 fills). Completed = stage 4 (4/4 fills).
-  const activeIdx = stage === "completed" ? 3 : 2;
-  return (
-    <div className="pt-2">
-      <div className="flex items-center gap-1.5">
-        {steps.map((s, i) => (
-          <div
-            key={s}
-            className={cn(
-              "h-2 rounded-full flex-1 transition-all duration-500 ease-out",
-              i <= activeIdx
-                ? "bg-gradient-to-r from-emerald-500 to-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.4)]"
-                : "bg-border/60",
-            )}
-          />
-        ))}
-      </div>
-      <div className="mt-1.5 flex items-center gap-1.5">
-        {steps.map((s, i) => (
-          <div
-            key={s}
-            className={cn(
-              "flex-1 text-center text-[9px] font-semibold uppercase tracking-wide transition-colors",
-              i <= activeIdx ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground/60",
-            )}
-          >
-            {s}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
 }
 
 // ---- Completion Card ----
