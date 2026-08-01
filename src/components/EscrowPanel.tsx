@@ -569,6 +569,21 @@ export function EscrowPanel({
     return () => window.removeEventListener("escrow:edit-agreement", handler);
   }, [conversationId]);
 
+  // Listen for "Start Protected Deal" clicks fired from the chat banner.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const ce = e as CustomEvent<{ conversation_id?: string }>;
+      if (ce.detail?.conversation_id && ce.detail.conversation_id !== conversationId) return;
+      if (meRole === "customer") return;
+      startNewDeal();
+      setEditAgreementId(null);
+      setTypePickerOpen(true);
+    };
+    window.addEventListener("escrow:new-deal", handler);
+    return () => window.removeEventListener("escrow:new-deal", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId, meRole]);
+
   const openNewDealFlow = () => {
     // Full reset then open the type picker sheet.
     startNewDeal();
