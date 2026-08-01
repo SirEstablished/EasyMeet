@@ -323,6 +323,54 @@ function Row({
 
 // -------- EscrowProgress --------
 
+function IconRow({
+  icon,
+  label,
+  sub,
+  value,
+  valueCaption,
+  green,
+  bold,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  sub?: string;
+  value: string;
+  valueCaption?: string;
+  green?: boolean;
+  bold?: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-3 px-3 py-2.5">
+      <span className="h-7 w-7 rounded-lg bg-muted/60 grid place-items-center shrink-0">
+        {icon}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="text-[11px] text-muted-foreground leading-tight">{label}</div>
+        {sub && (
+          <div className="text-[13px] font-semibold text-foreground truncate leading-tight">
+            {sub}
+          </div>
+        )}
+      </div>
+      <div className="text-right shrink-0">
+        {valueCaption && (
+          <div className="text-[10px] text-muted-foreground leading-tight">{valueCaption}</div>
+        )}
+        <div
+          className={cn(
+            "text-[13px] leading-tight",
+            bold ? "font-bold" : "font-semibold",
+            green ? "text-emerald-600" : "text-foreground",
+          )}
+        >
+          {value}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function EscrowProgress({ currentStep }: { currentStep: number }) {
   const steps = ["Agreement", "Escrow Paid", "In Progress", "Completed"];
   return (
