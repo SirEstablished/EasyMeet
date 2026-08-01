@@ -13,6 +13,11 @@ import {
   Wallet,
   AlertTriangle,
   PartyPopper,
+  User,
+  Calendar,
+  Check,
+  Zap,
+  ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { computePaystackFee } from "@/lib/paystackFees";
@@ -319,29 +324,49 @@ function Row({
 // -------- EscrowProgress --------
 
 function EscrowProgress({ currentStep }: { currentStep: number }) {
-  const steps = ["Agreement", "Paid", "In Progress", "Completed", "Released"];
+  const steps = ["Agreement", "Escrow Paid", "In Progress", "Completed"];
   return (
-    <div className="flex items-center gap-1 pt-1">
+    <div className="flex items-start pt-2">
       {steps.map((s, i) => {
         const stepNum = i + 1;
-        const isActive = stepNum <= currentStep;
+        const done = stepNum <= currentStep;
         const isCurrent = stepNum === currentStep;
+        const nextDone = stepNum < currentStep;
         return (
-          <div key={s} className="flex-1 flex flex-col items-center gap-1">
-            <div className="relative w-full flex items-center">
-              <div
+          <div key={s} className="flex-1 flex flex-col items-center min-w-0">
+            <div className="relative w-full flex items-center justify-center">
+              {/* left connector */}
+              <span
                 className={cn(
-                  "h-1.5 rounded-full w-full",
-                  isActive ? "bg-emerald-500" : "bg-gray-200",
+                  "absolute left-0 right-1/2 top-1/2 -translate-y-1/2 h-[2px]",
+                  i === 0 ? "opacity-0" : done ? "bg-emerald-500" : "bg-gray-200",
                 )}
               />
-              {isCurrent && (
-                <div className="absolute left-1/2 -translate-x-1/2 -top-[1px]">
-                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse border-2 border-white" />
-                </div>
-              )}
+              {/* right connector */}
+              <span
+                className={cn(
+                  "absolute left-1/2 right-0 top-1/2 -translate-y-1/2 h-[2px]",
+                  i === steps.length - 1 ? "opacity-0" : nextDone ? "bg-emerald-500" : "bg-gray-200",
+                )}
+              />
+              <span
+                className={cn(
+                  "relative z-[1] h-4 w-4 rounded-full grid place-items-center border-2 bg-card",
+                  done
+                    ? "bg-emerald-500 border-emerald-500"
+                    : "border-gray-300",
+                  isCurrent && "ring-4 ring-emerald-500/15",
+                )}
+              >
+                {done && <Check className="h-2.5 w-2.5 text-white" strokeWidth={3.5} />}
+              </span>
             </div>
-            <span className="text-[9px] text-muted-foreground leading-none whitespace-nowrap">
+            <span
+              className={cn(
+                "text-[9px] leading-none whitespace-nowrap mt-1.5",
+                done ? "text-emerald-600 font-semibold" : "text-muted-foreground",
+              )}
+            >
               {s}
             </span>
           </div>
