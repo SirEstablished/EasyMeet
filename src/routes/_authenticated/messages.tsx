@@ -805,13 +805,22 @@ function Thread({
                 Start a protected deal to work with peace of mind
               </p>
             </div>
-            <Button
-              size="sm"
-              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-[12px] shrink-0 h-8 px-3 rounded-lg shadow-[0_2px_8px_-4px_color-mix(in_oklab,var(--primary)_60%,transparent)]"
-            >
-              <Plus className="h-3.5 w-3.5 mr-1" />
-              Start Deal
-            </Button>
+            {profile?.role !== "customer" && (
+              <Button
+                size="sm"
+                onClick={() =>
+                  window.dispatchEvent(
+                    new CustomEvent("escrow:new-deal", {
+                      detail: { conversation_id: conversation.id },
+                    }),
+                  )
+                }
+                className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-[12px] shrink-0 h-8 px-3 rounded-lg shadow-[0_2px_8px_-4px_color-mix(in_oklab,var(--primary)_60%,transparent)]"
+              >
+                <Plus className="h-3.5 w-3.5 mr-1" />
+                Start Protected Deal
+              </Button>
+            )}
           </div>
         )}
 
@@ -857,26 +866,6 @@ function Thread({
 
       {/* Composer */}
       <div className="border-t border-border/40 bg-white px-3 pt-3 pb-4">
-        {/* Action buttons */}
-        {!activeEscrow && (
-          <div className="flex items-center gap-2 mb-3">
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1 h-10 rounded-xl border-border/60 text-foreground font-semibold text-[13px] hover:bg-muted/50"
-            >
-              <Shield className="h-4 w-4 mr-1.5" />
-              View Deal
-            </Button>
-            <Button
-              size="sm"
-              className="flex-1 h-10 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-[13px] shadow-[0_2px_8px_-4px_color-mix(in_oklab,var(--primary)_50%,transparent)]"
-            >
-              <Plus className="h-4 w-4 mr-1.5" />
-              Start Protected Deal
-            </Button>
-          </div>
-        )}
         {warn && <div className="text-xs text-destructive mb-2 px-1">{warn}</div>}
         <div className="flex items-center gap-2">
           <input

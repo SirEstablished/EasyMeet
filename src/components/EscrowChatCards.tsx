@@ -13,6 +13,11 @@ import {
   Wallet,
   AlertTriangle,
   PartyPopper,
+  User,
+  Calendar,
+  Check,
+  Zap,
+  ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { computePaystackFee } from "@/lib/paystackFees";
@@ -318,30 +323,98 @@ function Row({
 
 // -------- EscrowProgress --------
 
-function EscrowProgress({ currentStep }: { currentStep: number }) {
-  const steps = ["Agreement", "Paid", "In Progress", "Completed", "Released"];
+function IconRow({
+  icon,
+  label,
+  sub,
+  value,
+  valueCaption,
+  green,
+  bold,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  sub?: string;
+  value: string;
+  valueCaption?: string;
+  green?: boolean;
+  bold?: boolean;
+}) {
   return (
-    <div className="flex items-center gap-1 pt-1">
+    <div className="flex items-center gap-3 px-3 py-2.5">
+      <span className="h-7 w-7 rounded-lg bg-muted/60 grid place-items-center shrink-0">
+        {icon}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="text-[11px] text-muted-foreground leading-tight">{label}</div>
+        {sub && (
+          <div className="text-[13px] font-semibold text-foreground truncate leading-tight">
+            {sub}
+          </div>
+        )}
+      </div>
+      <div className="text-right shrink-0">
+        {valueCaption && (
+          <div className="text-[10px] text-muted-foreground leading-tight">{valueCaption}</div>
+        )}
+        <div
+          className={cn(
+            "text-[13px] leading-tight",
+            bold ? "font-bold" : "font-semibold",
+            green ? "text-emerald-600" : "text-foreground",
+          )}
+        >
+          {value}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EscrowProgress({ currentStep }: { currentStep: number }) {
+  const steps = ["Agreement", "Escrow Paid", "In Progress", "Completed"];
+  return (
+    <div className="flex items-start pt-2">
       {steps.map((s, i) => {
         const stepNum = i + 1;
-        const isActive = stepNum <= currentStep;
+        const done = stepNum <= currentStep;
         const isCurrent = stepNum === currentStep;
+        const nextDone = stepNum < currentStep;
         return (
-          <div key={s} className="flex-1 flex flex-col items-center gap-1">
-            <div className="relative w-full flex items-center">
-              <div
+          <div key={s} className="flex-1 flex flex-col items-center min-w-0">
+            <div className="relative w-full flex items-center justify-center">
+              {/* left connector */}
+              <span
                 className={cn(
-                  "h-1.5 rounded-full w-full",
-                  isActive ? "bg-emerald-500" : "bg-gray-200",
+                  "absolute left-0 right-1/2 top-1/2 -translate-y-1/2 h-[2px]",
+                  i === 0 ? "opacity-0" : done ? "bg-emerald-500" : "bg-gray-200",
                 )}
               />
-              {isCurrent && (
-                <div className="absolute left-1/2 -translate-x-1/2 -top-[1px]">
-                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse border-2 border-white" />
-                </div>
-              )}
+              {/* right connector */}
+              <span
+                className={cn(
+                  "absolute left-1/2 right-0 top-1/2 -translate-y-1/2 h-[2px]",
+                  i === steps.length - 1 ? "opacity-0" : nextDone ? "bg-emerald-500" : "bg-gray-200",
+                )}
+              />
+              <span
+                className={cn(
+                  "relative z-[1] h-4 w-4 rounded-full grid place-items-center border-2 bg-card",
+                  done
+                    ? "bg-emerald-500 border-emerald-500"
+                    : "border-gray-300",
+                  isCurrent && "ring-4 ring-emerald-500/15",
+                )}
+              >
+                {done && <Check className="h-2.5 w-2.5 text-white" strokeWidth={3.5} />}
+              </span>
             </div>
-            <span className="text-[9px] text-muted-foreground leading-none whitespace-nowrap">
+            <span
+              className={cn(
+                "text-[9px] leading-none whitespace-nowrap mt-1.5",
+                done ? "text-emerald-600 font-semibold" : "text-muted-foreground",
+              )}
+            >
               {s}
             </span>
           </div>
@@ -1117,74 +1190,57 @@ function DealSummaryCard({ payload }: { payload: DealSummaryCardPayload }) {
           </div>
         </div>
 
-        <div className="rounded-xl bg-gray-50 border border-border/60 divide-y divide-border/60">
-          <Row label={payload.title} value={formatNgn(payload.total)} bold />
-          <Row label="Customer paid" value={formatNgn(payload.total + payload.paystack_fee)} />
-          <Row
+        <div className="rounded-xl bg-card border border-border/60 divide-y divide-border/50">
+          <IconRow
+            icon={<FileText className="h-4 w-4 text-primary" />}
+            label={agreementTypeLabel(payload.agreement_type)}
+            sub={payload.title}
+            value={formatNgn(serviceAmount)}
+            valueCaption="Amount"
+            bold
+          />
+          <IconRow
+            icon={<Wallet className="h-4 w-4 text-emerald-600" />}
+            label="Customer Paid"
+            value={formatNgn(totalCustomerPaid)}
+          />
+          {!isService && paystackFee > 0 && (
+            <IconRow
+              icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
+              label="Paystack Fee"
+              value={formatNgn(paystackFee)}
+            />
+          )}
+          <IconRow
+            icon={<Shield className="h-4 w-4 text-amber-500" />}
             label="EasyMeet Protection Fee"
-            value={`− ${formatNgn(payload.protection_fee)}`}
-            muted
+            value={formatNgn(isServiceLowTier ? 0 : protectionFee)}
           />
-          <Row label="Professional received" value={formatNgn(payload.released)} green bold />
-          <Row
-            label="Completed on"
-            value={new Date().toLocaleString(undefined, {
-              dateStyle: "medium",
-              timeStyle: "short",
-            })}
-            muted
+          <IconRow
+            icon={<User className="h-4 w-4 text-primary" />}
+            label="Professional Received"
+            value={formatNgn(professionalReceived)}
+            green
+            bold
           />
-          <div className="rounded-xl bg-muted/40 border border-border/60 divide-y divide-border/60">
-            <Row
-              label="Amount customer paid"
-              value={formatNgn(totalCustomerPaid)}
+          {completedAt && (
+            <IconRow
+              icon={<Calendar className="h-4 w-4 text-muted-foreground" />}
+              label="Completed on"
+              value={completedAt.toLocaleString(undefined, {
+                dateStyle: "medium",
+                timeStyle: "short",
+              })}
             />
-            {!isService && (
-              <Row
-                label="💳 Paystack Fee"
-                value={formatNgn(paystackFee)}
-                muted
-              />
-            )}
-            <Row
-              label="🛡️ EasyMeet Protection Fee"
-              value={formatNgn(isServiceLowTier ? 0 : protectionFee)}
-              muted
-            />
-            <Row
-              label="✅ Professional received"
-              value={formatNgn(professionalReceived)}
-              green
-              bold
-            />
-            {completedAt && (
-              <Row
-                label="📅 Completed"
-                value={completedAt.toLocaleString(undefined, {
-                  dateStyle: "medium",
-                  timeStyle: "short",
-                })}
-                muted
-              />
-            )}
-            <Row label="Status" value={payload.status} />
-          </div>
-
-          <Button
-            size="sm"
-            variant="secondary"
-            className="w-full"
-            onClick={() => setDetailsOpen(true)}
-          >
-            View Full Details <ArrowRight className="h-3.5 w-3.5 ml-1" />
-          </Button>
+          )}
         </div>
 
-        <div className="flex justify-end pt-1">
-          <button className="text-[13px] font-semibold text-primary hover:underline">
-            View Full Deal Details ›
-          </button>
-        </div>
+        <button
+          onClick={() => setDetailsOpen(true)}
+          className="w-full text-center text-[13px] font-semibold text-primary hover:underline inline-flex items-center justify-center gap-1 pt-1"
+        >
+          View Full Deal Details <ChevronRight className="h-4 w-4" />
+        </button>
       </div>
     </CardShell>
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
@@ -1248,20 +1304,56 @@ function DealSummaryCard({ payload }: { payload: DealSummaryCardPayload }) {
 
 export function StatusLegend() {
   const items = [
-    { color: "bg-emerald-500", label: "Secure & Protected" },
-    { color: "bg-amber-500", label: "Waiting" },
-    { color: "bg-orange-500", label: "Action Required" },
-    { color: "bg-emerald-500", label: "Completed" },
-    { color: "bg-red-500", label: "Issue/Dispute" },
+    {
+      icon: <Lock className="h-3.5 w-3.5 text-emerald-600" />,
+      tint: "bg-emerald-100",
+      label: "Secure & Protected",
+      caption: "Your money is safe in escrow",
+    },
+    {
+      icon: <Clock className="h-3.5 w-3.5 text-amber-600" />,
+      tint: "bg-amber-100",
+      label: "Waiting",
+      caption: "Action by other party",
+    },
+    {
+      icon: <Zap className="h-3.5 w-3.5 text-orange-600" />,
+      tint: "bg-orange-100",
+      label: "Action Required",
+      caption: "You need to take action",
+    },
+    {
+      icon: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />,
+      tint: "bg-emerald-100",
+      label: "Completed",
+      caption: "This step is completed",
+    },
+    {
+      icon: <AlertTriangle className="h-3.5 w-3.5 text-red-600" />,
+      tint: "bg-red-100",
+      label: "Issue / Dispute",
+      caption: "We're reviewing this",
+    },
   ];
   return (
-    <div className="flex flex-wrap gap-3 py-2 px-1">
-      {items.map((item) => (
-        <div key={item.label} className="flex items-center gap-1.5">
-          <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", item.color)} />
-          <span className="text-[10px] text-muted-foreground">{item.label}</span>
-        </div>
-      ))}
+    <div className="rounded-2xl border border-border/50 bg-card/60 px-3 py-2.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-x-3 gap-y-2">
+        {items.map((item) => (
+          <div key={item.label} className="flex items-start gap-2 min-w-0">
+            <span
+              className={cn("h-6 w-6 rounded-lg grid place-items-center shrink-0", item.tint)}
+            >
+              {item.icon}
+            </span>
+            <div className="min-w-0">
+              <div className="text-[10px] font-semibold text-foreground leading-tight truncate">
+                {item.label}
+              </div>
+              <div className="text-[9px] text-muted-foreground leading-tight">{item.caption}</div>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
