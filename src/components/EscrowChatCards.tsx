@@ -594,6 +594,7 @@ function AgreementAcceptedCard({
   mine: boolean;
 }) {
   return (
+    <>
     <CardShell accent="green">
       <div className="p-4 space-y-3">
         <div className="flex items-start gap-3">
