@@ -1486,24 +1486,7 @@ function ViewAgreementModal({
                     })}
                   </p>
                 </Section>
-
-                {a.terms ? (
-                  <Section title="Terms">
-                    <p className="text-sm text-foreground/90 whitespace-pre-wrap">
-                      {a.terms as string}
-                    </p>
-                  </Section>
-                ) : null}
-
-                {a.delivery_date ? (
-                  <Section title="Delivery / Completion date">
-                    <p className="text-sm text-foreground/90">
-                      {new Date(a.delivery_date as string).toLocaleDateString(undefined, {
-                        dateStyle: "long",
-                      })}
-                    </p>
-                  </Section>
-                ) : null}
+              ) : null}
               </>
             )}
           </div>
