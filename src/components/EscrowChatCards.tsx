@@ -968,7 +968,6 @@ function PaymentCard({ payload }: { payload: PaymentCardPayload }) {
   );
 }
 
-}
 
 // ---- Completion Card ----
 function CompletionCard({ payload }: { payload: CompletionCardPayload }) {
