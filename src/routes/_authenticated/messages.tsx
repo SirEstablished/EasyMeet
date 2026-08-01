@@ -866,26 +866,6 @@ function Thread({
 
       {/* Composer */}
       <div className="border-t border-border/40 bg-white px-3 pt-3 pb-4">
-        {/* Action buttons */}
-        {!activeEscrow && (
-          <div className="flex items-center gap-2 mb-3">
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1 h-10 rounded-xl border-border/60 text-foreground font-semibold text-[13px] hover:bg-muted/50"
-            >
-              <Shield className="h-4 w-4 mr-1.5" />
-              View Deal
-            </Button>
-            <Button
-              size="sm"
-              className="flex-1 h-10 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-[13px] shadow-[0_2px_8px_-4px_color-mix(in_oklab,var(--primary)_50%,transparent)]"
-            >
-              <Plus className="h-4 w-4 mr-1.5" />
-              Start Protected Deal
-            </Button>
-          </div>
-        )}
         {warn && <div className="text-xs text-destructive mb-2 px-1">{warn}</div>}
         <div className="flex items-center gap-2">
           <input
