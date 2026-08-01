@@ -1142,74 +1142,57 @@ function DealSummaryCard({ payload }: { payload: DealSummaryCardPayload }) {
           </div>
         </div>
 
-        <div className="rounded-xl bg-gray-50 border border-border/60 divide-y divide-border/60">
-          <Row label={payload.title} value={formatNgn(payload.total)} bold />
-          <Row label="Customer paid" value={formatNgn(payload.total + payload.paystack_fee)} />
-          <Row
+        <div className="rounded-xl bg-card border border-border/60 divide-y divide-border/50">
+          <IconRow
+            icon={<FileText className="h-4 w-4 text-primary" />}
+            label={agreementTypeLabel(payload.agreement_type)}
+            sub={payload.title}
+            value={formatNgn(serviceAmount)}
+            valueCaption="Amount"
+            bold
+          />
+          <IconRow
+            icon={<Wallet className="h-4 w-4 text-emerald-600" />}
+            label="Customer Paid"
+            value={formatNgn(totalCustomerPaid)}
+          />
+          {!isService && paystackFee > 0 && (
+            <IconRow
+              icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
+              label="Paystack Fee"
+              value={formatNgn(paystackFee)}
+            />
+          )}
+          <IconRow
+            icon={<Shield className="h-4 w-4 text-amber-500" />}
             label="EasyMeet Protection Fee"
-            value={`− ${formatNgn(payload.protection_fee)}`}
-            muted
+            value={formatNgn(isServiceLowTier ? 0 : protectionFee)}
           />
-          <Row label="Professional received" value={formatNgn(payload.released)} green bold />
-          <Row
-            label="Completed on"
-            value={new Date().toLocaleString(undefined, {
-              dateStyle: "medium",
-              timeStyle: "short",
-            })}
-            muted
+          <IconRow
+            icon={<User className="h-4 w-4 text-primary" />}
+            label="Professional Received"
+            value={formatNgn(professionalReceived)}
+            green
+            bold
           />
-          <div className="rounded-xl bg-muted/40 border border-border/60 divide-y divide-border/60">
-            <Row
-              label="Amount customer paid"
-              value={formatNgn(totalCustomerPaid)}
+          {completedAt && (
+            <IconRow
+              icon={<Calendar className="h-4 w-4 text-muted-foreground" />}
+              label="Completed on"
+              value={completedAt.toLocaleString(undefined, {
+                dateStyle: "medium",
+                timeStyle: "short",
+              })}
             />
-            {!isService && (
-              <Row
-                label="💳 Paystack Fee"
-                value={formatNgn(paystackFee)}
-                muted
-              />
-            )}
-            <Row
-              label="🛡️ EasyMeet Protection Fee"
-              value={formatNgn(isServiceLowTier ? 0 : protectionFee)}
-              muted
-            />
-            <Row
-              label="✅ Professional received"
-              value={formatNgn(professionalReceived)}
-              green
-              bold
-            />
-            {completedAt && (
-              <Row
-                label="📅 Completed"
-                value={completedAt.toLocaleString(undefined, {
-                  dateStyle: "medium",
-                  timeStyle: "short",
-                })}
-                muted
-              />
-            )}
-            <Row label="Status" value={payload.status} />
-          </div>
-
-          <Button
-            size="sm"
-            variant="secondary"
-            className="w-full"
-            onClick={() => setDetailsOpen(true)}
-          >
-            View Full Details <ArrowRight className="h-3.5 w-3.5 ml-1" />
-          </Button>
+          )}
         </div>
 
-        <div className="flex justify-end pt-1">
-          <button className="text-[13px] font-semibold text-primary hover:underline">
-            View Full Deal Details ›
-          </button>
-        </div>
+        <button
+          onClick={() => setDetailsOpen(true)}
+          className="w-full text-center text-[13px] font-semibold text-primary hover:underline inline-flex items-center justify-center gap-1 pt-1"
+        >
+          View Full Deal Details <ChevronRight className="h-4 w-4" />
+        </button>
       </div>
     </CardShell>
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
