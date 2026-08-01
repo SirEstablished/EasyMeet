@@ -814,6 +814,8 @@ function Thread({
             </Button>
           </div>
         )}
+          </div>
+        )}
 
         <div className="h-2" />
 
