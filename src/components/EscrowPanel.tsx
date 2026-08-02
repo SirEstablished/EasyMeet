@@ -464,7 +464,7 @@ export function EscrowPanel({
       return;
     }
     // Only ask when BOTH sides are non-customer roles.
-    if (!meRole || meRole === "customer" || !other.role || other.role === "customer") {
+    if (!meRole || !other.role) {
       setAskRoleOpen(false);
       return;
     }
