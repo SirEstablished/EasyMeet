@@ -1102,6 +1102,16 @@ export function EscrowPanel({
     );
   }
 
+  // No agreement, no escrow and no user-started deal → show nothing but the
+  // single floating "New Deal" button. Never render a stage card here.
+  if (!agreement && !order && !dealFlowActive) {
+    return (
+      <div className="border-t border-border bg-card/60 backdrop-blur p-3 flex justify-end relative">
+        {meRole !== "customer" && <NewDealFab onClick={openNewDealFlow} />}
+      </div>
+    );
+  }
+
   // Post-payment popup removed — payment/completion state is shown as
   // rich chat cards (payment card, completion card, permanent deal summary
   // card) inside the conversation instead of a separate summary panel.
