@@ -30,12 +30,11 @@ import {
   Loader2,
   Phone,
   MoreVertical,
-  Plus,
 } from "lucide-react";
 import { containsPhone, PHONE_BLOCK_MESSAGE } from "@/lib/phoneCheck";
 import { cn } from "@/lib/utils";
 import { EscrowPanel } from "@/components/EscrowPanel";
-import { EscrowChatCard, parseCardMessage, StatusLegend } from "@/components/EscrowChatCards";
+import { EscrowChatCard, parseCardMessage } from "@/components/EscrowChatCards";
 
 const searchSchema = z.object({ c: z.string().optional(), m: z.string().optional() });
 
@@ -805,22 +804,6 @@ function Thread({
                 Start a protected deal to work with peace of mind
               </p>
             </div>
-            {profile?.role !== "customer" && (
-              <Button
-                size="sm"
-                onClick={() =>
-                  window.dispatchEvent(
-                    new CustomEvent("escrow:new-deal", {
-                      detail: { conversation_id: conversation.id },
-                    }),
-                  )
-                }
-                className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-[12px] shrink-0 h-8 px-3 rounded-lg shadow-[0_2px_8px_-4px_color-mix(in_oklab,var(--primary)_60%,transparent)]"
-              >
-                <Plus className="h-3.5 w-3.5 mr-1" />
-                Start Protected Deal
-              </Button>
-            )}
           </div>
         )}
 
@@ -848,11 +831,6 @@ function Thread({
             No messages yet. Say hello!
           </div>
         )}
-
-        {/* Status legend */}
-        <div className="pt-4 pb-2">
-          <StatusLegend />
-        </div>
       </div>
 
       <EscrowPanel
