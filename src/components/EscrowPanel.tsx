@@ -591,6 +591,7 @@ export function EscrowPanel({
       if (ce.detail?.conversation_id && ce.detail.conversation_id !== conversationId) return;
       if (meRole === "customer") return;
       startNewDeal();
+      setDealFlowActive(true);
       setEditAgreementId(null);
       setTypePickerOpen(true);
     };
@@ -602,6 +603,7 @@ export function EscrowPanel({
   const openNewDealFlow = () => {
     // Full reset then open the type picker sheet.
     startNewDeal();
+    setDealFlowActive(true);
     setEditAgreementId(null);
     setTypePickerOpen(true);
   };
