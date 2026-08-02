@@ -211,6 +211,8 @@ export function EscrowPanel({
   const [initialType, setInitialType] = useState<string>("service");
   const [editAgreementId, setEditAgreementId] = useState<string | null>(null);
   const [hidden, setHidden] = useState(false);
+  // True once the user explicitly starts a new deal in this conversation.
+  const [dealFlowActive, setDealFlowActive] = useState(false);
   const [roleRefreshKey, setRoleRefreshKey] = useState(0);
   const [loadedConversationId, setLoadedConversationId] = useState<string | null>(null);
   const dismissedOrderIdRef = useRef<string | null>(null);
@@ -374,6 +376,7 @@ export function EscrowPanel({
   useEffect(() => {
     setLoading(true);
     setLoadedConversationId(null);
+    setDealFlowActive(false);
     // Fix #2: hydrate the saved role choice before load() runs so the
     // popup never re-appears for a conversation the user already answered.
     setIAmProvider(readSavedRole());
@@ -433,6 +436,13 @@ export function EscrowPanel({
       setAskRoleOpen(false);
       return;
     }
+    // Never ask when a deal already exists (active or completed) for this
+    // conversation — the roles are already fixed by the escrow record.
+    if (order) {
+      setIAmProvider(order.professional_id === meId);
+      setAskRoleOpen(false);
+      return;
+    }
     // If we already have an agreement, the roles are fixed:
     // sender = provider (seller), receiver = buyer. This works for ANY
     // role combination (customer/professional/business in any direction)
@@ -451,6 +461,11 @@ export function EscrowPanel({
     }
     if (other.role === "customer") {
       setIAmProvider(true);
+      return;
+    }
+    // Only ask when BOTH sides are non-customer roles.
+    if (!meRole || meRole === "customer" || !other.role || other.role === "customer") {
+      setAskRoleOpen(false);
       return;
     }
     let cancelled = false;
