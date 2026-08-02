@@ -593,18 +593,29 @@ export function EscrowPanel({
       startNewDeal();
       setDealFlowActive(true);
       setEditAgreementId(null);
+      if (other && other.role !== "customer") {
+        setAskRoleOpen(true);
+        return;
+      }
       setTypePickerOpen(true);
     };
     window.addEventListener("escrow:new-deal", handler);
     return () => window.removeEventListener("escrow:new-deal", handler);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationId, meRole]);
+  }, [conversationId, meRole, other]);
 
   const openNewDealFlow = () => {
-    // Full reset then open the type picker sheet.
+    // Full reset, then STEP 1 only: ask for the role when both sides are
+    // non-customers and no role has been chosen yet. The agreement type
+    // picker must never open at the same time as the role popup.
     startNewDeal();
     setDealFlowActive(true);
     setEditAgreementId(null);
+    const bothNonCustomer = meRole !== "customer" && !!other && other.role !== "customer";
+    if (bothNonCustomer) {
+      setAskRoleOpen(true);
+      return;
+    }
     setTypePickerOpen(true);
   };
   const openSendFlow = () => {
@@ -1096,10 +1107,14 @@ export function EscrowPanel({
     );
   }
 
+  // A user who explicitly chose "I'm the Buyer" for this conversation never
+  // sees the 🤝 shield button — the provider starts the deal.
+  const buyerLocked = iAmProvider === false && readSavedRole() === false && !order && !agreement;
+
   if (hidden) {
     return (
       <div className="border-t border-border bg-card/60 backdrop-blur p-3 flex justify-end relative">
-        {meRole !== "customer" && <NewDealFab onClick={openNewDealFlow} />}
+        {meRole !== "customer" && !buyerLocked && <NewDealFab onClick={openNewDealFlow} />}
       </div>
     );
   }
@@ -1109,7 +1124,7 @@ export function EscrowPanel({
   if (!agreement && !order && !dealFlowActive) {
     return (
       <div className="border-t border-border bg-card/60 backdrop-blur p-3 flex justify-end relative">
-        {meRole !== "customer" && <NewDealFab onClick={openNewDealFlow} />}
+        {meRole !== "customer" && !buyerLocked && <NewDealFab onClick={openNewDealFlow} />}
       </div>
     );
   }
@@ -1191,6 +1206,12 @@ export function EscrowPanel({
       )}
 
       <div className="flex flex-wrap gap-2">
+        {/* Stage 1 — buyer waits for the provider's agreement */}
+        {!isCancelled && iAmProvider === false && !agreement && !order && (
+          <p className="text-xs text-muted-foreground">
+            Waiting for the service provider to send an agreement
+          </p>
+        )}
         {/* Stage 2 — provider sends agreement (AI-detected role) */}
         {!isCancelled &&
           iAmProvider === true &&
@@ -1316,6 +1337,18 @@ export function EscrowPanel({
               window.localStorage.setItem(roleKey, isProv ? "provider" : "buyer");
             }
             setAskRoleOpen(false);
+            if (isProv) {
+              // Provider: dismiss popup and let them start the agreement from
+              // the 🤝 shield button. Only open the type picker when they were
+              // already in an explicit "new deal" flow.
+              if (dealFlowActive) {
+                setEditAgreementId(null);
+                setTypePickerOpen(true);
+              }
+            } else {
+              // Buyer: no type picker ever — just wait for the agreement.
+              setTypePickerOpen(false);
+            }
           }}
         />
       )}
