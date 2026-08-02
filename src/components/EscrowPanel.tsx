@@ -1206,6 +1206,12 @@ export function EscrowPanel({
       )}
 
       <div className="flex flex-wrap gap-2">
+        {/* Stage 1 — buyer waits for the provider's agreement */}
+        {!isCancelled && iAmProvider === false && !agreement && !order && (
+          <p className="text-xs text-muted-foreground">
+            Waiting for the service provider to send an agreement
+          </p>
+        )}
         {/* Stage 2 — provider sends agreement (AI-detected role) */}
         {!isCancelled &&
           iAmProvider === true &&
