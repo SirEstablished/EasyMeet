@@ -1107,12 +1107,14 @@ export function EscrowPanel({
     );
   }
 
+  // A user who explicitly chose "I'm the Buyer" for this conversation never
+  // sees the 🤝 shield button — the provider starts the deal.
+  const buyerLocked = iAmProvider === false && readSavedRole() === false && !order && !agreement;
+
   if (hidden) {
     return (
       <div className="border-t border-border bg-card/60 backdrop-blur p-3 flex justify-end relative">
-        {meRole !== "customer" && iAmProvider !== false && (
-          <NewDealFab onClick={openNewDealFlow} />
-        )}
+        {meRole !== "customer" && !buyerLocked && <NewDealFab onClick={openNewDealFlow} />}
       </div>
     );
   }
@@ -1122,9 +1124,7 @@ export function EscrowPanel({
   if (!agreement && !order && !dealFlowActive) {
     return (
       <div className="border-t border-border bg-card/60 backdrop-blur p-3 flex justify-end relative">
-        {meRole !== "customer" && iAmProvider !== false && (
-          <NewDealFab onClick={openNewDealFlow} />
-        )}
+        {meRole !== "customer" && !buyerLocked && <NewDealFab onClick={openNewDealFlow} />}
       </div>
     );
   }
