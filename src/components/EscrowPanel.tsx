@@ -601,10 +601,17 @@ export function EscrowPanel({
   }, [conversationId, meRole]);
 
   const openNewDealFlow = () => {
-    // Full reset then open the type picker sheet.
+    // Full reset, then STEP 1 only: ask for the role when both sides are
+    // non-customers and no role has been chosen yet. The agreement type
+    // picker must never open at the same time as the role popup.
     startNewDeal();
     setDealFlowActive(true);
     setEditAgreementId(null);
+    const bothNonCustomer = meRole !== "customer" && !!other && other.role !== "customer";
+    if (bothNonCustomer) {
+      setAskRoleOpen(true);
+      return;
+    }
     setTypePickerOpen(true);
   };
   const openSendFlow = () => {
