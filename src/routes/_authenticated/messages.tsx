@@ -30,12 +30,11 @@ import {
   Loader2,
   Phone,
   MoreVertical,
-  Plus,
 } from "lucide-react";
 import { containsPhone, PHONE_BLOCK_MESSAGE } from "@/lib/phoneCheck";
 import { cn } from "@/lib/utils";
 import { EscrowPanel } from "@/components/EscrowPanel";
-import { EscrowChatCard, parseCardMessage, StatusLegend } from "@/components/EscrowChatCards";
+import { EscrowChatCard, parseCardMessage } from "@/components/EscrowChatCards";
 
 const searchSchema = z.object({ c: z.string().optional(), m: z.string().optional() });
 
