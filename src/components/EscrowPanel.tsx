@@ -593,12 +593,16 @@ export function EscrowPanel({
       startNewDeal();
       setDealFlowActive(true);
       setEditAgreementId(null);
+      if (other && other.role !== "customer") {
+        setAskRoleOpen(true);
+        return;
+      }
       setTypePickerOpen(true);
     };
     window.addEventListener("escrow:new-deal", handler);
     return () => window.removeEventListener("escrow:new-deal", handler);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationId, meRole]);
+  }, [conversationId, meRole, other]);
 
   const openNewDealFlow = () => {
     // Full reset, then STEP 1 only: ask for the role when both sides are
@@ -1323,6 +1327,18 @@ export function EscrowPanel({
               window.localStorage.setItem(roleKey, isProv ? "provider" : "buyer");
             }
             setAskRoleOpen(false);
+            if (isProv) {
+              // Provider: dismiss popup and let them start the agreement from
+              // the 🤝 shield button. Only open the type picker when they were
+              // already in an explicit "new deal" flow.
+              if (dealFlowActive) {
+                setEditAgreementId(null);
+                setTypePickerOpen(true);
+              }
+            } else {
+              // Buyer: no type picker ever — just wait for the agreement.
+              setTypePickerOpen(false);
+            }
           }}
         />
       )}
