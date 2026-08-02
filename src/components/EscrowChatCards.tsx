@@ -374,12 +374,12 @@ function IconRow({
 function EscrowProgress({ currentStep }: { currentStep: number }) {
   const steps = ["Agreement", "Escrow Paid", "In Progress", "Completed"];
   return (
-    <div className="flex items-start pt-2">
+    <div className="flex items-start pt-3">
       {steps.map((s, i) => {
         const stepNum = i + 1;
-        const done = stepNum <= currentStep;
+        const done = stepNum < currentStep;
         const isCurrent = stepNum === currentStep;
-        const nextDone = stepNum < currentStep;
+        const reached = stepNum <= currentStep;
         return (
           <div key={s} className="flex-1 flex flex-col items-center min-w-0">
             <div className="relative w-full flex items-center justify-center">
@@ -387,32 +387,39 @@ function EscrowProgress({ currentStep }: { currentStep: number }) {
               <span
                 className={cn(
                   "absolute left-0 right-1/2 top-1/2 -translate-y-1/2 h-[2px]",
-                  i === 0 ? "opacity-0" : done ? "bg-emerald-500" : "bg-gray-200",
+                  i === 0 ? "opacity-0" : reached ? "bg-[#6C47FF]" : "bg-gray-200",
                 )}
               />
               {/* right connector */}
               <span
                 className={cn(
                   "absolute left-1/2 right-0 top-1/2 -translate-y-1/2 h-[2px]",
-                  i === steps.length - 1 ? "opacity-0" : nextDone ? "bg-emerald-500" : "bg-gray-200",
+                  i === steps.length - 1 ? "opacity-0" : done ? "bg-[#6C47FF]" : "bg-gray-200",
                 )}
               />
+              {isCurrent && (
+                <span className="absolute z-0 h-5 w-5 rounded-full bg-[#6C47FF]/30 animate-ping" />
+              )}
               <span
                 className={cn(
-                  "relative z-[1] h-4 w-4 rounded-full grid place-items-center border-2 bg-card",
-                  done
-                    ? "bg-emerald-500 border-emerald-500"
-                    : "border-gray-300",
-                  isCurrent && "ring-4 ring-emerald-500/15",
+                  "relative z-[1] h-5 w-5 rounded-full grid place-items-center border-2 transition-colors",
+                  done || isCurrent
+                    ? "bg-[#6C47FF] border-[#6C47FF] shadow-[0_2px_8px_-2px_rgba(108,71,255,0.6)]"
+                    : "bg-card border-gray-300",
+                  isCurrent && "ring-4 ring-[#6C47FF]/20",
                 )}
               >
-                {done && <Check className="h-2.5 w-2.5 text-white" strokeWidth={3.5} />}
+                {done ? (
+                  <Check className="h-3 w-3 text-white" strokeWidth={3.5} />
+                ) : isCurrent ? (
+                  <span className="h-1.5 w-1.5 rounded-full bg-white" />
+                ) : null}
               </span>
             </div>
             <span
               className={cn(
-                "text-[9px] leading-none whitespace-nowrap mt-1.5",
-                done ? "text-emerald-600 font-semibold" : "text-muted-foreground",
+                "text-[9px] leading-none whitespace-nowrap mt-2",
+                reached ? "text-[#6C47FF] font-semibold" : "text-muted-foreground",
               )}
             >
               {s}
