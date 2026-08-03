@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VerificationTicks } from "@/components/VerificationTicks";
 import { ReviewOrderDialog } from "@/components/ReviewOrderDialog";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { computePaystackFee } from "@/lib/paystackFees";
+import { computeGatewayFee } from "@/lib/fees";
 import { useLiveData } from "@/hooks/use-live-data";
 import {
   Search,
@@ -530,7 +530,7 @@ function OrderDetailSheet({
           ? "In Escrow"
           : order.status.charAt(0).toUpperCase() + order.status.slice(1);
 
-  const paystackFee = computePaystackFee(order.amount);
+  const processingFee = computeGatewayFee(order.amount);
   const inEscrow = order.status === "confirmed" || order.escrow_stage === "work_in_progress";
 
   const stageOrder = ["pending_payment", "work_in_progress", "completed"] as const;
@@ -658,9 +658,9 @@ function OrderDetailSheet({
                 <span className="font-semibold">{formatNgn(order.commission_amount ?? 0)}</span>
               </DetailRow>
             )}
-            {paystackFee > 0 && (
-              <DetailRow icon={<CreditCard className="h-4 w-4" />} label="Paystack Fee">
-                <span className="font-semibold">{formatNgn(paystackFee)}</span>
+            {processingFee > 0 && (
+              <DetailRow icon={<CreditCard className="h-4 w-4" />} label="🛡️ EasyMeet Protection Fee">
+                <span className="font-semibold">{formatNgn(processingFee)}</span>
               </DetailRow>
             )}
             {(order.payout_amount ?? 0) > 0 && (
