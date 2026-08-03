@@ -1653,9 +1653,18 @@ function PaymentBreakdownDialog({
         </div>
 
         <div className="px-5 py-4 border-t border-border bg-card/80 backdrop-blur space-y-2">
+          <label className="flex items-start gap-2 text-[12px] text-muted-foreground cursor-pointer">
+            <input
+              type="checkbox"
+              checked={termsAccepted}
+              onChange={(e) => setTermsAccepted(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-[#6C47FF]"
+            />
+            <span>I agree to the EasyMeet Protection Fee Terms &amp; Conditions</span>
+          </label>
           <Button
             onClick={onConfirm}
-            disabled={paying}
+            disabled={paying || !termsAccepted}
             className="w-full h-12 text-base font-semibold bg-gradient-to-r from-[#6C47FF] to-[#8E5BFF] hover:opacity-95 shadow-lg shadow-primary/30"
           >
             {paying ? (
