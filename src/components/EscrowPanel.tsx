@@ -45,8 +45,9 @@ import {
   Truck,
   Briefcase,
 } from "lucide-react";
-import { payWithPaystack } from "@/lib/paystack";
-import { computePaystackFee } from "@/lib/paystackFees";
+import { payWithFlutterwave } from "@/lib/flutterwave";
+import { verifyFlutterwavePayment } from "@/lib/flutterwave.functions";
+import { computeGatewayFee } from "@/lib/fees";
 import { detectEscrowRoles, suggestAgreement } from "@/lib/escrow-ai.functions";
 import { encodeCard } from "@/components/EscrowChatCards";
 
@@ -57,12 +58,14 @@ const AGREEMENT_TYPES = [
   { value: "delivery", label: "Delivery Agreement" },
 ] as const;
 
-// Fee math — commission and Paystack fee are always calculated separately.
+// Fee math — commission and the gateway (Flutterwave) fee are always
+// calculated separately internally, then shown to the customer as a single
+// "EasyMeet Protection Fee" line.
 // - commission: comes from the tiered `calculate_commission` RPC on the
-//   labor/service amount ONLY. Never includes materials, Paystack fee, or
+//   labor/service amount ONLY. Never includes materials, gateway fee, or
 //   contingency. Passed in from the caller.
-// - paystackFee: 1.5% + ₦100 (max ₦2,000) on the amount the customer is
-//   actually charged BEFORE the Paystack fee itself is added. It never
+// - gateway fee: 1.4% + ₦100 (max ₦2,000) on the amount the customer is
+//   actually charged BEFORE the gateway fee itself is added. It never
 //   feeds back into commission.
 export function computeAgreementFees(
   materials: number,
@@ -76,13 +79,7 @@ export function computeAgreementFees(
   const comm = Math.max(0, Number(commission) || 0);
   const subtotal = m + l + c;
   const preFeeTotal = subtotal + comm;
-  const paystackFee =
-    preFeeTotal > 0
-      ? Math.min(
-          2000,
-          Math.round((preFeeTotal * 0.015 + (preFeeTotal >= 2500 ? 100 : 0)) * 100) / 100,
-        )
-      : 0;
+  const paystackFee = preFeeTotal > 0 ? computeGatewayFee(preFeeTotal) : 0;
   const totalPaid = preFeeTotal + paystackFee;
   // Materials pay 0 commission; only labor/service is commissionable.
   const professionalReceives = Math.max(0, m + l - comm);
