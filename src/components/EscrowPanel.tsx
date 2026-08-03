@@ -1488,6 +1488,11 @@ function PaymentBreakdownDialog({
     Number(ag?.commission_amount ?? fallbackCommission(commissionable)),
   );
   const [commissionLoading, setCommissionLoading] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+
+  useEffect(() => {
+    if (!open) setTermsAccepted(false);
+  }, [open]);
 
   useEffect(() => {
     if (!open || !ag) return;
