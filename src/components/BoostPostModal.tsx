@@ -10,9 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Rocket } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
-import { payWithPaystack } from "@/lib/paystack";
-import { verifyPaystackTransaction } from "@/lib/paystack.functions";
-import { computePaystackFee } from "@/lib/paystackFees";
+import { payWithFlutterwave } from "@/lib/flutterwave";
+import { verifyFlutterwavePayment } from "@/lib/flutterwave.functions";
+import { computeGatewayFee } from "@/lib/fees";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/providers";
 
@@ -30,8 +30,8 @@ export function BoostPostModal({
   const { user } = useAuth();
   const [paying, setPaying] = useState(false);
   const BOOST_AMOUNT = 2000;
-  const paystackFee = computePaystackFee(BOOST_AMOUNT);
-  const total = BOOST_AMOUNT + paystackFee;
+  const protectionFee = computeGatewayFee(BOOST_AMOUNT);
+  const total = BOOST_AMOUNT + protectionFee;
 
   const boost = async () => {
     if (!user) return;
@@ -42,15 +42,18 @@ export function BoostPostModal({
     }
     setPaying(true);
     try {
-      const res = await payWithPaystack({
+      const res = await payWithFlutterwave({
         email: user.email || `${user.id}@easymeet.app`,
         amountNgn: total,
+        flow: "boost",
+        userId: user.id,
+        description: "EasyMeet post boost (7 days)",
         metadata: { post_id: postId, kind: "boost" },
       });
-      const verify = await verifyPaystackTransaction({
-        data: { reference: res.reference, expectedAmountNgn: total },
+      const verify = await verifyFlutterwavePayment({
+        data: { transactionId: res.transactionId, expectedAmountNgn: total },
       });
-      if (!verify.ok) {
+      if (!verify.verified) {
         toast.error(verify.message || "Payment could not be verified");
         return;
       }
@@ -98,8 +101,8 @@ export function BoostPostModal({
             <span>₦{BOOST_AMOUNT.toLocaleString()}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Paystack fee</span>
-            <span>₦{paystackFee.toLocaleString()}</span>
+            <span className="text-muted-foreground">🛡️ EasyMeet Protection Fee</span>
+            <span>₦{protectionFee.toLocaleString()}</span>
           </div>
           <div className="flex justify-between font-semibold pt-2 border-t border-border">
             <span>Total</span>

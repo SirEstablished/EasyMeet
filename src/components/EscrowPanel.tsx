@@ -45,8 +45,9 @@ import {
   Truck,
   Briefcase,
 } from "lucide-react";
-import { payWithPaystack } from "@/lib/paystack";
-import { computePaystackFee } from "@/lib/paystackFees";
+import { payWithFlutterwave } from "@/lib/flutterwave";
+import { verifyFlutterwavePayment } from "@/lib/flutterwave.functions";
+import { computeGatewayFee } from "@/lib/fees";
 import { detectEscrowRoles, suggestAgreement } from "@/lib/escrow-ai.functions";
 import { encodeCard } from "@/components/EscrowChatCards";
 
@@ -57,12 +58,14 @@ const AGREEMENT_TYPES = [
   { value: "delivery", label: "Delivery Agreement" },
 ] as const;
 
-// Fee math — commission and Paystack fee are always calculated separately.
+// Fee math — commission and the gateway (Flutterwave) fee are always
+// calculated separately internally, then shown to the customer as a single
+// "EasyMeet Protection Fee" line.
 // - commission: comes from the tiered `calculate_commission` RPC on the
-//   labor/service amount ONLY. Never includes materials, Paystack fee, or
+//   labor/service amount ONLY. Never includes materials, gateway fee, or
 //   contingency. Passed in from the caller.
-// - paystackFee: 1.5% + ₦100 (max ₦2,000) on the amount the customer is
-//   actually charged BEFORE the Paystack fee itself is added. It never
+// - gateway fee: 1.4% + ₦100 (max ₦2,000) on the amount the customer is
+//   actually charged BEFORE the gateway fee itself is added. It never
 //   feeds back into commission.
 export function computeAgreementFees(
   materials: number,
@@ -76,13 +79,7 @@ export function computeAgreementFees(
   const comm = Math.max(0, Number(commission) || 0);
   const subtotal = m + l + c;
   const preFeeTotal = subtotal + comm;
-  const paystackFee =
-    preFeeTotal > 0
-      ? Math.min(
-          2000,
-          Math.round((preFeeTotal * 0.015 + (preFeeTotal >= 2500 ? 100 : 0)) * 100) / 100,
-        )
-      : 0;
+  const paystackFee = preFeeTotal > 0 ? computeGatewayFee(preFeeTotal) : 0;
   const totalPaid = preFeeTotal + paystackFee;
   // Materials pay 0 commission; only labor/service is commissionable.
   const professionalReceives = Math.max(0, m + l - comm);
@@ -795,25 +792,36 @@ export function EscrowPanel({
       if (agreementType === "service") {
         if (laborCost > 5000) {
           chargeAmount = laborCost + commission;
-          paystackFee = computePaystackFee(chargeAmount);
+          paystackFee = computeGatewayFee(chargeAmount);
         } else {
           const zeroCommissionCharge = laborCost;
-          paystackFee = computePaystackFee(zeroCommissionCharge);
+          paystackFee = computeGatewayFee(zeroCommissionCharge);
           chargeAmount = zeroCommissionCharge + paystackFee;
         }
       }
       setPayBreakdownOpen(false);
-      const reference = await payWithPaystack({
+      const reference = await payWithFlutterwave({
         email: myEmail,
         amountNgn: chargeAmount,
+        flow: "escrow",
+        userId: meId,
+        description: paymentAgreement.job_title || "EasyMeet protected deal",
         metadata: {
           agreement_id: paymentAgreement.id,
           kind: "escrow_service",
           materials_cost: materialsCost,
           labor_cost: laborCost,
-          paystack_fee: paystackFee,
+          gateway_fee: paystackFee,
         },
       });
+      // Server-side verification before any escrow record is created.
+      const verified = await verifyFlutterwavePayment({
+        data: { transactionId: reference.transactionId, expectedAmountNgn: chargeAmount },
+      });
+      if (!verified.verified) {
+        toast.error(verified.message || "Payment could not be verified");
+        return;
+      }
       const p_conversation_id = conversationId;
       const p_agreement_id = paymentAgreement.id;
       const p_customer_id = meId;
@@ -1004,7 +1012,7 @@ export function EscrowPanel({
       })();
       // Paystack fee is calculated on the pre-fee amount the customer pays
       // (service amount + commission). It is never deducted from the professional.
-      const paystackFee = computePaystackFee(grossAmount + commission);
+      const paystackFee = computeGatewayFee(grossAmount + commission);
       // Only the permanent Deal Summary card is posted to chat — no
       // completion popup, toast, or extra chat notification.
       void paystackFeeApprox;
@@ -1480,6 +1488,11 @@ function PaymentBreakdownDialog({
     Number(ag?.commission_amount ?? fallbackCommission(commissionable)),
   );
   const [commissionLoading, setCommissionLoading] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+
+  useEffect(() => {
+    if (!open) setTermsAccepted(false);
+  }, [open]);
 
   useEffect(() => {
     if (!open || !ag) return;
@@ -1514,7 +1527,7 @@ function PaymentBreakdownDialog({
   const preFeeTotal = isService
     ? serviceFee + effectiveCommission
     : subtotal + effectiveCommission;
-  const rawPaystackFee = computePaystackFee(
+  const rawPaystackFee = computeGatewayFee(
     isService ? serviceFee : preFeeTotal,
   );
   const paystackFee = rawPaystackFee;
@@ -1612,29 +1625,22 @@ function PaymentBreakdownDialog({
                 <span className="font-semibold text-sm">{formatNgn(r.value)}</span>
               </div>
             ))}
-            {!isServiceLowTier && (
-              <div className="flex items-center gap-3 px-4 py-3">
-                <span className="h-8 w-8 rounded-lg bg-accent/15 text-accent grid place-items-center">
-                  <Shield className="h-4 w-4" />
-                </span>
-                <span className="flex-1 text-sm text-muted-foreground">
-                  {commissionLabel}
-                  {commissionLoading && " • calculating…"}
-                </span>
-                <span className="font-semibold text-sm">
-                  {formatNgn(effectiveCommission)}
-                </span>
-              </div>
-            )}
-            {!isServiceHighTier && (
-              <div className="flex items-center gap-3 px-4 py-3">
-                <span className="h-8 w-8 rounded-lg bg-muted text-muted-foreground grid place-items-center">
-                  <CreditCard className="h-4 w-4" />
-                </span>
-                <span className="flex-1 text-sm text-muted-foreground">Paystack fee</span>
-                <span className="font-semibold text-sm">{formatNgn(paystackFee)}</span>
-              </div>
-            )}
+            {/* Commission + processing fee are always shown as ONE line. */}
+            <div className="flex items-center gap-3 px-4 py-3">
+              <span className="h-8 w-8 rounded-lg bg-accent/15 text-accent grid place-items-center">
+                <Shield className="h-4 w-4" />
+              </span>
+              <span className="flex-1 text-sm text-muted-foreground">
+                🛡️ EasyMeet Protection Fee
+                {commissionLoading && " • calculating…"}
+              </span>
+              <span className="font-semibold text-sm">
+                {formatNgn(
+                  (isServiceLowTier ? 0 : effectiveCommission) +
+                    (isServiceHighTier ? 0 : paystackFee),
+                )}
+              </span>
+            </div>
           </div>
 
           <div className="rounded-2xl bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/20 p-4 space-y-1.5">
@@ -1652,9 +1658,18 @@ function PaymentBreakdownDialog({
         </div>
 
         <div className="px-5 py-4 border-t border-border bg-card/80 backdrop-blur space-y-2">
+          <label className="flex items-start gap-2 text-[12px] text-muted-foreground cursor-pointer">
+            <input
+              type="checkbox"
+              checked={termsAccepted}
+              onChange={(e) => setTermsAccepted(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-[#6C47FF]"
+            />
+            <span>I agree to the EasyMeet Protection Fee Terms &amp; Conditions</span>
+          </label>
           <Button
             onClick={onConfirm}
-            disabled={paying}
+            disabled={paying || !termsAccepted}
             className="w-full h-12 text-base font-semibold bg-gradient-to-r from-[#6C47FF] to-[#8E5BFF] hover:opacity-95 shadow-lg shadow-primary/30"
           >
             {paying ? (
@@ -1851,6 +1866,7 @@ function SendAgreementDialog({
   const [terms, setTerms] = useState("");
   const [busy, setBusy] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
+  const [agreeTerms, setAgreeTerms] = useState(false);
 
   // Map per-type inputs -> (immediate-release, held-in-escrow, contingency).
   // Commission rule: 3% on labor/service only; 0% on materials/products/delivery.
@@ -1924,7 +1940,7 @@ function SendAgreementDialog({
   // fee minus that Paystack fee, never minus the protection fee.
   const serviceHighTierPaystackFee =
     agreementType === "service" && mapped.held > 5000
-      ? computePaystackFee(mapped.held)
+      ? computeGatewayFee(mapped.held)
       : fees.paystackFee;
   // For delivery, rider gets 100% of the delivery fee — commission is added
   // to the customer's total, not deducted from the rider's payout.
@@ -2579,19 +2595,27 @@ function SendAgreementDialog({
             )}
             <SummaryRow
               label={"🛡️ EasyMeet Protection Fee" + (commissionLoading ? " • calculating…" : "")}
-              value={commission}
+              value={commission + fees.paystackFee}
               muted
             />
-            <SummaryRow label="💳 Paystack Fee" value={fees.paystackFee} muted />
             <div className="border-t border-border/50 my-1" />
             <SummaryRow label="Total you pay" value={fees.totalPaid} bold />
             <SummaryRow label={receiverLabel} value={professionalReceives} accent />
           </div>
         </div>
-        <div className="px-5 py-4 border-t border-border bg-card/80 backdrop-blur">
+        <div className="px-5 py-4 border-t border-border bg-card/80 backdrop-blur space-y-2">
+          <label className="flex items-start gap-2 text-[12px] text-muted-foreground cursor-pointer">
+            <input
+              type="checkbox"
+              checked={agreeTerms}
+              onChange={(e) => setAgreeTerms(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-[#6C47FF]"
+            />
+            <span>I agree to the EasyMeet Protection Fee Terms &amp; Conditions</span>
+          </label>
           <Button
             onClick={submit}
-            disabled={busy}
+            disabled={busy || !agreeTerms}
             className="w-full h-12 text-base font-semibold bg-gradient-to-r from-[#6C47FF] to-[#8E5BFF] hover:opacity-95 shadow-lg shadow-primary/30"
           >
             {busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}

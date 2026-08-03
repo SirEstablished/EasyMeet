@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { payWithPaystack } from "@/lib/paystack";
-import { verifyPaystackTransaction } from "@/lib/paystack.functions";
+import { payWithFlutterwave } from "@/lib/flutterwave";
+import { verifyFlutterwavePayment } from "@/lib/flutterwave.functions";
 
 export const Route = createFileRoute("/staff-register")({
   ssr: false,
@@ -118,15 +118,18 @@ function StaffRegisterPage() {
       if (upErr) throw upErr;
 
       // 3. Pay subscription
-      const payRes = await payWithPaystack({
+      const payRes = await payWithFlutterwave({
         email: inviteRow.email,
         amountNgn: 1000,
+        flow: "staff",
+        userId,
+        description: "EasyMeet staff subscription",
         metadata: { kind: "staff_subscription", staff_id: userId },
       });
-      const verify = await verifyPaystackTransaction({
-        data: { reference: payRes.reference, expectedAmountNgn: 1000 },
+      const verify = await verifyFlutterwavePayment({
+        data: { transactionId: payRes.transactionId, expectedAmountNgn: 1000 },
       });
-      if (!verify.ok) {
+      if (!verify.verified) {
         throw new Error(verify.message || "Payment could not be verified");
       }
 
