@@ -9,8 +9,9 @@ import { VerificationTicks } from "@/components/VerificationTicks";
 import { StarRating } from "@/components/StarRating";
 import { ArrowLeft, ChevronLeft, ChevronRight, Loader2, ShoppingBag, Star } from "lucide-react";
 import { toast } from "sonner";
-import { payWithPaystack } from "@/lib/paystack";
-import { verifyPaystackTransaction } from "@/lib/paystack.functions";
+import { payWithFlutterwave } from "@/lib/flutterwave";
+import { verifyFlutterwavePayment } from "@/lib/flutterwave.functions";
+import { computeGatewayFee } from "@/lib/fees";
 
 export const Route = createFileRoute("/_authenticated/product/$id")({
   component: ProductDetail,
@@ -81,17 +82,24 @@ function ProductDetail() {
     }
     setBuying(true);
     try {
-      const res = await payWithPaystack({
+      // Products carry zero commission — the Protection Fee is processing only.
+      const productPrice = Number(product.price);
+      const protectionFee = computeGatewayFee(productPrice);
+      const chargeAmount = Math.round((productPrice + protectionFee) * 100) / 100;
+      const res = await payWithFlutterwave({
         email: user.email || `${user.id}@easymeet.app`,
-        amountNgn: Number(product.price),
+        amountNgn: chargeAmount,
+        flow: "shop",
+        userId: user.id,
+        description: product.title,
         metadata: { product_id: product.id, kind: "product" },
       });
 
-      // Server-side Paystack verification
-      const verify = await verifyPaystackTransaction({
-        data: { reference: res.reference, expectedAmountNgn: Number(product.price) },
+      // Server-side Flutterwave verification
+      const verify = await verifyFlutterwavePayment({
+        data: { transactionId: res.transactionId, expectedAmountNgn: chargeAmount },
       });
-      if (!verify.ok) {
+      if (!verify.verified) {
         toast.error(verify.message || "Payment verification failed");
         return;
       }
