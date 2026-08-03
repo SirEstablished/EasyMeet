@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Loader2, ShieldCheck } from "lucide-react";
-import { computePaystackFee, NIGERIAN_BANKS } from "@/lib/paystackFees";
+import { computeGatewayFee, NIGERIAN_BANKS } from "@/lib/fees";
 
 const ADMIN_USER_ID = "18f810c2-762f-4d66-93a2-48b1be211c8c";
 
