@@ -1432,8 +1432,8 @@ function ViewAgreementModal({
                       const highTier = laborCost > 5000;
                       const commission = highTier ? rawCommission : 0;
                       const paystackFee = highTier
-                        ? computePaystackFee(laborCost)
-                        : rawPaystack || computePaystackFee(laborCost);
+                        ? computeGatewayFee(laborCost)
+                        : rawPaystack || computeGatewayFee(laborCost);
                       const totalYouPay = highTier
                         ? laborCost + commission
                         : laborCost + paystackFee;
@@ -1443,19 +1443,11 @@ function ViewAgreementModal({
                       return (
                         <>
                           <Row label="Service Fee" value={formatNgn(laborCost)} />
-                          {highTier ? (
-                            <Row
-                              label="EasyMeet Protection Fee"
-                              value={formatNgn(commission)}
-                              muted
-                            />
-                          ) : (
-                            <Row
-                              label="Paystack Processing Fee"
-                              value={formatNgn(paystackFee)}
-                              muted
-                            />
-                          )}
+                          <Row
+                            label="🛡️ EasyMeet Protection Fee"
+                            value={formatNgn(highTier ? commission : paystackFee)}
+                            muted
+                          />
                           <div className="px-3 py-2">
                             <div className="h-px bg-border/60" />
                           </div>
