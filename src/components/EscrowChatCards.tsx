@@ -20,7 +20,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { computePaystackFee } from "@/lib/paystackFees";
+import { computeGatewayFee } from "@/lib/fees";
 
 // -------- Card message encoding --------
 // Cards are persisted inside message.body as a single line prefix so the
@@ -1078,16 +1078,11 @@ function CompletionCard({ payload }: { payload: CompletionCardPayload }) {
           <Row label="Amount customer paid" value={formatNgn(payload.amount)} />
           <Row
             label="🛡️ EasyMeet Protection Fee"
-            value={formatNgn(payload.protection_fee)}
+            value={formatNgn(
+              Number(payload.protection_fee || 0) + Number(payload.paystack_fee || 0),
+            )}
             muted
           />
-          {typeof payload.paystack_fee === "number" && payload.paystack_fee > 0 && (
-            <Row
-              label="💳 Paystack Fee"
-              value={formatNgn(payload.paystack_fee)}
-              muted
-            />
-          )}
           <Row label="✅ Professional received" value={formatNgn(payload.payout)} green bold />
         </div>
       </div>
@@ -1143,10 +1138,10 @@ function DealSummaryCard({ payload }: { payload: DealSummaryCardPayload }) {
   const rawPaystackFee = escrow?.paystack_fee ?? payload.paystack_fee;
   const isService = payload.agreement_type === "service";
   const paystackFee = isService
-    ? computePaystackFee(serviceAmount)
+    ? computeGatewayFee(serviceAmount)
     : rawPaystackFee != null && !Number.isNaN(Number(rawPaystackFee))
       ? Number(rawPaystackFee)
-      : computePaystackFee(serviceAmount + protectionFee);
+      : computeGatewayFee(serviceAmount + protectionFee);
   // Service Agreement fee tiers (₦5,000 threshold on the Service Fee):
   //  - Above ₦5,000: customer pays Service Fee + Protection Fee (no Paystack row).
   //                  Professional receives Service Fee − Paystack Fee.
@@ -1211,17 +1206,13 @@ function DealSummaryCard({ payload }: { payload: DealSummaryCardPayload }) {
             label="Customer Paid"
             value={formatNgn(totalCustomerPaid)}
           />
-          {!isService && paystackFee > 0 && (
-            <IconRow
-              icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
-              label="Paystack Fee"
-              value={formatNgn(paystackFee)}
-            />
-          )}
           <IconRow
             icon={<Shield className="h-4 w-4 text-amber-500" />}
             label="EasyMeet Protection Fee"
-            value={formatNgn(isServiceLowTier ? 0 : protectionFee)}
+            value={formatNgn(
+              (isServiceLowTier ? 0 : protectionFee) +
+                (isServiceHighTier ? 0 : paystackFee),
+            )}
           />
           <IconRow
             icon={<User className="h-4 w-4 text-primary" />}
@@ -1270,16 +1261,12 @@ function DealSummaryCard({ payload }: { payload: DealSummaryCardPayload }) {
                 label="Amount customer paid"
                 value={formatNgn(totalCustomerPaid)}
               />
-              {!isService && (
-                <Row
-                  label="💳 Paystack Fee"
-                  value={formatNgn(paystackFee)}
-                  muted
-                />
-              )}
               <Row
                 label="🛡️ EasyMeet Protection Fee"
-                value={formatNgn(isServiceLowTier ? 0 : protectionFee)}
+                value={formatNgn(
+                  (isServiceLowTier ? 0 : protectionFee) +
+                    (isServiceHighTier ? 0 : paystackFee),
+                )}
                 muted
               />
               <Row
