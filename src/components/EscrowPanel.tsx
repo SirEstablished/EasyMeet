@@ -800,17 +800,28 @@ export function EscrowPanel({
         }
       }
       setPayBreakdownOpen(false);
-      const reference = await payWithPaystack({
+      const reference = await payWithFlutterwave({
         email: myEmail,
         amountNgn: chargeAmount,
+        flow: "escrow",
+        userId: meId,
+        description: paymentAgreement.job_title || "EasyMeet protected deal",
         metadata: {
           agreement_id: paymentAgreement.id,
           kind: "escrow_service",
           materials_cost: materialsCost,
           labor_cost: laborCost,
-          paystack_fee: paystackFee,
+          gateway_fee: paystackFee,
         },
       });
+      // Server-side verification before any escrow record is created.
+      const verified = await verifyFlutterwavePayment({
+        data: { transactionId: reference.transactionId, expectedAmountNgn: chargeAmount },
+      });
+      if (!verified.verified) {
+        toast.error(verified.message || "Payment could not be verified");
+        return;
+      }
       const p_conversation_id = conversationId;
       const p_agreement_id = paymentAgreement.id;
       const p_customer_id = meId;
