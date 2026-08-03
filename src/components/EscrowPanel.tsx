@@ -2580,10 +2580,9 @@ function SendAgreementDialog({
             )}
             <SummaryRow
               label={"🛡️ EasyMeet Protection Fee" + (commissionLoading ? " • calculating…" : "")}
-              value={commission}
+              value={commission + fees.paystackFee}
               muted
             />
-            <SummaryRow label="💳 Paystack Fee" value={fees.paystackFee} muted />
             <div className="border-t border-border/50 my-1" />
             <SummaryRow label="Total you pay" value={fees.totalPaid} bold />
             <SummaryRow label={receiverLabel} value={professionalReceives} accent />
