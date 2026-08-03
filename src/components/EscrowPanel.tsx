@@ -792,10 +792,10 @@ export function EscrowPanel({
       if (agreementType === "service") {
         if (laborCost > 5000) {
           chargeAmount = laborCost + commission;
-          paystackFee = computePaystackFee(chargeAmount);
+          paystackFee = computeGatewayFee(chargeAmount);
         } else {
           const zeroCommissionCharge = laborCost;
-          paystackFee = computePaystackFee(zeroCommissionCharge);
+          paystackFee = computeGatewayFee(zeroCommissionCharge);
           chargeAmount = zeroCommissionCharge + paystackFee;
         }
       }
@@ -1001,7 +1001,7 @@ export function EscrowPanel({
       })();
       // Paystack fee is calculated on the pre-fee amount the customer pays
       // (service amount + commission). It is never deducted from the professional.
-      const paystackFee = computePaystackFee(grossAmount + commission);
+      const paystackFee = computeGatewayFee(grossAmount + commission);
       // Only the permanent Deal Summary card is posted to chat — no
       // completion popup, toast, or extra chat notification.
       void paystackFeeApprox;
@@ -1511,7 +1511,7 @@ function PaymentBreakdownDialog({
   const preFeeTotal = isService
     ? serviceFee + effectiveCommission
     : subtotal + effectiveCommission;
-  const rawPaystackFee = computePaystackFee(
+  const rawPaystackFee = computeGatewayFee(
     isService ? serviceFee : preFeeTotal,
   );
   const paystackFee = rawPaystackFee;
@@ -1921,7 +1921,7 @@ function SendAgreementDialog({
   // fee minus that Paystack fee, never minus the protection fee.
   const serviceHighTierPaystackFee =
     agreementType === "service" && mapped.held > 5000
-      ? computePaystackFee(mapped.held)
+      ? computeGatewayFee(mapped.held)
       : fees.paystackFee;
   // For delivery, rider gets 100% of the delivery fee — commission is added
   // to the customer's total, not deducted from the rider's payout.
