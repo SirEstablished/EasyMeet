@@ -447,17 +447,36 @@ function Thread({
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      const { data } = await supabase
+    const fetchMessages = async () => {
+      const { data, error } = await supabase
         .from("messages")
         .select("*")
         .eq("conversation_id", conversation.id)
         .order("created_at", { ascending: true });
       if (cancelled) return;
+      if (error) {
+        console.error("[chat] failed to load messages", error);
+        return;
+      }
       setMessages((data as ChatMessage[]) ?? []);
+    };
+
+    (async () => {
+      await fetchMessages();
+      if (cancelled) return;
       scrollToBottom();
       markRead();
     })();
+
+    // Self-heal: if a realtime event is missed (tab backgrounded, socket drop),
+    // refetch messages and escrow cards when the chat regains focus.
+    const resync = () => {
+      if (document.visibilityState !== "visible") return;
+      void fetchMessages();
+      setEscrowRefreshKey((key) => key + 1);
+    };
+    window.addEventListener("focus", resync);
+    document.addEventListener("visibilitychange", resync);
 
     const channel = supabase
       .channel(`messages-${conversation.id}`)
@@ -509,10 +528,16 @@ function Thread({
         },
         () => setEscrowRefreshKey((key) => key + 1),
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+          console.error("[chat] realtime channel status", status, err);
+        }
+      });
 
     return () => {
       cancelled = true;
+      window.removeEventListener("focus", resync);
+      document.removeEventListener("visibilitychange", resync);
       supabase.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
