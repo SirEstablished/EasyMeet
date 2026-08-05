@@ -5,6 +5,20 @@ const SCRIPT_SRC = "https://checkout.flutterwave.com/v3.js";
 export const FLUTTERWAVE_PUBLIC_KEY =
   (import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY as string | undefined) ?? "";
 
+if (typeof window !== "undefined") {
+  // Masked diagnostic — never log the full key.
+  console.log(
+    "[flw] public key:",
+    FLUTTERWAVE_PUBLIC_KEY
+      ? `${FLUTTERWAVE_PUBLIC_KEY.slice(0, 10)}… (loaded)`
+      : "MISSING (VITE_FLUTTERWAVE_PUBLIC_KEY not set)",
+  );
+}
+
+export function isPaymentConfigured() {
+  return Boolean(FLUTTERWAVE_PUBLIC_KEY);
+}
+
 let loading: Promise<void> | null = null;
 
 function loadScript(): Promise<void> {
@@ -19,7 +33,7 @@ function loadScript(): Promise<void> {
     s.onload = () => resolve();
     s.onerror = () => {
       loading = null;
-      reject(new Error("Failed to load Flutterwave"));
+      reject(new Error("Could not load the payment window — check your connection"));
     };
     document.head.appendChild(s);
   });
@@ -58,14 +72,16 @@ export interface FlutterwaveResult {
  * Rejects with "Payment cancelled" when the modal is closed unpaid.
  */
 export async function payWithFlutterwave(args: FlutterwaveArgs): Promise<FlutterwaveResult> {
+  if (!FLUTTERWAVE_PUBLIC_KEY) {
+    console.error("[flw] payment aborted: VITE_FLUTTERWAVE_PUBLIC_KEY is not set");
+    throw new Error("Payment not configured");
+  }
   await loadScript();
   return new Promise<FlutterwaveResult>((resolve, reject) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const checkout = (window as any).FlutterwaveCheckout;
-    if (!checkout) return reject(new Error("Flutterwave not loaded"));
-    if (!FLUTTERWAVE_PUBLIC_KEY) {
-      return reject(new Error("Payments are not configured yet"));
-    }
+    if (!checkout)
+      return reject(new Error("Could not load the payment window — check your connection"));
     const txRef = args.txRef || generateTransactionRef(args.flow, args.userId);
     let paid = false;
     checkout({
