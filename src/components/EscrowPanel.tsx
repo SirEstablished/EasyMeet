@@ -822,6 +822,7 @@ export function EscrowPanel({
         toast.error(verified.message || "Payment could not be verified");
         return;
       }
+      console.log("[escrow] payment verified, calling RPC");
       const p_conversation_id = conversationId;
       const p_agreement_id = paymentAgreement.id;
       const p_customer_id = meId;
@@ -862,7 +863,7 @@ export function EscrowPanel({
       console.log("[escrow] create_escrow_payment result:", { data: insertedEscrow, error });
       if (error) {
         console.error("[escrow] create_escrow_payment failed", error);
-        toast.error("Payment saved but escrow failed: " + error.message);
+        toast.error(error.message);
         return;
       }
       // Optimistically reflect new state so the Pay button hides immediately
@@ -871,6 +872,11 @@ export function EscrowPanel({
       const base = (raw ?? {}) as Partial<EscrowOrder> & Record<string, unknown>;
       const paidOrder: EscrowOrder = {
         ...(base as EscrowOrder),
+        conversation_id: (base.conversation_id as string | null) ?? conversationId,
+        customer_id: (base.customer_id as string) ?? meId,
+        professional_id: (base.professional_id as string) ?? paymentAgreement.sender_id,
+        agreement_id: (base.agreement_id as string | null) ?? paymentAgreement.id,
+        amount_ngn: Number(base.amount_ngn ?? subtotal),
         commission_amount: 0,
         payout_amount: subtotal,
         status: "holding",
@@ -882,6 +888,7 @@ export function EscrowPanel({
       setHidden(false);
       setAgreement(paymentAgreement);
       setOrder(paidOrder);
+      setDealFlowActive(true);
 
       // Persist split amounts + release materials immediately on the escrow row.
       const escrowId = (base.id as string | undefined) ?? paidOrder.id;
@@ -924,6 +931,15 @@ export function EscrowPanel({
         ),
       });
       if (messageError) console.error("Escrow payment message failed", messageError);
+
+      const { error: noticeError } = await supabase.from("messages").insert({
+        conversation_id: conversationId,
+        sender_id: meId,
+        body: "💳 Payment placed in escrow. Work can begin.",
+      });
+      if (noticeError) console.error("Escrow payment notice failed", noticeError);
+
+      toast.success("Payment held in escrow successfully!");
 
       // Notify professional about material release.
       if (materialsCost > 0) {
