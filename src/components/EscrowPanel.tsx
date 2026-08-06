@@ -215,6 +215,9 @@ export function EscrowPanel({
   const dismissedOrderIdRef = useRef<string | null>(null);
   const dismissedAgreementIdRef = useRef<string | null>(null);
   const latestEscrowStatusRef = useRef<EscrowOrder["status"] | null>(null);
+  // Holds the just-paid escrow snapshot so a slow/failed refetch can never
+  // pull the panel back to "Pay into Escrow" after a successful charge.
+  const paidOrderRef = useRef<EscrowOrder | null>(null);
   const latestEscrowIsCancelled = () => latestEscrowStatusRef.current === "cancelled";
 
   // Per-conversation, per-user keys for fix #1 (fresh-deal cutoff) and
