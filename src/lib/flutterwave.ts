@@ -3,7 +3,8 @@
 const SCRIPT_SRC = "https://checkout.flutterwave.com/v3.js";
 
 export const FLUTTERWAVE_PUBLIC_KEY =
-  (import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY as string | undefined) ?? "";
+  (import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY as string | undefined) ||
+  "FLWPUBK_TEST-32c06e65af5a8824826cb4fa2a5f126e-X";
 
 if (typeof window !== "undefined") {
   // Masked diagnostic — never log the full key.
