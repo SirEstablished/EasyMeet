@@ -558,6 +558,7 @@ export function EscrowPanel({
   const startNewDeal = () => {
     if (order) dismissedOrderIdRef.current = order.id;
     if (agreement) dismissedAgreementIdRef.current = agreement.id;
+    paidOrderRef.current = null;
     // Fix #1: persist a cutoff so older escrow/agreement rows are ignored
     // even after a hard refresh, on every load() for this user+conversation.
     // Fix #2: clear the saved role so a new deal can re-detect it.
