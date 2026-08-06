@@ -215,6 +215,9 @@ export function EscrowPanel({
   const dismissedOrderIdRef = useRef<string | null>(null);
   const dismissedAgreementIdRef = useRef<string | null>(null);
   const latestEscrowStatusRef = useRef<EscrowOrder["status"] | null>(null);
+  // Holds the just-paid escrow snapshot so a slow/failed refetch can never
+  // pull the panel back to "Pay into Escrow" after a successful charge.
+  const paidOrderRef = useRef<EscrowOrder | null>(null);
   const latestEscrowIsCancelled = () => latestEscrowStatusRef.current === "cancelled";
 
   // Per-conversation, per-user keys for fix #1 (fresh-deal cutoff) and
@@ -361,6 +364,12 @@ export function EscrowPanel({
         // Only keep an optimistic payment row before the database has returned
         // that same latest escrow. Never fall back to an older escrow record.
         if (!next && prev && paying) return prev;
+        // A payment that already succeeded wins over any stale/absent read.
+        const paid = paidOrderRef.current;
+        if (paid) {
+          if (!next) return paid;
+          if (next.status === "pending_payment") return paid;
+        }
         return next;
       });
     } catch (e) {
@@ -549,6 +558,7 @@ export function EscrowPanel({
   const startNewDeal = () => {
     if (order) dismissedOrderIdRef.current = order.id;
     if (agreement) dismissedAgreementIdRef.current = agreement.id;
+    paidOrderRef.current = null;
     // Fix #1: persist a cutoff so older escrow/agreement rows are ignored
     // even after a hard refresh, on every load() for this user+conversation.
     // Fix #2: clear the saved role so a new deal can re-detect it.
@@ -818,11 +828,49 @@ export function EscrowPanel({
       const verified = await verifyFlutterwavePayment({
         data: { transactionId: reference.transactionId, expectedAmountNgn: chargeAmount },
       });
+      console.log("[escrow] verify ->", verified);
       if (!verified.verified) {
-        toast.error(verified.message || "Payment could not be verified");
+        toast.error(
+          `Payment could not be verified: ${verified.message || "unknown reason"} (ref ${reference.reference})`,
+        );
         return;
       }
       console.log("[escrow] payment verified, calling RPC");
+
+      // Step 2 — advance the panel immediately, before any backend round-trip,
+      // so a slow or failing write never leaves the customer on "Pay into Escrow".
+      const optimisticOrder: EscrowOrder = {
+        id: `pending-${reference.reference}`,
+        order_id: null,
+        kind: "service",
+        conversation_id: conversationId,
+        customer_id: meId,
+        professional_id: paymentAgreement.sender_id,
+        agreement_id: paymentAgreement.id,
+        product_id: null,
+        quantity: null,
+        title: paymentAgreement.job_title,
+        amount_ngn: subtotal,
+        commission_amount: 0,
+        payout_amount: subtotal,
+        status: "holding",
+        stage: "work_in_progress",
+        payment_ref: reference.reference,
+        paystack_reference: reference.reference,
+        paid_at: new Date().toISOString(),
+        released_at: null,
+        refunded_at: null,
+        refund_status: null,
+        refund_amount: null,
+        created_at: new Date().toISOString(),
+      };
+      paidOrderRef.current = optimisticOrder;
+      setShowSummary(false);
+      setHidden(false);
+      setAgreement(paymentAgreement);
+      setOrder(optimisticOrder);
+      setDealFlowActive(true);
+
       const p_conversation_id = conversationId;
       const p_agreement_id = paymentAgreement.id;
       const p_customer_id = meId;
@@ -852,7 +900,8 @@ export function EscrowPanel({
         toast.error(`Payment saved but escrow failed: missing ${missing.join(", ")}`);
         return;
       }
-      const { data: insertedEscrow, error } = await supabase.rpc("create_escrow_payment", {
+      let insertedEscrow: unknown = null;
+      const { data: rpcEscrow, error } = await supabase.rpc("create_escrow_payment", {
         p_conversation_id,
         p_agreement_id,
         p_customer_id,
@@ -860,17 +909,44 @@ export function EscrowPanel({
         p_amount,
         p_payment_ref,
       });
-      console.log("[escrow] create_escrow_payment result:", { data: insertedEscrow, error });
+      console.log("[escrow] rpc ->", { data: rpcEscrow, error });
       if (error) {
         console.error("[escrow] create_escrow_payment failed", error);
-        toast.error(error.message);
-        return;
+        // Step 3 — fall back to writing the escrow row directly so a successful
+        // charge is never lost when the RPC is unavailable or rejects.
+        const { data: fallbackEscrow, error: fallbackError } = await supabase
+          .from("escrow")
+          .insert({
+            conversation_id: p_conversation_id,
+            agreement_id: p_agreement_id,
+            customer_id: p_customer_id,
+            professional_id: p_provider_id,
+            title: paymentAgreement.job_title,
+            amount_ngn: p_amount,
+            payment_ref: p_payment_ref,
+            status: "holding",
+            stage: "work_in_progress",
+          } as never)
+          .select()
+          .maybeSingle();
+        console.log("[escrow] rpc fallback ->", { data: fallbackEscrow, error: fallbackError });
+        if (fallbackError) {
+          console.error("[escrow] direct escrow insert failed", fallbackError);
+          toast.error(
+            `Payment received (ref ${p_payment_ref}) but the escrow record could not be created: ${
+              error.message || fallbackError.message
+            }. Please contact support with this reference.`,
+          );
+        } else {
+          insertedEscrow = fallbackEscrow;
+        }
+      } else {
+        insertedEscrow = rpcEscrow;
       }
-      // Optimistically reflect new state so the Pay button hides immediately
-      // and Mark Complete / Open Dispute appear without waiting for refetch.
       const raw = Array.isArray(insertedEscrow) ? insertedEscrow[0] : insertedEscrow;
       const base = (raw ?? {}) as Partial<EscrowOrder> & Record<string, unknown>;
       const paidOrder: EscrowOrder = {
+        ...optimisticOrder,
         ...(base as EscrowOrder),
         conversation_id: (base.conversation_id as string | null) ?? conversationId,
         customer_id: (base.customer_id as string) ?? meId,
@@ -884,6 +960,7 @@ export function EscrowPanel({
         payment_ref: reference.reference,
         paystack_reference: reference.reference,
       };
+      paidOrderRef.current = paidOrder;
       setShowSummary(false);
       setHidden(false);
       setAgreement(paymentAgreement);
@@ -891,7 +968,8 @@ export function EscrowPanel({
       setDealFlowActive(true);
 
       // Persist split amounts + release materials immediately on the escrow row.
-      const escrowId = (base.id as string | undefined) ?? paidOrder.id;
+      const rawEscrowId = base.id as string | undefined;
+      const escrowId = rawEscrowId && !rawEscrowId.startsWith("pending-") ? rawEscrowId : undefined;
       const nowIso = new Date().toISOString();
       const escrowUpdate: Record<string, unknown> = {
         materials_amount: materialsCost,
@@ -930,7 +1008,11 @@ export function EscrowPanel({
             : `💳 Payment of ${formatNgn(chargeAmount)} placed in escrow.`,
         ),
       });
-      if (messageError) console.error("Escrow payment message failed", messageError);
+      console.log("[escrow] card ->", messageError ?? "inserted");
+      if (messageError) {
+        console.error("Escrow payment message failed", messageError);
+        toast.error(`Payment card could not be posted to the chat: ${messageError.message}`);
+      }
 
       const { error: noticeError } = await supabase.from("messages").insert({
         conversation_id: conversationId,
