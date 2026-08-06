@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
 import {
   supabase,
+  formatNgn,
   type Conversation,
   type Message,
   type Profile,
@@ -27,6 +28,8 @@ import {
   CheckCheck,
   ImageIcon,
   Loader2,
+  Phone,
+  MoreVertical,
 } from "lucide-react";
 import { containsPhone, PHONE_BLOCK_MESSAGE } from "@/lib/phoneCheck";
 import { cn } from "@/lib/utils";
@@ -67,7 +70,8 @@ function dayLabel(d: string) {
   const same = (a: Date, b: Date) => a.toDateString() === b.toDateString();
   if (same(date, today)) return "Today";
   if (same(date, yest)) return "Yesterday";
-  return date.toLocaleDateString(undefined, { month: "long", day: "numeric" });
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
 }
 
 function MessagesPage() {
@@ -403,6 +407,12 @@ function Thread({
   const [otherOnline, setOtherOnline] = useState(false);
   const [otherLastSeen, setOtherLastSeen] = useState<string | null>(null);
   const [escrowRefreshKey, setEscrowRefreshKey] = useState(0);
+  const [activeEscrow, setActiveEscrow] = useState<{
+    id: string;
+    amount: number;
+    status: string;
+    title: string;
+  } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -437,17 +447,36 @@ function Thread({
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      const { data } = await supabase
+    const fetchMessages = async () => {
+      const { data, error } = await supabase
         .from("messages")
         .select("*")
         .eq("conversation_id", conversation.id)
         .order("created_at", { ascending: true });
       if (cancelled) return;
+      if (error) {
+        console.error("[chat] failed to load messages", error);
+        return;
+      }
       setMessages((data as ChatMessage[]) ?? []);
+    };
+
+    (async () => {
+      await fetchMessages();
+      if (cancelled) return;
       scrollToBottom();
       markRead();
     })();
+
+    // Self-heal: if a realtime event is missed (tab backgrounded, socket drop),
+    // refetch messages and escrow cards when the chat regains focus.
+    const resync = () => {
+      if (document.visibilityState !== "visible") return;
+      void fetchMessages();
+      setEscrowRefreshKey((key) => key + 1);
+    };
+    window.addEventListener("focus", resync);
+    document.addEventListener("visibilitychange", resync);
 
     const channel = supabase
       .channel(`messages-${conversation.id}`)
@@ -499,10 +528,16 @@ function Thread({
         },
         () => setEscrowRefreshKey((key) => key + 1),
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+          console.error("[chat] realtime channel status", status, err);
+        }
+      });
 
     return () => {
       cancelled = true;
+      window.removeEventListener("focus", resync);
+      document.removeEventListener("visibilitychange", resync);
       supabase.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -516,6 +551,34 @@ function Thread({
     const t = setTimeout(scrollToBottom, 80);
     return () => clearTimeout(t);
   }, [messages.length]);
+
+  // Fetch active escrow for the deal banner
+  useEffect(() => {
+    if (!conversation.id) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("escrow")
+        .select("id, amount_ngn, status, title")
+        .eq("conversation_id", conversation.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const status = (data.status as string) || "pending_payment";
+      if (status !== "cancelled" && status !== "refunded" && status !== "released" && status !== "completed") {
+        setActiveEscrow({
+          id: data.id,
+          amount: Number(data.amount_ngn ?? 0),
+          status,
+          title: (data.title as string) || "Deal",
+        });
+      } else {
+        setActiveEscrow(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [conversation.id, escrowRefreshKey]);
 
   // Presence: track this user online in a shared conversation channel and
   // read the other party's online state from presence events. No schema
@@ -650,7 +713,7 @@ function Thread({
   return (
     <>
       {/* Header */}
-      <div className="h-16 border-b border-border/60 bg-card px-3 flex items-center gap-2">
+      <div className="h-16 border-b border-border/40 bg-white px-3 flex items-center gap-2">
         <Button variant="ghost" size="icon" className="sm:hidden -ml-1" onClick={onBack}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
@@ -660,18 +723,18 @@ function Thread({
           className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-90"
         >
           <div className="relative shrink-0">
-            <Avatar className="h-10 w-10 ring-2 ring-primary/20">
+            <Avatar className="h-11 w-11 ring-2 ring-primary/20">
               <AvatarImage src={other?.avatar_url ?? undefined} />
               <AvatarFallback className="bg-primary/10 text-primary font-semibold">
                 {initials(name)}
               </AvatarFallback>
             </Avatar>
             {otherOnline && (
-              <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-card" />
+              <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-white" />
             )}
           </div>
           <div className="min-w-0 flex flex-col items-start">
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
               <span className="font-semibold text-[15px] truncate text-foreground">{name}</span>
               <VerificationTicks
                 blue={other?.blue_tick}
@@ -688,12 +751,17 @@ function Thread({
             </div>
             <div className="flex items-center gap-2">
               {other?.role && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize bg-primary/10 text-primary">
+                <span className={cn(
+                  "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize",
+                  other.role === "customer"
+                    ? "bg-blue-100 text-blue-700"
+                    : "bg-primary/10 text-primary"
+                )}>
                   {other.role}
                 </span>
               )}
               {otherOnline ? (
-                <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                <span className="text-[11px] text-emerald-600 flex items-center gap-1">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                   Active now
                 </span>
@@ -707,35 +775,69 @@ function Thread({
             </div>
           </div>
         </Link>
+        <div className="flex items-center gap-0.5">
+          <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-primary">
+            <Phone className="h-[18px] w-[18px]" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-primary">
+            <MoreVertical className="h-[18px] w-[18px]" />
+          </Button>
+        </div>
       </div>
 
       {/* Scrollable body */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto bg-muted/30 px-4 pt-4 pb-2 space-y-1.5"
+        className="flex-1 overflow-y-auto bg-white px-4 pt-4 pb-4 space-y-1"
       >
         {/* Escrow protection banner */}
-        <div className="flex items-center gap-3 rounded-2xl bg-card border border-border/60 px-3.5 py-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-          <div className="h-9 w-9 rounded-full bg-primary/10 grid place-items-center shrink-0">
-            <Shield className="h-[18px] w-[18px] text-primary" />
+        {activeEscrow ? (
+          <div className="flex items-center gap-3 rounded-2xl bg-emerald-50 border border-emerald-200 px-3.5 py-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+            <div className="h-9 w-9 rounded-full bg-emerald-100 grid place-items-center shrink-0">
+              <Shield className="h-[18px] w-[18px] text-emerald-600" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-semibold text-emerald-700 leading-tight">
+                Deal in Escrow
+              </p>
+              <p className="text-[13px] font-bold text-foreground leading-tight mt-0.5">
+                {formatNgn(activeEscrow.amount)}
+                <span className="text-[11px] font-normal text-muted-foreground ml-1.5">
+                  Payment held securely
+                </span>
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-emerald-700 hover:text-emerald-800 font-semibold text-[13px] shrink-0"
+            >
+              View Deal
+              <ChevronRight className="h-4 w-4 ml-0.5" />
+            </Button>
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-[13px] font-semibold text-foreground leading-tight">
-              You're protected by EasyMeet Escrow
-            </p>
-            <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
-              Secure payments. Safe transactions.
-            </p>
+        ) : (
+          <div className="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 px-3.5 py-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+            <div className="h-9 w-9 rounded-full bg-primary/15 grid place-items-center shrink-0">
+              <Shield className="h-[18px] w-[18px] text-primary" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-semibold text-foreground leading-tight">
+                No active deal yet
+              </p>
+              <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+                Start a protected deal to work with peace of mind
+              </p>
+            </div>
           </div>
-          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-        </div>
+        )}
 
         <div className="h-2" />
 
         {items.map((it) =>
           it.type === "sep" ? (
-            <div key={it.key} className="flex justify-center my-3">
-              <span className="text-[11px] font-semibold text-muted-foreground tracking-wide uppercase bg-card px-2.5 py-1 rounded-full border border-border/60">
+            <div key={it.key} className="flex justify-center my-4">
+              <span className="text-[11px] font-medium text-muted-foreground bg-gray-100 px-3 py-1 rounded-full">
                 {it.label}
               </span>
             </div>
@@ -745,6 +847,7 @@ function Thread({
               m={it.msg}
               mine={it.msg.sender_id === meId}
               meId={meId}
+              other={other}
             />
           ),
         )}
@@ -765,30 +868,31 @@ function Thread({
       />
 
       {/* Composer */}
-      <div className="border-t border-border/60 bg-card px-3 pt-2.5 pb-3">
+      <div className="border-t border-border/40 bg-white px-3 pt-3 pb-4">
         {warn && <div className="text-xs text-destructive mb-2 px-1">{warn}</div>}
         <div className="flex items-center gap-2">
-          <div className="flex-1 flex items-center gap-1.5 h-12 rounded-full bg-muted/60 border border-border/60 px-2 pl-3">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*,video/*"
-              className="hidden"
-              onChange={onFileChosen}
-            />
-            <button
-              type="button"
-              onClick={openFilePicker}
-              disabled={uploading}
-              aria-label="Attach photo or video"
-              className="h-8 w-8 rounded-full grid place-items-center text-muted-foreground hover:text-primary hover:bg-primary/10 transition disabled:opacity-50 shrink-0"
-            >
-              {uploading ? (
-                <Loader2 className="h-[18px] w-[18px] animate-spin" />
-              ) : (
-                <Paperclip className="h-[18px] w-[18px]" />
-              )}
-            </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,video/*"
+            className="hidden"
+            onChange={onFileChosen}
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={openFilePicker}
+            disabled={uploading}
+            aria-label="Attach photo or video"
+            className="h-10 w-10 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 shrink-0"
+          >
+            {uploading ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <Paperclip className="h-5 w-5" />
+            )}
+          </Button>
+          <div className="flex-1 flex items-center h-12 rounded-full bg-gray-100 border border-border/30 px-4">
             <Input
               value={text}
               onChange={(e) => {
@@ -802,13 +906,13 @@ function Thread({
                 }
               }}
               placeholder="Type a message..."
-              className="flex-1 h-full bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none px-2 text-[14px]"
+              className="flex-1 h-full bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none px-0 text-[14px] placeholder:text-muted-foreground/60"
             />
           </div>
           <Button
             onClick={() => send()}
             disabled={!text.trim() || sending || uploading}
-            className="h-12 w-12 p-0 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-[0_8px_24px_-10px_color-mix(in_oklab,var(--primary)_60%,transparent)]"
+            className="h-12 w-12 p-0 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-[0_4px_12px_-4px_color-mix(in_oklab,var(--primary)_50%,transparent)]"
           >
             <Send className="h-[18px] w-[18px]" />
           </Button>
@@ -818,15 +922,27 @@ function Thread({
   );
 }
 
-function MessageBubble({ m, mine, meId }: { m: ChatMessage; mine: boolean; meId: string }) {
+function MessageBubble({ m, mine, meId, other }: { m: ChatMessage; mine: boolean; meId: string; other?: Profile | null }) {
   const card = parseCardMessage(m.body);
   if (card) {
     return (
-      <div className={cn("flex flex-col mt-2", mine ? "items-end" : "items-start")}>
-        <EscrowChatCard kind={card.kind} payload={card.payload} meId={meId} mine={mine} />
-        <span className="text-[10px] text-muted-foreground mt-1 px-1">
-          {formatTime(m.created_at)}
-        </span>
+      <div className={cn("flex mt-3", mine ? "justify-end" : "justify-start")}>
+        {!mine && (
+          <div className="shrink-0 mr-2 mt-1">
+            <Avatar className="h-7 w-7">
+              <AvatarImage src={other?.avatar_url ?? undefined} />
+              <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-semibold">
+                {other?.full_name ? initials(other.full_name) : "?"}
+              </AvatarFallback>
+            </Avatar>
+          </div>
+        )}
+        <div className={cn("flex flex-col", mine ? "items-end" : "items-start")}>
+          <EscrowChatCard kind={card.kind} payload={card.payload} meId={meId} mine={mine} />
+          <span className="text-[10px] text-muted-foreground mt-1 px-1">
+            {formatTime(m.created_at)}
+          </span>
+        </div>
       </div>
     );
   }
@@ -835,57 +951,69 @@ function MessageBubble({ m, mine, meId }: { m: ChatMessage; mine: boolean; meId:
   const mediaUrl = m.media_url ?? null;
   const mediaType = m.media_type ?? null;
   return (
-    <div className={cn("flex flex-col mt-2", mine ? "items-end" : "items-start")}>
-      <div
-        className={cn(
-          "max-w-[78%] text-[14px] leading-snug whitespace-pre-wrap break-words overflow-hidden",
-          mine
-            ? "bg-primary text-primary-foreground rounded-[20px] rounded-br-md shadow-[0_6px_18px_-10px_color-mix(in_oklab,var(--primary)_60%,transparent)]"
-            : "bg-card text-foreground rounded-[20px] rounded-bl-md border border-border/60 shadow-[0_1px_2px_rgba(15,23,42,0.04)]",
-        )}
-      >
-        {mediaUrl && mediaType === "image" && (
-          <a href={mediaUrl} target="_blank" rel="noreferrer" className="block">
-            <img
-              src={mediaUrl}
-              alt="attachment"
-              className="max-h-72 w-full object-cover"
-              loading="lazy"
-            />
-          </a>
-        )}
-        {mediaUrl && mediaType === "video" && (
-          <video src={mediaUrl} controls className="max-h-72 w-full" preload="metadata">
-            <track kind="captions" />
-          </video>
-        )}
-        {mediaUrl && mediaType !== "image" && mediaType !== "video" && (
-          <a
-            href={mediaUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-2 px-4 py-2.5 underline"
-          >
-            <ImageIcon className="h-4 w-4" /> Attachment
-          </a>
-        )}
-        {m.body ? <div className="px-4 py-2.5">{m.body}</div> : null}
+    <div className={cn("flex mt-3", mine ? "justify-end" : "justify-start")}>
+      {!mine && (
+        <div className="shrink-0 mr-2 mt-1">
+          <Avatar className="h-7 w-7">
+            <AvatarImage src={other?.avatar_url ?? undefined} />
+            <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-semibold">
+              {other?.full_name ? initials(other.full_name) : "?"}
+            </AvatarFallback>
+          </Avatar>
+        </div>
+      )}
+      <div className={cn("flex flex-col max-w-[78%]", mine ? "items-end" : "items-start")}>
+        <div
+          className={cn(
+            "text-[14px] leading-relaxed whitespace-pre-wrap break-words overflow-hidden",
+            mine
+              ? "bg-[#E8DEFF] text-foreground rounded-[18px] rounded-br-md px-4 py-2.5 shadow-[0_1px_3px_rgba(15,23,42,0.08)]"
+              : "bg-white text-foreground rounded-[18px] rounded-bl-md border border-border/50 px-4 py-2.5 shadow-[0_1px_3px_rgba(15,23,42,0.06)]",
+          )}
+        >
+          {mediaUrl && mediaType === "image" && (
+            <a href={mediaUrl} target="_blank" rel="noreferrer" className="block -mx-1 -mt-0.5 first:mt-0">
+              <img
+                src={mediaUrl}
+                alt="attachment"
+                className="max-h-72 w-full object-cover rounded-xl"
+                loading="lazy"
+              />
+            </a>
+          )}
+          {mediaUrl && mediaType === "video" && (
+            <video src={mediaUrl} controls className="max-h-72 w-full rounded-xl" preload="metadata">
+              <track kind="captions" />
+            </video>
+          )}
+          {mediaUrl && mediaType !== "image" && mediaType !== "video" && (
+            <a
+              href={mediaUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-2 underline"
+            >
+              <ImageIcon className="h-4 w-4" /> Attachment
+            </a>
+          )}
+          {m.body ? <div>{m.body}</div> : null}
+        </div>
+        <span className="text-[10px] text-muted-foreground mt-1 px-1 flex items-center gap-1">
+          {formatTime(m.created_at)}
+          {mine && (
+            <span
+              className={cn("inline-flex", isRead ? "text-blue-500" : "text-muted-foreground")}
+              aria-label={isRead ? "Read" : isDelivered ? "Delivered" : "Sent"}
+            >
+              {isDelivered || isRead ? (
+                <CheckCheck className="h-3.5 w-3.5" />
+              ) : (
+                <Check className="h-3.5 w-3.5" />
+              )}
+            </span>
+          )}
+        </span>
       </div>
-      <span className="text-[10px] text-muted-foreground mt-1 px-1 flex items-center gap-1">
-        {formatTime(m.created_at)}
-        {mine && (
-          <span
-            className={cn("inline-flex", isRead ? "text-primary" : "text-muted-foreground")}
-            aria-label={isRead ? "Read" : isDelivered ? "Delivered" : "Sent"}
-          >
-            {isDelivered || isRead ? (
-              <CheckCheck className="h-3.5 w-3.5" />
-            ) : (
-              <Check className="h-3.5 w-3.5" />
-            )}
-          </span>
-        )}
-      </span>
     </div>
   );
 }

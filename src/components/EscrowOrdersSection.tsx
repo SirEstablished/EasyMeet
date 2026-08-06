@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Shield, CheckCircle2, AlertTriangle, RefreshCcw, Loader2 } from "lucide-react";
-import { refundPaystackTransaction } from "@/lib/paystack.functions";
+import { refundFlutterwaveTransaction } from "@/lib/flutterwave.functions";
 
 const STAGE_LABEL: Record<EscrowOrder["status"], string> = {
   pending_payment: "Awaiting payment",
@@ -113,8 +113,8 @@ export function EscrowOrdersSection() {
   const startRefund = async (o: EscrowOrder) => {
     if (!o.paystack_reference) return toast.error("No payment reference");
     setBusyId(o.id);
-    const r = await refundPaystackTransaction({
-      data: { reference: o.paystack_reference, amountNgn: o.amount_ngn },
+    const r = await refundFlutterwaveTransaction({
+      data: { transactionId: o.paystack_reference, amountNgn: o.amount_ngn },
     });
     if (!r.ok) {
       setBusyId(null);
@@ -228,7 +228,7 @@ export function EscrowOrdersSection() {
           </DialogHeader>
           <p className="text-sm">
             Your refund is being processed. Please note that a small percentage will be deducted as
-            per Paystack and EasyMeet policy. Refunds take 3-5 business days.
+            per payment processor and EasyMeet policy. Refunds take 3-5 business days.
           </p>
           <DialogFooter>
             <Button onClick={() => setRefundOpen(false)}>OK</Button>

@@ -9,6 +9,7 @@ const InputSchema = z.object({
     .min(6)
     .max(128)
     .regex(/^[a-zA-Z0-9_-]+$/),
+  transactionId: z.string().min(1).max(64).regex(/^[a-zA-Z0-9_-]+$/),
 });
 
 export interface RecordResult {
@@ -18,7 +19,7 @@ export interface RecordResult {
 }
 
 /**
- * Verifies a Paystack transaction and inserts a completed product order.
+ * Verifies a Flutterwave transaction and inserts a completed product order.
  * Uses supabaseAdmin to bypass the buyer-side insert guards which force
  * payment_status to 'pending'.
  */
@@ -42,30 +43,29 @@ export const recordProductOrder = createServerFn({ method: "POST" })
     const price = Number(product.price ?? 0);
     if (price <= 0) return { ok: false, message: "Invalid product price" };
 
-    const secret = process.env.PAYSTACK_SECRET_KEY;
+    const secret = process.env["FLUTTERWAVE_SECRET_KEY"];
     if (!secret) return { ok: false, message: "Server not configured" };
 
     let res: Response;
     try {
       res = await fetch(
-        `https://api.paystack.co/transaction/verify/${encodeURIComponent(data.reference)}`,
-        { headers: { Authorization: `Bearer ${secret}` } },
+        `https://api.flutterwave.com/v3/transactions/${encodeURIComponent(data.transactionId)}/verify`,
+        { headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/json" } },
       );
     } catch {
       return { ok: false, message: "Verification unavailable" };
     }
-    if (!res.ok) return { ok: false, message: "Verification failed" };
-    const json = (await res.json()) as {
-      status?: boolean;
+    const json = (await res.json().catch(() => null)) as {
+      status?: string;
       data?: { status?: string; amount?: number; currency?: string };
-    };
+    } | null;
     const tx = json?.data;
-    if (!json?.status || !tx || tx.status !== "success") {
+    if (!res.ok || json?.status !== "success" || !tx || tx.status !== "successful") {
       return { ok: false, message: "Payment not successful" };
     }
     if (tx.currency && tx.currency !== "NGN") return { ok: false, message: "Wrong currency" };
-    const paidKobo = typeof tx.amount === "number" ? tx.amount : 0;
-    if (paidKobo < Math.round(price * 100)) return { ok: false, message: "Amount mismatch" };
+    const paid = Number(tx.amount ?? 0);
+    if (paid + 1 < price) return { ok: false, message: "Amount mismatch" };
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -12,9 +12,9 @@ import { Label } from "@/components/ui/label";
 import { Upload, CheckCircle2, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/providers";
-import { payWithPaystack } from "@/lib/paystack";
-import { verifyPaystackTransaction } from "@/lib/paystack.functions";
-import { computePaystackFee } from "@/lib/paystackFees";
+import { payWithFlutterwave } from "@/lib/flutterwave";
+import { verifyFlutterwavePayment } from "@/lib/flutterwave.functions";
+import { computeGatewayFee } from "@/lib/fees";
 import { toast } from "sonner";
 
 type Tick = "blue" | "white";
@@ -102,17 +102,20 @@ export function VerificationModal({
     setPaying(true);
     try {
       const amount = TICK_PRICE_NGN[tickType];
-      const paystackFee = computePaystackFee(amount);
-      const total = amount + paystackFee;
-      const res = await payWithPaystack({
+      const protectionFee = computeGatewayFee(amount);
+      const total = amount + protectionFee;
+      const res = await payWithFlutterwave({
         email: user.email || `${user.id}@easymeet.app`,
         amountNgn: total,
+        flow: "verification",
+        userId: user.id,
+        description: `EasyMeet ${tickType} tick verification`,
         metadata: { kind: "tick_verification", tick_type: tickType },
       });
-      const verify = await verifyPaystackTransaction({
-        data: { reference: res.reference, expectedAmountNgn: total },
+      const verify = await verifyFlutterwavePayment({
+        data: { transactionId: res.transactionId, expectedAmountNgn: total },
       });
-      if (!verify.ok) {
+      if (!verify.verified) {
         toast.error(verify.message || "Payment could not be verified");
         return;
       }
@@ -236,7 +239,7 @@ export function VerificationModal({
           <div className="space-y-4">
             {(() => {
               const amount = TICK_PRICE_NGN[tickType];
-              const fee = computePaystackFee(amount);
+              const fee = computeGatewayFee(amount);
               const total = amount + fee;
               return (
                 <div className="rounded-xl border border-border p-4 space-y-2 text-sm">
@@ -245,7 +248,7 @@ export function VerificationModal({
                     <span>₦{amount.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Paystack fee</span>
+                    <span className="text-muted-foreground">🛡️ EasyMeet Protection Fee</span>
                     <span>₦{fee.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between font-semibold pt-2 border-t border-border">
@@ -253,7 +256,7 @@ export function VerificationModal({
                     <span className="text-primary">₦{total.toLocaleString()}</span>
                   </div>
                   <p className="text-[11px] text-muted-foreground pt-1">
-                    Paystack's transaction fee (1.5% + ₦100, capped at ₦2,000) is added — EasyMeet does not charge extra.
+                    The EasyMeet Protection Fee covers secure payment processing and platform protection.
                   </p>
                 </div>
               );
@@ -262,7 +265,7 @@ export function VerificationModal({
               <Button variant="outline" onClick={() => setStep(1)}>Back</Button>
               <Button className="bg-gradient-brand" disabled={paying} onClick={pay}>
                 {paying && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Pay ₦{(TICK_PRICE_NGN[tickType] + computePaystackFee(TICK_PRICE_NGN[tickType])).toLocaleString()}
+                Pay ₦{(TICK_PRICE_NGN[tickType] + computeGatewayFee(TICK_PRICE_NGN[tickType])).toLocaleString()}
               </Button>
             </div>
           </div>

@@ -27,7 +27,6 @@ import {
 type OrderRow = {
   id: string;
   amount: number | null;
-  amount_ngn: number | null;
   payout_amount: number | null;
   service_title: string | null;
   service_id: string | null;
@@ -47,7 +46,7 @@ function isCompleted(o: OrderRow, escrowStatus: string | null) {
 }
 
 function revenueOf(o: OrderRow): number {
-  return Number(o.payout_amount ?? o.amount_ngn ?? o.amount ?? 0) || 0;
+  return Number(o.payout_amount ?? o.amount ?? 0) || 0;
 }
 
 function startOfMonth(d: Date) {
@@ -135,7 +134,7 @@ export function AnalyticsSection() {
         supabase
           .from("orders")
           .select(
-            "id, amount, amount_ngn, payout_amount, service_title, service_id, customer_id, status, escrow_status, created_at",
+            "id, amount, payout_amount, service_title, service_id, customer_id, status, escrow_status, created_at",
           )
           .eq("provider_id", user.id)
           .order("created_at", { ascending: false }),
