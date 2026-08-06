@@ -968,7 +968,8 @@ export function EscrowPanel({
       setDealFlowActive(true);
 
       // Persist split amounts + release materials immediately on the escrow row.
-      const escrowId = (base.id as string | undefined) ?? paidOrder.id;
+      const rawEscrowId = base.id as string | undefined;
+      const escrowId = rawEscrowId && !rawEscrowId.startsWith("pending-") ? rawEscrowId : undefined;
       const nowIso = new Date().toISOString();
       const escrowUpdate: Record<string, unknown> = {
         materials_amount: materialsCost,
