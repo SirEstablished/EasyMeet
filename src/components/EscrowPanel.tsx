@@ -364,6 +364,12 @@ export function EscrowPanel({
         // Only keep an optimistic payment row before the database has returned
         // that same latest escrow. Never fall back to an older escrow record.
         if (!next && prev && paying) return prev;
+        // A payment that already succeeded wins over any stale/absent read.
+        const paid = paidOrderRef.current;
+        if (paid) {
+          if (!next) return paid;
+          if (next.status === "pending_payment") return paid;
+        }
         return next;
       });
     } catch (e) {
