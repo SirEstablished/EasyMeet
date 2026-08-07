@@ -187,7 +187,7 @@ function MessagesPage() {
   if (!user) return null;
 
   return (
-    <div className={cn("max-w-6xl mx-auto flex bg-background overflow-hidden", activeId ? "h-[100dvh]" : "h-[calc(100dvh-4rem)]")}>
+    <div className="max-w-6xl mx-auto h-[calc(100dvh-4rem)] flex bg-background">
       {/* Sidebar */}
       <aside
         className={cn(
@@ -447,36 +447,17 @@ function Thread({
 
   useEffect(() => {
     let cancelled = false;
-    const fetchMessages = async () => {
-      const { data, error } = await supabase
+    (async () => {
+      const { data } = await supabase
         .from("messages")
         .select("*")
         .eq("conversation_id", conversation.id)
         .order("created_at", { ascending: true });
       if (cancelled) return;
-      if (error) {
-        console.error("[chat] failed to load messages", error);
-        return;
-      }
       setMessages((data as ChatMessage[]) ?? []);
-    };
-
-    (async () => {
-      await fetchMessages();
-      if (cancelled) return;
       scrollToBottom();
       markRead();
     })();
-
-    // Self-heal: if a realtime event is missed (tab backgrounded, socket drop),
-    // refetch messages and escrow cards when the chat regains focus.
-    const resync = () => {
-      if (document.visibilityState !== "visible") return;
-      void fetchMessages();
-      setEscrowRefreshKey((key) => key + 1);
-    };
-    window.addEventListener("focus", resync);
-    document.addEventListener("visibilitychange", resync);
 
     const channel = supabase
       .channel(`messages-${conversation.id}`)
@@ -528,16 +509,10 @@ function Thread({
         },
         () => setEscrowRefreshKey((key) => key + 1),
       )
-      .subscribe((status, err) => {
-        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
-          console.error("[chat] realtime channel status", status, err);
-        }
-      });
+      .subscribe();
 
     return () => {
       cancelled = true;
-      window.removeEventListener("focus", resync);
-      document.removeEventListener("visibilitychange", resync);
       supabase.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -713,7 +688,7 @@ function Thread({
   return (
     <>
       {/* Header */}
-      <div className="h-16 shrink-0 border-b border-border/40 bg-white px-3 flex items-center gap-2 pt-safe">
+      <div className="h-16 border-b border-border/40 bg-white px-3 flex items-center gap-2">
         <Button variant="ghost" size="icon" className="sm:hidden -ml-1" onClick={onBack}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
@@ -868,7 +843,7 @@ function Thread({
       />
 
       {/* Composer */}
-      <div className="shrink-0 border-t border-border/40 bg-white px-3 pt-3 pb-4">
+      <div className="border-t border-border/40 bg-white px-3 pt-3 pb-4">
         {warn && <div className="text-xs text-destructive mb-2 px-1">{warn}</div>}
         <div className="flex items-center gap-2">
           <input
