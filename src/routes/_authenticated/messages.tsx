@@ -711,7 +711,7 @@ function Thread({
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+    <>
       {/* Header */}
       <div className="h-16 shrink-0 border-b border-border/40 bg-white px-3 flex items-center gap-2 pt-safe">
         <Button variant="ghost" size="icon" className="sm:hidden -ml-1" onClick={onBack}>
@@ -918,7 +918,7 @@ function Thread({
           </Button>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
