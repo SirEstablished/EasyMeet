@@ -187,7 +187,7 @@ function MessagesPage() {
   if (!user) return null;
 
   return (
-    <div className="max-w-6xl mx-auto h-[calc(100dvh-4rem)] flex bg-background">
+    <div className="max-w-6xl mx-auto h-[calc(100dvh-4rem)] flex bg-background overflow-hidden">
       {/* Sidebar */}
       <aside
         className={cn(
@@ -711,9 +711,9 @@ function Thread({
   }
 
   return (
-    <>
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       {/* Header */}
-      <div className="h-16 border-b border-border/40 bg-white px-3 flex items-center gap-2">
+      <div className="h-16 shrink-0 border-b border-border/40 bg-white px-3 flex items-center gap-2">
         <Button variant="ghost" size="icon" className="sm:hidden -ml-1" onClick={onBack}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
@@ -868,7 +868,7 @@ function Thread({
       />
 
       {/* Composer */}
-      <div className="border-t border-border/40 bg-white px-3 pt-3 pb-4">
+      <div className="shrink-0 border-t border-border/40 bg-white px-3 pt-3 pb-4">
         {warn && <div className="text-xs text-destructive mb-2 px-1">{warn}</div>}
         <div className="flex items-center gap-2">
           <input
@@ -918,7 +918,7 @@ function Thread({
           </Button>
         </div>
       </div>
-    </>
+    </div>
   );
 }
 
