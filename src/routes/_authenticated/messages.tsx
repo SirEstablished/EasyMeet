@@ -347,7 +347,7 @@ function MessagesPage() {
       </aside>
 
       {/* Thread */}
-      <section className={cn("flex-1 flex flex-col", !activeId && "hidden sm:flex")}>
+      <section className={cn("flex-1 flex flex-col min-h-0 overflow-hidden", !activeId && "hidden sm:flex")}>
         {activeConvo ? (
           <Thread
             key={activeConvo.id}
