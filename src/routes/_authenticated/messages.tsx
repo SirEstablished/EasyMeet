@@ -187,7 +187,7 @@ function MessagesPage() {
   if (!user) return null;
 
   return (
-    <div className="max-w-6xl mx-auto h-[calc(100dvh-4rem)] flex bg-background overflow-hidden">
+    <div className="max-w-6xl mx-auto h-[calc(100dvh-8rem)] flex bg-background overflow-hidden">
       {/* Sidebar */}
       <aside
         className={cn(
