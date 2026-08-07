@@ -39,7 +39,7 @@ function AuthLayout() {
   if (!user) return null;
 
   return (
-    <div className="h-[100dvh] flex flex-col bg-background overflow-hidden">
+    <div className="min-h-screen flex flex-col bg-background">
       <AppNavbar />
       <main className="flex-1 pb-[calc(64px+env(safe-area-inset-bottom))] md:pb-0 flex flex-col">
         <Outlet />
