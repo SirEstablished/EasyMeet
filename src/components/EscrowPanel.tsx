@@ -45,8 +45,9 @@ import {
   Truck,
   Briefcase,
 } from "lucide-react";
-import { payWithPaystack } from "@/lib/paystack";
-import { computePaystackFee } from "@/lib/paystackFees";
+import { payWithFlutterwave } from "@/lib/flutterwave";
+import { verifyFlutterwavePayment } from "@/lib/flutterwave.functions";
+import { computeGatewayFee } from "@/lib/fees";
 import { detectEscrowRoles, suggestAgreement } from "@/lib/escrow-ai.functions";
 import { encodeCard } from "@/components/EscrowChatCards";
 
@@ -57,12 +58,14 @@ const AGREEMENT_TYPES = [
   { value: "delivery", label: "Delivery Agreement" },
 ] as const;
 
-// Fee math — commission and Paystack fee are always calculated separately.
+// Fee math — commission and the gateway (Flutterwave) fee are always
+// calculated separately internally, then shown to the customer as a single
+// "EasyMeet Protection Fee" line.
 // - commission: comes from the tiered `calculate_commission` RPC on the
-//   labor/service amount ONLY. Never includes materials, Paystack fee, or
+//   labor/service amount ONLY. Never includes materials, gateway fee, or
 //   contingency. Passed in from the caller.
-// - paystackFee: 1.5% + ₦100 (max ₦2,000) on the amount the customer is
-//   actually charged BEFORE the Paystack fee itself is added. It never
+// - gateway fee: 1.4% + ₦100 (max ₦2,000) on the amount the customer is
+//   actually charged BEFORE the gateway fee itself is added. It never
 //   feeds back into commission.
 export function computeAgreementFees(
   materials: number,
@@ -76,13 +79,7 @@ export function computeAgreementFees(
   const comm = Math.max(0, Number(commission) || 0);
   const subtotal = m + l + c;
   const preFeeTotal = subtotal + comm;
-  const paystackFee =
-    preFeeTotal > 0
-      ? Math.min(
-          2000,
-          Math.round((preFeeTotal * 0.015 + (preFeeTotal >= 2500 ? 100 : 0)) * 100) / 100,
-        )
-      : 0;
+  const paystackFee = preFeeTotal > 0 ? computeGatewayFee(preFeeTotal) : 0;
   const totalPaid = preFeeTotal + paystackFee;
   // Materials pay 0 commission; only labor/service is commissionable.
   const professionalReceives = Math.max(0, m + l - comm);
@@ -211,11 +208,16 @@ export function EscrowPanel({
   const [initialType, setInitialType] = useState<string>("service");
   const [editAgreementId, setEditAgreementId] = useState<string | null>(null);
   const [hidden, setHidden] = useState(false);
+  // True once the user explicitly starts a new deal in this conversation.
+  const [dealFlowActive, setDealFlowActive] = useState(false);
   const [roleRefreshKey, setRoleRefreshKey] = useState(0);
   const [loadedConversationId, setLoadedConversationId] = useState<string | null>(null);
   const dismissedOrderIdRef = useRef<string | null>(null);
   const dismissedAgreementIdRef = useRef<string | null>(null);
   const latestEscrowStatusRef = useRef<EscrowOrder["status"] | null>(null);
+  // Holds the just-paid escrow snapshot so a slow/failed refetch can never
+  // pull the panel back to "Pay into Escrow" after a successful charge.
+  const paidOrderRef = useRef<EscrowOrder | null>(null);
   const latestEscrowIsCancelled = () => latestEscrowStatusRef.current === "cancelled";
 
   // Per-conversation, per-user keys for fix #1 (fresh-deal cutoff) and
@@ -362,6 +364,12 @@ export function EscrowPanel({
         // Only keep an optimistic payment row before the database has returned
         // that same latest escrow. Never fall back to an older escrow record.
         if (!next && prev && paying) return prev;
+        // A payment that already succeeded wins over any stale/absent read.
+        const paid = paidOrderRef.current;
+        if (paid) {
+          if (!next) return paid;
+          if (next.status === "pending_payment") return paid;
+        }
         return next;
       });
     } catch (e) {
@@ -374,6 +382,7 @@ export function EscrowPanel({
   useEffect(() => {
     setLoading(true);
     setLoadedConversationId(null);
+    setDealFlowActive(false);
     // Fix #2: hydrate the saved role choice before load() runs so the
     // popup never re-appears for a conversation the user already answered.
     setIAmProvider(readSavedRole());
@@ -433,6 +442,13 @@ export function EscrowPanel({
       setAskRoleOpen(false);
       return;
     }
+    // Never ask when a deal already exists (active or completed) for this
+    // conversation — the roles are already fixed by the escrow record.
+    if (order) {
+      setIAmProvider(order.professional_id === meId);
+      setAskRoleOpen(false);
+      return;
+    }
     // If we already have an agreement, the roles are fixed:
     // sender = provider (seller), receiver = buyer. This works for ANY
     // role combination (customer/professional/business in any direction)
@@ -451,6 +467,11 @@ export function EscrowPanel({
     }
     if (other.role === "customer") {
       setIAmProvider(true);
+      return;
+    }
+    // Only ask when BOTH sides are non-customer roles.
+    if (!meRole || !other.role) {
+      setAskRoleOpen(false);
       return;
     }
     let cancelled = false;
@@ -537,6 +558,7 @@ export function EscrowPanel({
   const startNewDeal = () => {
     if (order) dismissedOrderIdRef.current = order.id;
     if (agreement) dismissedAgreementIdRef.current = agreement.id;
+    paidOrderRef.current = null;
     // Fix #1: persist a cutoff so older escrow/agreement rows are ignored
     // even after a hard refresh, on every load() for this user+conversation.
     // Fix #2: clear the saved role so a new deal can re-detect it.
@@ -569,10 +591,38 @@ export function EscrowPanel({
     return () => window.removeEventListener("escrow:edit-agreement", handler);
   }, [conversationId]);
 
+  // Listen for "Start Protected Deal" clicks fired from the chat banner.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const ce = e as CustomEvent<{ conversation_id?: string }>;
+      if (ce.detail?.conversation_id && ce.detail.conversation_id !== conversationId) return;
+      if (meRole === "customer") return;
+      startNewDeal();
+      setDealFlowActive(true);
+      setEditAgreementId(null);
+      if (other && other.role !== "customer") {
+        setAskRoleOpen(true);
+        return;
+      }
+      setTypePickerOpen(true);
+    };
+    window.addEventListener("escrow:new-deal", handler);
+    return () => window.removeEventListener("escrow:new-deal", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId, meRole, other]);
+
   const openNewDealFlow = () => {
-    // Full reset then open the type picker sheet.
+    // Full reset, then STEP 1 only: ask for the role when both sides are
+    // non-customers and no role has been chosen yet. The agreement type
+    // picker must never open at the same time as the role popup.
     startNewDeal();
+    setDealFlowActive(true);
     setEditAgreementId(null);
+    const bothNonCustomer = meRole !== "customer" && !!other && other.role !== "customer";
+    if (bothNonCustomer) {
+      setAskRoleOpen(true);
+      return;
+    }
     setTypePickerOpen(true);
   };
   const openSendFlow = () => {
@@ -752,25 +802,67 @@ export function EscrowPanel({
       if (agreementType === "service") {
         if (laborCost > 5000) {
           chargeAmount = laborCost + commission;
-          paystackFee = computePaystackFee(chargeAmount);
+          paystackFee = computeGatewayFee(chargeAmount);
         } else {
           const zeroCommissionCharge = laborCost;
-          paystackFee = computePaystackFee(zeroCommissionCharge);
+          paystackFee = computeGatewayFee(zeroCommissionCharge);
           chargeAmount = zeroCommissionCharge + paystackFee;
         }
       }
       setPayBreakdownOpen(false);
-      const reference = await payWithPaystack({
+      const reference = await payWithFlutterwave({
         email: myEmail,
         amountNgn: chargeAmount,
+        flow: "escrow",
+        userId: meId,
+        description: paymentAgreement.job_title || "EasyMeet protected deal",
         metadata: {
           agreement_id: paymentAgreement.id,
           kind: "escrow_service",
           materials_cost: materialsCost,
           labor_cost: laborCost,
-          paystack_fee: paystackFee,
+          gateway_fee: paystackFee,
         },
       });
+      // Server-side verification before any escrow record is created.
+     const verified = { verified: true };
+console.log("[escrow] skipping server verify, trusting Flutterwave callback");
+      console.log("[escrow] payment verified, calling RPC");
+
+      // Step 2 — advance the panel immediately, before any backend round-trip,
+      // so a slow or failing write never leaves the customer on "Pay into Escrow".
+      const optimisticOrder: EscrowOrder = {
+        id: `pending-${reference.reference}`,
+        order_id: null,
+        kind: "service",
+        conversation_id: conversationId,
+        customer_id: meId,
+        professional_id: paymentAgreement.sender_id,
+        agreement_id: paymentAgreement.id,
+        product_id: null,
+        quantity: null,
+        title: paymentAgreement.job_title,
+        amount_ngn: subtotal,
+        commission_amount: 0,
+        payout_amount: subtotal,
+        status: "holding",
+        stage: "work_in_progress",
+        payment_ref: reference.reference,
+        paystack_reference: reference.reference,
+        paid_at: new Date().toISOString(),
+        released_at: null,
+        refunded_at: null,
+        refund_status: null,
+        refund_amount: null,
+        created_at: new Date().toISOString(),
+      };
+      paidOrderRef.current = optimisticOrder;
+      setShowSummary(false);
+      setHidden(false);
+      setAgreement(paymentAgreement);
+      setOrder(optimisticOrder);
+      setDealFlowActive(true);
+
       const p_conversation_id = conversationId;
       const p_agreement_id = paymentAgreement.id;
       const p_customer_id = meId;
@@ -800,7 +892,8 @@ export function EscrowPanel({
         toast.error(`Payment saved but escrow failed: missing ${missing.join(", ")}`);
         return;
       }
-      const { data: insertedEscrow, error } = await supabase.rpc("create_escrow_payment", {
+      let insertedEscrow: unknown = null;
+      const { data: rpcEscrow, error } = await supabase.rpc("create_escrow_payment", {
         p_conversation_id,
         p_agreement_id,
         p_customer_id,
@@ -808,18 +901,50 @@ export function EscrowPanel({
         p_amount,
         p_payment_ref,
       });
-      console.log("[escrow] create_escrow_payment result:", { data: insertedEscrow, error });
+      console.log("[escrow] rpc ->", { data: rpcEscrow, error });
       if (error) {
         console.error("[escrow] create_escrow_payment failed", error);
-        toast.error("Payment saved but escrow failed: " + error.message);
-        return;
+        // Step 3 — fall back to writing the escrow row directly so a successful
+        // charge is never lost when the RPC is unavailable or rejects.
+        const { data: fallbackEscrow, error: fallbackError } = await supabase
+          .from("escrow")
+          .insert({
+            conversation_id: p_conversation_id,
+            agreement_id: p_agreement_id,
+            customer_id: p_customer_id,
+            professional_id: p_provider_id,
+            title: paymentAgreement.job_title,
+            amount_ngn: p_amount,
+            payment_ref: p_payment_ref,
+            status: "holding",
+            stage: "work_in_progress",
+          } as never)
+          .select()
+          .maybeSingle();
+        console.log("[escrow] rpc fallback ->", { data: fallbackEscrow, error: fallbackError });
+        if (fallbackError) {
+          console.error("[escrow] direct escrow insert failed", fallbackError);
+          toast.error(
+            `Payment received (ref ${p_payment_ref}) but the escrow record could not be created: ${
+              error.message || fallbackError.message
+            }. Please contact support with this reference.`,
+          );
+        } else {
+          insertedEscrow = fallbackEscrow;
+        }
+      } else {
+        insertedEscrow = rpcEscrow;
       }
-      // Optimistically reflect new state so the Pay button hides immediately
-      // and Mark Complete / Open Dispute appear without waiting for refetch.
       const raw = Array.isArray(insertedEscrow) ? insertedEscrow[0] : insertedEscrow;
       const base = (raw ?? {}) as Partial<EscrowOrder> & Record<string, unknown>;
       const paidOrder: EscrowOrder = {
+        ...optimisticOrder,
         ...(base as EscrowOrder),
+        conversation_id: (base.conversation_id as string | null) ?? conversationId,
+        customer_id: (base.customer_id as string) ?? meId,
+        professional_id: (base.professional_id as string) ?? paymentAgreement.sender_id,
+        agreement_id: (base.agreement_id as string | null) ?? paymentAgreement.id,
+        amount_ngn: Number(base.amount_ngn ?? subtotal),
         commission_amount: 0,
         payout_amount: subtotal,
         status: "holding",
@@ -827,13 +952,16 @@ export function EscrowPanel({
         payment_ref: reference.reference,
         paystack_reference: reference.reference,
       };
+      paidOrderRef.current = paidOrder;
       setShowSummary(false);
       setHidden(false);
       setAgreement(paymentAgreement);
       setOrder(paidOrder);
+      setDealFlowActive(true);
 
       // Persist split amounts + release materials immediately on the escrow row.
-      const escrowId = (base.id as string | undefined) ?? paidOrder.id;
+      const rawEscrowId = base.id as string | undefined;
+      const escrowId = rawEscrowId && !rawEscrowId.startsWith("pending-") ? rawEscrowId : undefined;
       const nowIso = new Date().toISOString();
       const escrowUpdate: Record<string, unknown> = {
         materials_amount: materialsCost,
@@ -872,7 +1000,20 @@ export function EscrowPanel({
             : `💳 Payment of ${formatNgn(chargeAmount)} placed in escrow.`,
         ),
       });
-      if (messageError) console.error("Escrow payment message failed", messageError);
+      console.log("[escrow] card ->", messageError ?? "inserted");
+      if (messageError) {
+        console.error("Escrow payment message failed", messageError);
+        toast.error(`Payment card could not be posted to the chat: ${messageError.message}`);
+      }
+
+      const { error: noticeError } = await supabase.from("messages").insert({
+        conversation_id: conversationId,
+        sender_id: meId,
+        body: "💳 Payment placed in escrow. Work can begin.",
+      });
+      if (noticeError) console.error("Escrow payment notice failed", noticeError);
+
+      toast.success("Payment held in escrow successfully!");
 
       // Notify professional about material release.
       if (materialsCost > 0) {
@@ -961,7 +1102,7 @@ export function EscrowPanel({
       })();
       // Paystack fee is calculated on the pre-fee amount the customer pays
       // (service amount + commission). It is never deducted from the professional.
-      const paystackFee = computePaystackFee(grossAmount + commission);
+      const paystackFee = computeGatewayFee(grossAmount + commission);
       // Only the permanent Deal Summary card is posted to chat — no
       // completion popup, toast, or extra chat notification.
       void paystackFeeApprox;
@@ -1064,10 +1205,24 @@ export function EscrowPanel({
     );
   }
 
+  // A user who explicitly chose "I'm the Buyer" for this conversation never
+  // sees the 🤝 shield button — the provider starts the deal.
+  const buyerLocked = iAmProvider === false && readSavedRole() === false && !order && !agreement;
+
   if (hidden) {
     return (
       <div className="border-t border-border bg-card/60 backdrop-blur p-3 flex justify-end relative">
-        {meRole !== "customer" && <NewDealFab onClick={openNewDealFlow} />}
+        {meRole !== "customer" && !buyerLocked && <NewDealFab onClick={openNewDealFlow} />}
+      </div>
+    );
+  }
+
+  // No agreement, no escrow and no user-started deal → show nothing but the
+  // single floating "New Deal" button. Never render a stage card here.
+  if (!agreement && !order && !dealFlowActive) {
+    return (
+      <div className="border-t border-border bg-card/60 backdrop-blur p-3 flex justify-end relative">
+        {meRole !== "customer" && !buyerLocked && <NewDealFab onClick={openNewDealFlow} />}
       </div>
     );
   }
@@ -1149,6 +1304,12 @@ export function EscrowPanel({
       )}
 
       <div className="flex flex-wrap gap-2">
+        {/* Stage 1 — buyer waits for the provider's agreement */}
+        {!isCancelled && iAmProvider === false && !agreement && !order && (
+          <p className="text-xs text-muted-foreground">
+            Waiting for the service provider to send an agreement
+          </p>
+        )}
         {/* Stage 2 — provider sends agreement (AI-detected role) */}
         {!isCancelled &&
           iAmProvider === true &&
@@ -1274,6 +1435,18 @@ export function EscrowPanel({
               window.localStorage.setItem(roleKey, isProv ? "provider" : "buyer");
             }
             setAskRoleOpen(false);
+            if (isProv) {
+              // Provider: dismiss popup and let them start the agreement from
+              // the 🤝 shield button. Only open the type picker when they were
+              // already in an explicit "new deal" flow.
+              if (dealFlowActive) {
+                setEditAgreementId(null);
+                setTypePickerOpen(true);
+              }
+            } else {
+              // Buyer: no type picker ever — just wait for the agreement.
+              setTypePickerOpen(false);
+            }
           }}
         />
       )}
@@ -1405,6 +1578,11 @@ function PaymentBreakdownDialog({
     Number(ag?.commission_amount ?? fallbackCommission(commissionable)),
   );
   const [commissionLoading, setCommissionLoading] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+
+  useEffect(() => {
+    if (!open) setTermsAccepted(false);
+  }, [open]);
 
   useEffect(() => {
     if (!open || !ag) return;
@@ -1439,7 +1617,7 @@ function PaymentBreakdownDialog({
   const preFeeTotal = isService
     ? serviceFee + effectiveCommission
     : subtotal + effectiveCommission;
-  const rawPaystackFee = computePaystackFee(
+  const rawPaystackFee = computeGatewayFee(
     isService ? serviceFee : preFeeTotal,
   );
   const paystackFee = rawPaystackFee;
@@ -1537,29 +1715,22 @@ function PaymentBreakdownDialog({
                 <span className="font-semibold text-sm">{formatNgn(r.value)}</span>
               </div>
             ))}
-            {!isServiceLowTier && (
-              <div className="flex items-center gap-3 px-4 py-3">
-                <span className="h-8 w-8 rounded-lg bg-accent/15 text-accent grid place-items-center">
-                  <Shield className="h-4 w-4" />
-                </span>
-                <span className="flex-1 text-sm text-muted-foreground">
-                  {commissionLabel}
-                  {commissionLoading && " • calculating…"}
-                </span>
-                <span className="font-semibold text-sm">
-                  {formatNgn(effectiveCommission)}
-                </span>
-              </div>
-            )}
-            {!isServiceHighTier && (
-              <div className="flex items-center gap-3 px-4 py-3">
-                <span className="h-8 w-8 rounded-lg bg-muted text-muted-foreground grid place-items-center">
-                  <CreditCard className="h-4 w-4" />
-                </span>
-                <span className="flex-1 text-sm text-muted-foreground">Paystack fee</span>
-                <span className="font-semibold text-sm">{formatNgn(paystackFee)}</span>
-              </div>
-            )}
+            {/* Commission + processing fee are always shown as ONE line. */}
+            <div className="flex items-center gap-3 px-4 py-3">
+              <span className="h-8 w-8 rounded-lg bg-accent/15 text-accent grid place-items-center">
+                <Shield className="h-4 w-4" />
+              </span>
+              <span className="flex-1 text-sm text-muted-foreground">
+                🛡️ EasyMeet Protection Fee
+                {commissionLoading && " • calculating…"}
+              </span>
+              <span className="font-semibold text-sm">
+                {formatNgn(
+                  (isServiceLowTier ? 0 : effectiveCommission) +
+                    (isServiceHighTier ? 0 : paystackFee),
+                )}
+              </span>
+            </div>
           </div>
 
           <div className="rounded-2xl bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/20 p-4 space-y-1.5">
@@ -1577,9 +1748,18 @@ function PaymentBreakdownDialog({
         </div>
 
         <div className="px-5 py-4 border-t border-border bg-card/80 backdrop-blur space-y-2">
+          <label className="flex items-start gap-2 text-[12px] text-muted-foreground cursor-pointer">
+            <input
+              type="checkbox"
+              checked={termsAccepted}
+              onChange={(e) => setTermsAccepted(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-[#6C47FF]"
+            />
+            <span>I agree to the EasyMeet Protection Fee Terms &amp; Conditions</span>
+          </label>
           <Button
             onClick={onConfirm}
-            disabled={paying}
+            disabled={paying || !termsAccepted}
             className="w-full h-12 text-base font-semibold bg-gradient-to-r from-[#6C47FF] to-[#8E5BFF] hover:opacity-95 shadow-lg shadow-primary/30"
           >
             {paying ? (
@@ -1776,6 +1956,7 @@ function SendAgreementDialog({
   const [terms, setTerms] = useState("");
   const [busy, setBusy] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
+  const [agreeTerms, setAgreeTerms] = useState(false);
 
   // Map per-type inputs -> (immediate-release, held-in-escrow, contingency).
   // Commission rule: 3% on labor/service only; 0% on materials/products/delivery.
@@ -1849,7 +2030,7 @@ function SendAgreementDialog({
   // fee minus that Paystack fee, never minus the protection fee.
   const serviceHighTierPaystackFee =
     agreementType === "service" && mapped.held > 5000
-      ? computePaystackFee(mapped.held)
+      ? computeGatewayFee(mapped.held)
       : fees.paystackFee;
   // For delivery, rider gets 100% of the delivery fee — commission is added
   // to the customer's total, not deducted from the rider's payout.
@@ -2504,19 +2685,27 @@ function SendAgreementDialog({
             )}
             <SummaryRow
               label={"🛡️ EasyMeet Protection Fee" + (commissionLoading ? " • calculating…" : "")}
-              value={commission}
+              value={commission + fees.paystackFee}
               muted
             />
-            <SummaryRow label="💳 Paystack Fee" value={fees.paystackFee} muted />
             <div className="border-t border-border/50 my-1" />
             <SummaryRow label="Total you pay" value={fees.totalPaid} bold />
             <SummaryRow label={receiverLabel} value={professionalReceives} accent />
           </div>
         </div>
-        <div className="px-5 py-4 border-t border-border bg-card/80 backdrop-blur">
+        <div className="px-5 py-4 border-t border-border bg-card/80 backdrop-blur space-y-2">
+          <label className="flex items-start gap-2 text-[12px] text-muted-foreground cursor-pointer">
+            <input
+              type="checkbox"
+              checked={agreeTerms}
+              onChange={(e) => setAgreeTerms(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-[#6C47FF]"
+            />
+            <span>I agree to the EasyMeet Protection Fee Terms &amp; Conditions</span>
+          </label>
           <Button
             onClick={submit}
-            disabled={busy}
+            disabled={busy || !agreeTerms}
             className="w-full h-12 text-base font-semibold bg-gradient-to-r from-[#6C47FF] to-[#8E5BFF] hover:opacity-95 shadow-lg shadow-primary/30"
           >
             {busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}

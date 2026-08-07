@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Loader2, Shield, ShieldCheck, ShieldX } from "lucide-react";
-import { refundPaystackTransaction } from "@/lib/paystack.functions";
+import { refundFlutterwaveTransaction } from "@/lib/flutterwave.functions";
 import { getDisputedEscrows, type AdminDisputeRow } from "@/lib/admin.functions";
 import { useLiveData } from "@/hooks/use-live-data";
 
@@ -173,15 +173,15 @@ function AdminDisputesPage() {
         if (error) throw error;
       } else {
         if (d.paystack_reference) {
-          // Best-effort Paystack refund; do not block the escrow state change
+          // Best-effort gateway refund; do not block the escrow state change
           // if the gateway rejects (already refunded, test-mode limits, etc.).
           try {
-            const r = await refundPaystackTransaction({
-              data: { reference: d.paystack_reference, amountNgn: d.amount },
+            const r = await refundFlutterwaveTransaction({
+              data: { transactionId: d.paystack_reference, amountNgn: d.amount },
             });
-            if (!r.ok) console.warn("Paystack refund not queued:", r.message);
+            if (!r.ok) console.warn("Refund not queued:", r.message);
           } catch (err) {
-            console.warn("Paystack refund threw:", err);
+            console.warn("Refund threw:", err);
           }
         }
         const { error } = await supabase

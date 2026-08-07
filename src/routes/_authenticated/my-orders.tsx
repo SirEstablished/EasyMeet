@@ -749,7 +749,7 @@ function OrderCardList({
 
             {direction === "outgoing" && alreadyRequested && (
               <div className="mt-3 pt-3 border-t border-border/60 text-xs text-muted-foreground">
-                Refund requested — Paystack fee will be deducted. 3–5 business days.
+                Refund requested — payment processing fee will be deducted. 3–5 business days.
               </div>
             )}
 

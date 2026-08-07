@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { supabase, formatNgn, type Product, type Order, type Profile } from "@/integrations/supabase/client";
@@ -10,8 +10,28 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VerificationTicks } from "@/components/VerificationTicks";
 import { ReviewOrderDialog } from "@/components/ReviewOrderDialog";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { computeGatewayFee } from "@/lib/fees";
 import { useLiveData } from "@/hooks/use-live-data";
-import { Search, Loader2, ShoppingBag, ChevronDown, Star } from "lucide-react";
+import {
+  Search,
+  Loader2,
+  ShoppingBag,
+  Star,
+  Handshake,
+  Share2,
+  X,
+  MessageSquare,
+  ShieldAlert,
+  RotateCcw,
+  User as UserIcon,
+  Calendar,
+  Hash,
+  Wallet,
+  Shield,
+  CreditCard,
+  CheckCircle2,
+} from "lucide-react";
 import { toast } from "sonner";
 
 const searchSchema = z.object({ tab: z.enum(["products", "orders"]).optional() });
@@ -51,12 +71,13 @@ function matchCategory(product: Product, cat: Category): boolean {
 }
 
 function ShopPage() {
-  const search = useSearch({ from: "/_authenticated/shop" });
-  const navigate = useNavigate({ from: "/_authenticated/shop" });
-  const initialTab = search.tab === "orders" ? "orders" : "products";
+  const search = Route.useSearch();
+  const [tab, setTab] = useState<"products" | "orders">(
+    search.tab === "orders" ? "orders" : "products",
+  );
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-8 lg:px-12 pt-5 pb-24">
+    <div className="w-full max-w-7xl mx-auto px-4 sm:px-8 lg:px-12 pt-5 pb-24">
       <div className="flex items-center gap-2">
         <div className="h-10 w-10 rounded-2xl bg-gradient-brand grid place-items-center text-white">
           <ShoppingBag className="h-5 w-5" />
@@ -65,11 +86,11 @@ function ShopPage() {
       </div>
 
       <Tabs
-        value={initialTab}
-        onValueChange={(v) => navigate({ search: { tab: v as "products" | "orders" } })}
+        value={tab}
+        onValueChange={(v) => setTab(v as "products" | "orders")}
         className="mt-5"
       >
-        <TabsList className="w-full h-12 p-1 rounded-2xl bg-muted/70 grid grid-cols-2">
+        <TabsList className="w-full sm:max-w-md h-12 p-1 rounded-2xl bg-muted/70 grid grid-cols-2">
           <TabsTrigger
             value="products"
             className="rounded-xl h-full text-sm font-semibold transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-[0_6px_16px_-8px_color-mix(in_oklab,var(--primary)_60%,transparent)] text-muted-foreground"
@@ -259,6 +280,7 @@ function ProductCard({ p }: { p: ProductWithSeller }) {
 
 type ProductOrder = Order & {
   provider?: Pick<Profile, "id" | "full_name" | "username" | "avatar_url"> | null;
+  customer?: Pick<Profile, "id" | "full_name" | "username" | "avatar_url"> | null;
   product?: { id: string; title: string; image_urls: string[] | null } | null;
 };
 
@@ -266,9 +288,10 @@ function OrdersTab() {
   const { user } = useAuth();
   const [orders, setOrders] = useState<ProductOrder[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [selected, setSelected] = useState<ProductOrder | null>(null);
   const [reviewing, setReviewing] = useState<ProductOrder | null>(null);
   const [reviewed, setReviewed] = useState<Set<string>>(new Set());
+  // Orders are split into two clearly labeled sections (Shop Orders & Service Orders).
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -276,18 +299,21 @@ function OrdersTab() {
       const { data, error } = await supabase
         .from("orders")
         .select("*")
-        .eq("customer_id", user.id)
-        .eq("kind", "product")
+        .or(`customer_id.eq.${user.id},provider_id.eq.${user.id}`)
         .order("created_at", { ascending: false });
       if (error) throw error;
       const rows = (data as Order[]) ?? [];
 
-      const providerIds = [...new Set(rows.map((o) => o.provider_id))];
+      const partyIds = [
+        ...new Set(
+          rows.flatMap((o) => [o.provider_id, o.customer_id]).filter(Boolean) as string[],
+        ),
+      ];
       const productIds = [...new Set(rows.map((o) => o.product_id).filter(Boolean) as string[])];
 
-      const [{ data: providers }, { data: products }, { data: myReviews }] = await Promise.all([
-        providerIds.length
-          ? supabase.from("profiles").select("id, full_name, username, avatar_url").in("id", providerIds)
+      const [{ data: parties }, { data: products }, { data: myReviews }] = await Promise.all([
+        partyIds.length
+          ? supabase.from("profiles").select("id, full_name, username, avatar_url").in("id", partyIds)
           : Promise.resolve({ data: [] as any[] }),
         productIds.length
           ? (supabase.from("products") as any).select("id, title, image_urls").in("id", productIds)
@@ -295,16 +321,17 @@ function OrdersTab() {
         supabase.from("product_reviews").select("product_id").eq("reviewer_id", user.id),
       ]);
 
-      const provMap = new Map(((providers as any[]) ?? []).map((p) => [p.id, p]));
+      const partyMap = new Map(((parties as any[]) ?? []).map((p) => [p.id, p]));
       const prodMap = new Map(((products as any[]) ?? []).map((p) => [p.id, p]));
 
-      setOrders(
-        rows.map((o) => ({
+      const enriched = rows.map((o) => ({
           ...o,
-          provider: provMap.get(o.provider_id) ?? null,
+          provider: partyMap.get(o.provider_id) ?? null,
+          customer: partyMap.get(o.customer_id) ?? null,
           product: (o.product_id && prodMap.get(o.product_id)) || null,
-        })),
-      );
+      }));
+      setOrders(enriched);
+      setSelected((cur) => (cur ? enriched.find((o) => o.id === cur.id) ?? null : cur));
       setReviewed(
         new Set(
           ((myReviews as { product_id: string | null }[]) ?? [])
@@ -326,6 +353,12 @@ function OrdersTab() {
   }, [user, load]);
   useLiveData(["orders", "product_reviews"], load);
 
+  const shopOrders = useMemo(() => orders.filter((o) => o.kind === "product"), [orders]);
+  const serviceOrders = useMemo(
+    () => orders.filter((o) => o.kind === "service" || !o.kind),
+    [orders],
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16 text-muted-foreground">
@@ -334,21 +367,12 @@ function OrdersTab() {
     );
   }
 
-  if (orders.length === 0) {
-    return (
-      <EmptyState
-        icon={<ShoppingBag className="h-6 w-6" />}
-        title="No product orders yet"
-        body="Start shopping! 🛍️"
-      />
-    );
-  }
-
-  return (
-    <div className="space-y-3">
-      {orders.map((o) => {
-        const isOpen = expanded === o.id;
+  const renderOrder = (o: ProductOrder) => {
         const cover = o.product?.image_urls?.[0];
+        const isSeller = o.provider_id === user?.id;
+        const counterparty = isSeller ? o.customer : o.provider;
+        const counterpartyLabel = isSeller ? "Buyer" : "Seller";
+        const kindLabel = o.kind === "product" ? "Product" : "Service";
         const statusColor =
           o.status === "completed"
             ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
@@ -362,7 +386,7 @@ function OrdersTab() {
           >
             <button
               type="button"
-              onClick={() => setExpanded(isOpen ? null : o.id)}
+              onClick={() => setSelected(o)}
               className="w-full text-left p-3 flex items-center gap-3"
             >
               <div className="h-16 w-16 rounded-xl bg-secondary overflow-hidden shrink-0">
@@ -377,48 +401,59 @@ function OrdersTab() {
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-semibold truncate">{o.service_title}</div>
                 <div className="text-xs text-muted-foreground truncate">
-                  {o.provider?.full_name || o.provider?.username || "Seller"}
+                  {counterpartyLabel}: {counterparty?.full_name || counterparty?.username || "—"}
                 </div>
                 <div className="mt-1 flex items-center gap-2 flex-wrap">
                   <span className="text-sm font-extrabold text-gradient-brand">{formatNgn(o.amount)}</span>
                   <Badge className={`${statusColor} border-transparent capitalize`}>{o.status}</Badge>
+                  <Badge variant="outline" className="capitalize">{kindLabel}</Badge>
                   <span className="text-[11px] text-muted-foreground">
                     {new Date(o.created_at).toLocaleDateString()}
                   </span>
                 </div>
               </div>
-              <ChevronDown
-                className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`}
-              />
             </button>
-            {isOpen && (
-              <div className="border-t border-border/60 px-3 py-3 space-y-2 text-xs">
-                <Row label="Order ID" value={o.id} mono />
-                <Row label="Payment Ref" value={o.payment_ref || "—"} mono />
-                <Row label="Payment Status" value={o.payment_status} />
-                <Row label="Delivery Status" value={o.status} />
-                <Row label="Placed" value={new Date(o.created_at).toLocaleString()} />
-                <div className="pt-2 flex flex-wrap gap-2">
-                  <Button size="sm" variant="outline" asChild className="rounded-full">
-                    <Link to="/product/$id" params={{ id: o.product_id || "" }}>View product</Link>
-                  </Button>
-                  {o.status === "completed" &&
-                    o.product_id &&
-                    !reviewed.has(o.product_id) && (
-                      <Button
-                        size="sm"
-                        onClick={() => setReviewing(o)}
-                        className="rounded-full bg-gradient-brand"
-                      >
-                        <Star className="h-3.5 w-3.5 mr-1" /> Leave a Review
-                      </Button>
-                    )}
-                </div>
-              </div>
-            )}
           </div>
         );
-      })}
+  };
+
+  return (
+    <div className="space-y-8">
+      <section>
+        <div className="flex items-center gap-2 mb-3">
+          <h2 className="text-lg font-extrabold tracking-tight">🛍️ Shop Orders</h2>
+          <span className="text-xs text-muted-foreground">
+            Products purchased through the Shop
+          </span>
+        </div>
+        {shopOrders.length === 0 ? (
+          <EmptyState
+            icon={<ShoppingBag className="h-6 w-6" />}
+            title="No shop orders yet"
+            body="Browse products and buy something! 🛍️"
+          />
+        ) : (
+          <div className="space-y-3">{shopOrders.map(renderOrder)}</div>
+        )}
+      </section>
+
+      <section>
+        <div className="flex items-center gap-2 mb-3">
+          <h2 className="text-lg font-extrabold tracking-tight">🤝 Service Orders</h2>
+          <span className="text-xs text-muted-foreground">
+            Jobs booked through agreements
+          </span>
+        </div>
+        {serviceOrders.length === 0 ? (
+          <EmptyState
+            icon={<Handshake className="h-6 w-6" />}
+            title="No service orders yet"
+            body="Explore professionals and start a deal! 🤝"
+          />
+        ) : (
+          <div className="space-y-3">{serviceOrders.map(renderOrder)}</div>
+        )}
+      </section>
 
       {reviewing && (
         <ReviewOrderDialog
@@ -437,15 +472,322 @@ function OrdersTab() {
           }}
         />
       )}
+
+      <OrderDetailSheet
+        order={selected}
+        currentUserId={user?.id ?? null}
+        reviewed={reviewed}
+        onClose={() => setSelected(null)}
+        onReview={(o) => {
+          setSelected(null);
+          setReviewing(o);
+        }}
+      />
     </div>
   );
 }
 
-function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+function OrderDetailSheet({
+  order,
+  currentUserId,
+  reviewed,
+  onClose,
+  onReview,
+}: {
+  order: ProductOrder | null;
+  currentUserId: string | null;
+  reviewed: Set<string>;
+  onClose: () => void;
+  onReview: (o: ProductOrder) => void;
+}) {
+  const open = !!order;
+  if (!order) {
+    return (
+      <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
+        <SheetContent side="bottom" className="p-0" />
+      </Sheet>
+    );
+  }
+
+  const isSeller = order.provider_id === currentUserId;
+  const counterparty = isSeller ? order.customer : order.provider;
+  const counterpartyLabel = isSeller ? "Buyer" : "Seller";
+  const isService = order.kind !== "product";
+  const kindLabel = isService ? "Service Agreement" : "Product Order";
+
+  const statusTone =
+    order.status === "completed"
+      ? "bg-emerald-500 text-white"
+      : order.status === "cancelled"
+        ? "bg-rose-500 text-white"
+        : "bg-sky-500 text-white";
+  const statusText =
+    order.status === "completed"
+      ? "Completed"
+      : order.status === "cancelled"
+        ? "Cancelled"
+        : order.status === "confirmed"
+          ? "In Escrow"
+          : order.status.charAt(0).toUpperCase() + order.status.slice(1);
+
+  const processingFee = computeGatewayFee(order.amount);
+  const inEscrow = order.status === "confirmed" || order.escrow_stage === "work_in_progress";
+
+  const stageOrder = ["pending_payment", "work_in_progress", "completed"] as const;
+  const currentStageIdx = Math.max(
+    0,
+    stageOrder.indexOf((order.escrow_stage as (typeof stageOrder)[number]) || "pending_payment"),
+  );
+
+  const handleShare = async () => {
+    const payload = {
+      title: "EasyMeet",
+      text: "I just completed a deal on EasyMeet! 🤝",
+      url: "https://easymeet.com.ng",
+    };
+    try {
+      if (navigator.share) {
+        await navigator.share(payload);
+      } else {
+        await navigator.clipboard.writeText(`${payload.text} ${payload.url}`);
+        toast.success("Link copied to clipboard");
+      }
+    } catch {
+      /* user cancelled */
+    }
+  };
+
   return (
-    <div className="flex items-start gap-2">
-      <span className="text-muted-foreground w-28 shrink-0">{label}</span>
-      <span className={`flex-1 break-all ${mono ? "font-mono" : ""}`}>{value}</span>
+    <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
+      <SheetContent
+        side="bottom"
+        className="p-0 border-0 rounded-t-3xl max-h-[92vh] overflow-hidden bg-gradient-to-b from-background to-card [&>button]:hidden"
+      >
+        {/* Watermark */}
+        <div className="pointer-events-none absolute inset-0 grid place-items-center opacity-[0.04]">
+          <Handshake className="h-[80vw] w-[80vw] max-h-[500px] max-w-[500px] text-primary" />
+        </div>
+
+        {/* Grabber */}
+        <div className="relative pt-3 flex justify-center">
+          <div className="h-1.5 w-12 rounded-full bg-muted-foreground/30" />
+        </div>
+
+        {/* Top action row */}
+        <div className="relative flex items-center justify-end gap-2 px-4 pt-2">
+          <button
+            type="button"
+            onClick={handleShare}
+            className="h-9 w-9 rounded-full bg-card border border-border/60 grid place-items-center text-foreground/70 hover:text-primary hover:border-primary/40 transition"
+            aria-label="Share"
+          >
+            <Share2 className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-9 w-9 rounded-full bg-card border border-border/60 grid place-items-center text-foreground/70 hover:text-rose-500 hover:border-rose-400/40 transition"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="relative overflow-y-auto max-h-[calc(92vh-56px)] px-5 pb-8 pt-3 space-y-5">
+          {/* Status */}
+          <div>
+            <span className={`inline-flex items-center gap-1.5 px-3 h-7 rounded-full text-xs font-bold ${statusTone}`}>
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              {statusText}
+            </span>
+          </div>
+
+          {/* Title */}
+          <div>
+            <h2 className="text-2xl font-extrabold leading-tight tracking-tight">
+              {order.service_title}
+            </h2>
+            <div className="mt-2">
+              <Badge variant="outline" className="rounded-full">
+                {kindLabel}
+              </Badge>
+            </div>
+          </div>
+
+          <Divider />
+
+          {/* Counterparty / date / ref */}
+          <div className="space-y-3">
+            <DetailRow icon={<UserIcon className="h-4 w-4" />} label={counterpartyLabel}>
+              <div className="flex items-center gap-2 min-w-0">
+                <Avatar className="h-6 w-6">
+                  <AvatarImage src={counterparty?.avatar_url ?? undefined} />
+                  <AvatarFallback className="text-[10px]">
+                    {(counterparty?.full_name || counterparty?.username || "?").slice(0, 1)}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="font-semibold truncate">
+                  {counterparty?.full_name || counterparty?.username || "—"}
+                </span>
+              </div>
+            </DetailRow>
+            <DetailRow icon={<Calendar className="h-4 w-4" />} label="Date">
+              <span className="font-semibold">
+                {new Date(order.created_at).toLocaleString(undefined, {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })}
+              </span>
+            </DetailRow>
+            <DetailRow icon={<Hash className="h-4 w-4" />} label="Reference">
+              <span className="font-mono text-xs break-all">
+                {order.payment_ref || "—"}
+              </span>
+            </DetailRow>
+          </div>
+
+          <Divider />
+
+          {/* Money breakdown */}
+          <div className="space-y-3">
+            <DetailRow icon={<Wallet className="h-4 w-4" />} label="Amount">
+              <span className="font-extrabold text-gradient-brand">{formatNgn(order.amount)}</span>
+            </DetailRow>
+            {(order.commission_amount ?? 0) > 0 && (
+              <DetailRow icon={<Shield className="h-4 w-4" />} label="EasyMeet Protection Fee">
+                <span className="font-semibold">{formatNgn(order.commission_amount ?? 0)}</span>
+              </DetailRow>
+            )}
+            {processingFee > 0 && (
+              <DetailRow icon={<CreditCard className="h-4 w-4" />} label="🛡️ EasyMeet Protection Fee">
+                <span className="font-semibold">{formatNgn(processingFee)}</span>
+              </DetailRow>
+            )}
+            {(order.payout_amount ?? 0) > 0 && (
+              <DetailRow icon={<CheckCircle2 className="h-4 w-4" />} label={isSeller ? "You Received" : "Professional Received"}>
+                <span className="font-extrabold text-emerald-600 dark:text-emerald-400">
+                  {formatNgn(order.payout_amount ?? 0)}
+                </span>
+              </DetailRow>
+            )}
+          </div>
+
+          {isService && order.escrow_stage && (
+            <>
+              <Divider />
+              <div>
+                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                  Escrow Stage
+                </div>
+                <div className="flex items-center gap-2">
+                  {stageOrder.map((s, i) => {
+                    const active = i <= currentStageIdx;
+                    return (
+                      <div key={s} className="flex-1 flex items-center gap-2">
+                        <div
+                          className={`h-2 flex-1 rounded-full ${active ? "bg-gradient-brand" : "bg-muted"}`}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-2 text-xs font-semibold capitalize">
+                  {(order.escrow_stage || "pending_payment").replaceAll("_", " ")}
+                </div>
+              </div>
+            </>
+          )}
+
+          <Divider />
+
+          {/* Actions */}
+          <div className="grid grid-cols-1 gap-2 pt-1">
+            {!isSeller &&
+              order.status === "completed" &&
+              order.product_id &&
+              !reviewed.has(order.product_id) && (
+                <Button
+                  onClick={() => onReview(order)}
+                  className="h-11 rounded-full bg-gradient-brand"
+                >
+                  <Star className="h-4 w-4 mr-2" /> Leave a Review
+                </Button>
+              )}
+            {inEscrow && (
+              <Button
+                asChild
+                variant="outline"
+                className="h-11 rounded-full border-amber-400/60 text-amber-600 hover:text-amber-700"
+              >
+                <Link to="/admin/disputes">
+                  <ShieldAlert className="h-4 w-4 mr-2" /> Open Dispute
+                </Link>
+              </Button>
+            )}
+            {!isSeller && order.status === "cancelled" && order.payment_ref && (
+              <Button
+                asChild
+                variant="outline"
+                className="h-11 rounded-full"
+              >
+                <Link to="/my-orders">
+                  <RotateCcw className="h-4 w-4 mr-2" /> Request Refund
+                </Link>
+              </Button>
+            )}
+            {isService && (
+              <Button
+                asChild
+                variant="outline"
+                className="h-11 rounded-full"
+              >
+                <Link to="/messages">
+                  <MessageSquare className="h-4 w-4 mr-2" /> View in Messages
+                </Link>
+              </Button>
+            )}
+            {!isService && order.product_id && (
+              <Button
+                asChild
+                variant="outline"
+                className="h-11 rounded-full"
+              >
+                <Link to="/product/$id" params={{ id: order.product_id }}>
+                  View product
+                </Link>
+              </Button>
+            )}
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function Divider() {
+  return <div className="h-px bg-border/60" />;
+}
+
+function DetailRow({
+  icon,
+  label,
+  children,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-start gap-3">
+      <div className="h-8 w-8 shrink-0 rounded-full bg-primary/10 text-primary grid place-items-center">
+        {icon}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="text-[11px] text-muted-foreground uppercase tracking-wider font-semibold">
+          {label}
+        </div>
+        <div className="mt-0.5 text-sm">{children}</div>
+      </div>
     </div>
   );
 }

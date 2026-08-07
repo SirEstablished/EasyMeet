@@ -90,6 +90,16 @@ export function ProfileView({
   const initials = initialsOf(profile.full_name || profile.username || "U");
 
   const completion = calcCompletion(profile);
+  const completionColor = completion >= 100
+    ? "bg-emerald-500"
+    : completion >= 50
+      ? "bg-amber-400"
+      : "bg-red-500";
+  const completionTextColor = completion >= 100
+    ? "text-emerald-600"
+    : completion >= 50
+      ? "text-amber-500"
+      : "text-red-500";
 
   return (
     <div className="max-w-5xl mx-auto pb-16">
@@ -182,45 +192,45 @@ export function ProfileView({
             <div className="mt-5 max-w-md rounded-2xl glass-card p-5">
               <div className="flex items-center justify-between text-sm">
                 <span className="font-semibold">Profile completion</span>
-                <span className="text-gradient-tri font-extrabold text-base">{completion}%</span>
+                <span className={`font-extrabold text-base ${completionTextColor}`}>{completion}%</span>
               </div>
               <div className="mt-3 h-2.5 w-full bg-secondary/60 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-primary via-accent to-coral transition-all"
+                  className={`h-full ${completionColor} transition-all`}
                   style={{ width: `${Math.max(4, completion)}%` }}
                 />
               </div>
               <ul className="mt-3 text-xs text-muted-foreground space-y-1">
                 {isCustomer ? (
                   <>
-                    <li className={profile.avatar_url ? "text-accent" : ""}>
+                    <li className={profile.avatar_url ? "text-emerald-500" : ""}>
                       {profile.avatar_url ? "✓" : "•"} Profile photo
                     </li>
-                    <li className={profile.full_name && profile.bio ? "text-accent" : ""}>
+                    <li className={profile.full_name && profile.bio ? "text-emerald-500" : ""}>
                       {profile.full_name && profile.bio ? "✓" : "•"} Full name &amp; bio
                     </li>
-                    <li className={profile.location ? "text-accent" : ""}>
+                    <li className={profile.location ? "text-emerald-500" : ""}>
                       {profile.location ? "✓" : "•"} Location
                     </li>
-                    <li className={profile.phone ? "text-accent" : ""}>
+                    <li className={profile.phone ? "text-emerald-500" : ""}>
                       {profile.phone ? "✓" : "•"} Phone number
                     </li>
                   </>
                 ) : (
                   <>
-                    <li className={profile.avatar_url ? "text-accent" : ""}>
+                    <li className={profile.avatar_url ? "text-emerald-500" : ""}>
                       {profile.avatar_url ? "✓" : "•"} Profile photo
                     </li>
-                    <li className={profile.full_name ? "text-accent" : ""}>
+                    <li className={profile.full_name ? "text-emerald-500" : ""}>
                       {profile.full_name ? "✓" : "•"} Full name
                     </li>
-                    <li className={profile.bio ? "text-accent" : ""}>
+                    <li className={profile.bio ? "text-emerald-500" : ""}>
                       {profile.bio ? "✓" : "•"} Bio
                     </li>
-                    <li className={profile.location ? "text-accent" : ""}>
+                    <li className={profile.location ? "text-emerald-500" : ""}>
                       {profile.location ? "✓" : "•"} Location
                     </li>
-                    <li className={profile.phone ? "text-accent" : ""}>
+                    <li className={profile.phone ? "text-emerald-500" : ""}>
                       {profile.phone ? "✓" : "•"} Phone number
                     </li>
                   </>

@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Loader2, ShieldCheck } from "lucide-react";
-import { computePaystackFee, NIGERIAN_BANKS } from "@/lib/paystackFees";
+import { computeGatewayFee, NIGERIAN_BANKS } from "@/lib/fees";
 
 const ADMIN_USER_ID = "18f810c2-762f-4d66-93a2-48b1be211c8c";
 
@@ -51,8 +51,8 @@ export function RequestRefundDialog({
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
 
-  const paystackFee = useMemo(() => computePaystackFee(amount), [amount]);
-  const refundAmount = Math.max(0, Math.round((amount - paystackFee) * 100) / 100);
+  const processingFee = useMemo(() => computeGatewayFee(amount), [amount]);
+  const refundAmount = Math.max(0, Math.round((amount - processingFee) * 100) / 100);
 
   const valid =
     bankName.trim().length > 0 &&
@@ -76,7 +76,7 @@ export function RequestRefundDialog({
         .update({
           refund_status: "requested",
           refund_amount: refundAmount,
-          refund_fee: paystackFee,
+          refund_fee: processingFee,
         } as never)
         .eq("id", escrowId);
       if (escrowErr) throw escrowErr;
@@ -128,8 +128,8 @@ export function RequestRefundDialog({
             </DialogHeader>
             <p className="text-sm text-muted-foreground text-center">
               Your refund of <span className="font-semibold text-foreground">{formatNgn(refundAmount)}</span> is being
-              processed. Please note that Paystack's transaction fee ({formatNgn(paystackFee)}) will be deducted from
-              your refund. EasyMeet does not charge any fee on refunds. Refunds take 3–5 business days.
+              processed. Please note that the non-refundable payment processing fee ({formatNgn(processingFee)}) will be
+              deducted from your refund. EasyMeet does not charge any fee on refunds. Refunds take 3–5 business days.
             </p>
             <DialogFooter className="sm:justify-center">
               <Button className="bg-gradient-brand" onClick={() => onOpenChange(false)}>
@@ -187,8 +187,8 @@ export function RequestRefundDialog({
                   <span>{formatNgn(amount)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Paystack fee</span>
-                  <span>− {formatNgn(paystackFee)}</span>
+                  <span className="text-muted-foreground">Processing fee</span>
+                  <span>− {formatNgn(processingFee)}</span>
                 </div>
                 <div className="flex justify-between font-semibold pt-1 border-t border-border">
                   <span>You'll receive</span>
