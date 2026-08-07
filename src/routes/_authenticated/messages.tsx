@@ -30,11 +30,12 @@ import {
   Loader2,
   Phone,
   MoreVertical,
+  Plus,
 } from "lucide-react";
 import { containsPhone, PHONE_BLOCK_MESSAGE } from "@/lib/phoneCheck";
 import { cn } from "@/lib/utils";
 import { EscrowPanel } from "@/components/EscrowPanel";
-import { EscrowChatCard, parseCardMessage } from "@/components/EscrowChatCards";
+import { EscrowChatCard, parseCardMessage, StatusLegend } from "@/components/EscrowChatCards";
 
 const searchSchema = z.object({ c: z.string().optional(), m: z.string().optional() });
 
@@ -187,11 +188,12 @@ function MessagesPage() {
   if (!user) return null;
 
   return (
-    className={cn("max-w-6xl mx-auto flex bg-background", activeId ? "h-[calc(100dvh-4rem)] overflow-hidden" : "min-h-[calc(100dvh-4rem)]")}
+    <div className="max-w-6xl mx-auto h-[calc(100dvh-4rem)] flex bg-background">
       {/* Sidebar */}
       <aside
         className={cn(
-          activeId ? "hidden sm:flex sm:w-96 sm:border-r border-border flex-col bg-background" : "w-full sm:w-96 sm:border-r border-border flex flex-col bg-background",
+          "w-full sm:w-96 sm:border-r border-border flex flex-col bg-background",
+          activeId && "hidden sm:flex",
         )}
       >
         <div className="px-4 sm:px-5 pt-4 pb-3">
@@ -267,12 +269,8 @@ function MessagesPage() {
                 else if (mediaType.startsWith("video")) preview = "🎥 Video";
                 else if (lm.media_url && !lm.body) preview = "📎 Attachment";
                 else if (lm.body) {
-  if (lm.body.startsWith("[[card:")) {
-    preview = "💳 Deal update";
-  } else {
-    preview = lm.body.length > 40 ? lm.body.slice(0, 40) + "…" : lm.body;
-  }
-}
+                  preview = lm.body.length > 40 ? lm.body.slice(0, 40) + "…" : lm.body;
+                }
               }
               const role = c.other?.role;
               const isSelected = activeId === c.id;
@@ -450,36 +448,17 @@ function Thread({
 
   useEffect(() => {
     let cancelled = false;
-    const fetchMessages = async () => {
-      const { data, error } = await supabase
+    (async () => {
+      const { data } = await supabase
         .from("messages")
         .select("*")
         .eq("conversation_id", conversation.id)
         .order("created_at", { ascending: true });
       if (cancelled) return;
-      if (error) {
-        console.error("[chat] failed to load messages", error);
-        return;
-      }
       setMessages((data as ChatMessage[]) ?? []);
-    };
-
-    (async () => {
-      await fetchMessages();
-      if (cancelled) return;
       scrollToBottom();
       markRead();
     })();
-
-    // Self-heal: if a realtime event is missed (tab backgrounded, socket drop),
-    // refetch messages and escrow cards when the chat regains focus.
-    const resync = () => {
-      if (document.visibilityState !== "visible") return;
-      void fetchMessages();
-      setEscrowRefreshKey((key) => key + 1);
-    };
-    window.addEventListener("focus", resync);
-    document.addEventListener("visibilitychange", resync);
 
     const channel = supabase
       .channel(`messages-${conversation.id}`)
@@ -531,16 +510,10 @@ function Thread({
         },
         () => setEscrowRefreshKey((key) => key + 1),
       )
-      .subscribe((status, err) => {
-        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
-          console.error("[chat] realtime channel status", status, err);
-        }
-      });
+      .subscribe();
 
     return () => {
       cancelled = true;
-      window.removeEventListener("focus", resync);
-      document.removeEventListener("visibilitychange", resync);
       supabase.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -832,6 +805,13 @@ function Thread({
                 Start a protected deal to work with peace of mind
               </p>
             </div>
+            <Button
+              size="sm"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-[12px] shrink-0 h-8 px-3 rounded-lg shadow-[0_2px_8px_-4px_color-mix(in_oklab,var(--primary)_60%,transparent)]"
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              Start Deal
+            </Button>
           </div>
         )}
 
@@ -859,6 +839,11 @@ function Thread({
             No messages yet. Say hello!
           </div>
         )}
+
+        {/* Status legend */}
+        <div className="pt-4 pb-2">
+          <StatusLegend />
+        </div>
       </div>
 
       <EscrowPanel
@@ -872,6 +857,26 @@ function Thread({
 
       {/* Composer */}
       <div className="border-t border-border/40 bg-white px-3 pt-3 pb-4">
+        {/* Action buttons */}
+        {!activeEscrow && (
+          <div className="flex items-center gap-2 mb-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 h-10 rounded-xl border-border/60 text-foreground font-semibold text-[13px] hover:bg-muted/50"
+            >
+              <Shield className="h-4 w-4 mr-1.5" />
+              View Deal
+            </Button>
+            <Button
+              size="sm"
+              className="flex-1 h-10 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-[13px] shadow-[0_2px_8px_-4px_color-mix(in_oklab,var(--primary)_50%,transparent)]"
+            >
+              <Plus className="h-4 w-4 mr-1.5" />
+              Start Protected Deal
+            </Button>
+          </div>
+        )}
         {warn && <div className="text-xs text-destructive mb-2 px-1">{warn}</div>}
         <div className="flex items-center gap-2">
           <input
