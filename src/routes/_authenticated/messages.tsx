@@ -268,8 +268,12 @@ function MessagesPage() {
                 else if (mediaType.startsWith("video")) preview = "🎥 Video";
                 else if (lm.media_url && !lm.body) preview = "📎 Attachment";
                 else if (lm.body) {
-                  preview = lm.body.length > 40 ? lm.body.slice(0, 40) + "…" : lm.body;
-                }
+  if (lm.body.startsWith("[[card:")) {
+    preview = "💳 Deal update";
+  } else {
+    preview = lm.body.length > 40 ? lm.body.slice(0, 40) + "…" : lm.body;
+  }
+}
               }
               const role = c.other?.role;
               const isSelected = activeId === c.id;
