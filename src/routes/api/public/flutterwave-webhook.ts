@@ -33,7 +33,12 @@ export const Route = createFileRoute("/api/public/flutterwave-webhook")({
           if (txRef.startsWith("escrow_")) {
             await admin
               .from("escrow")
-              .update({ status: "holding", paid_at: new Date().toISOString() })
+              .update({ 
+  status: "holding", 
+  stage: "escrow_paid", 
+  paid_at: new Date().toISOString(),
+  flutterwave_tx_id: String(tx.id ?? "")
+})
               .eq("payment_ref", txRef)
               .eq("status", "pending_payment");
             await admin
