@@ -187,7 +187,7 @@ function MessagesPage() {
   if (!user) return null;
 
   return (
-    <div className="max-w-6xl mx-auto h-[calc(100dvh-8rem)] flex bg-background overflow-hidden">
+    <div className={cn("max-w-6xl mx-auto flex bg-background overflow-hidden", activeId ? "h-[100dvh]" : "h-[calc(100dvh-4rem)]")}>
       {/* Sidebar */}
       <aside
         className={cn(
@@ -713,7 +713,7 @@ function Thread({
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       {/* Header */}
-      <div className="h-16 shrink-0 border-b border-border/40 bg-white px-3 flex items-center gap-2">
+      <div className="h-16 shrink-0 border-b border-border/40 bg-white px-3 flex items-center gap-2 pt-safe">
         <Button variant="ghost" size="icon" className="sm:hidden -ml-1" onClick={onBack}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
