@@ -187,12 +187,11 @@ function MessagesPage() {
   if (!user) return null;
 
   return (
-    <div className="max-w-6xl mx-auto flex bg-background min-h-[calc(100dvh-4rem)]">
+    <div className={cn("max-w-6xl mx-auto flex bg-background", activeId ? "h-[calc(100dvh-4rem)] overflow-hidden" : "min-h-[calc(100dvh-4rem)]")}>
       {/* Sidebar */}
       <aside
         className={cn(
-          "w-full sm:w-96 sm:border-r border-border flex flex-col bg-background",
-          activeId && "hidden sm:flex",
+          activeId ? "hidden sm:flex sm:w-96 sm:border-r border-border flex-col bg-background" : "w-full sm:w-96 sm:border-r border-border flex flex-col bg-background",
         )}
       >
         <div className="px-4 sm:px-5 pt-4 pb-3">
