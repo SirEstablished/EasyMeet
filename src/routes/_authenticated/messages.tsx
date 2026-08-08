@@ -71,7 +71,20 @@ function dayLabel(d: string) {
   const same = (a: Date, b: Date) => a.toDateString() === b.toDateString();
   if (same(date, today)) return "Today";
   if (same(date, yest)) return "Yesterday";
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
   return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
 }
 
@@ -260,8 +273,7 @@ function MessagesPage() {
               const name = c.other?.full_name || c.other?.username || "User";
               const unread = c.unread_count > 0;
               const lm = c.last_message as
-                | (Message & { media_url?: string | null; media_type?: string | null })
-                | null;
+                (Message & { media_url?: string | null; media_type?: string | null }) | null;
               let preview = "No messages yet";
               if (lm) {
                 const mediaType = (lm.media_type || "").toLowerCase();
@@ -414,6 +426,7 @@ function Thread({
     status: string;
     title: string;
   } | null>(null);
+  const [showNewDealFab, setShowNewDealFab] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -528,6 +541,19 @@ function Thread({
     return () => clearTimeout(t);
   }, [messages.length]);
 
+  // Show/hide the "New Deal" FAB based on scroll position
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+      setShowNewDealFab(!atBottom);
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+
   // Fetch active escrow for the deal banner
   useEffect(() => {
     if (!conversation.id) return;
@@ -542,7 +568,12 @@ function Thread({
         .maybeSingle();
       if (cancelled || !data) return;
       const status = (data.status as string) || "pending_payment";
-      if (status !== "cancelled" && status !== "refunded" && status !== "released" && status !== "completed") {
+      if (
+        status !== "cancelled" &&
+        status !== "refunded" &&
+        status !== "released" &&
+        status !== "completed"
+      ) {
         setActiveEscrow({
           id: data.id,
           amount: Number(data.amount_ngn ?? 0),
@@ -553,7 +584,9 @@ function Thread({
         setActiveEscrow(null);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [conversation.id, escrowRefreshKey]);
 
   // Presence: track this user online in a shared conversation channel and
@@ -727,12 +760,14 @@ function Thread({
             </div>
             <div className="flex items-center gap-2">
               {other?.role && (
-                <span className={cn(
-                  "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize",
-                  other.role === "customer"
-                    ? "bg-blue-100 text-blue-700"
-                    : "bg-primary/10 text-primary"
-                )}>
+                <span
+                  className={cn(
+                    "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize",
+                    other.role === "customer"
+                      ? "bg-blue-100 text-blue-700"
+                      : "bg-primary/10 text-primary",
+                  )}
+                >
                   {other.role}
                 </span>
               )}
@@ -752,10 +787,18 @@ function Thread({
           </div>
         </Link>
         <div className="flex items-center gap-0.5">
-          <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-primary">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 text-muted-foreground hover:text-primary"
+          >
             <Phone className="h-[18px] w-[18px]" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-primary">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 text-muted-foreground hover:text-primary"
+          >
             <MoreVertical className="h-[18px] w-[18px]" />
           </Button>
         </div>
@@ -764,7 +807,7 @@ function Thread({
       {/* Scrollable body */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto bg-white px-4 pt-4 pb-4 space-y-1"
+        className="flex-1 overflow-y-auto bg-white px-4 pt-4 pb-4 space-y-1 relative"
       >
         {/* Escrow protection banner */}
         {activeEscrow ? (
@@ -855,6 +898,25 @@ function Thread({
         refreshKey={escrowRefreshKey}
       />
 
+      {/* New Deal FAB */}
+      {showNewDealFab && !activeEscrow && (
+        <div className="absolute bottom-24 right-4 z-50 sm:bottom-28 sm:right-6">
+          <button
+            onClick={() => {
+              window.dispatchEvent(
+                new CustomEvent("escrow:new-deal", {
+                  detail: { conversation_id: conversation.id },
+                }),
+              );
+            }}
+            className="flex items-center gap-2 h-12 px-4 rounded-full bg-gradient-to-r from-[#6C47FF] to-[#8B6AFF] text-white font-semibold text-[13px] shadow-[0_8px_24px_-6px_rgba(108,71,255,0.6)] hover:shadow-[0_12px_32px_-6px_rgba(108,71,255,0.7)] transition-all hover:scale-105 active:scale-95"
+          >
+            <Shield className="h-4 w-4" />
+            New Deal
+          </button>
+        </div>
+      )}
+
       {/* Composer */}
       <div className="border-t border-border/40 bg-white px-3 pt-3 pb-4">
         {/* Action buttons */}
@@ -930,7 +992,17 @@ function Thread({
   );
 }
 
-function MessageBubble({ m, mine, meId, other }: { m: ChatMessage; mine: boolean; meId: string; other?: Profile | null }) {
+function MessageBubble({
+  m,
+  mine,
+  meId,
+  other,
+}: {
+  m: ChatMessage;
+  mine: boolean;
+  meId: string;
+  other?: Profile | null;
+}) {
   const card = parseCardMessage(m.body);
   if (card) {
     return (
@@ -980,7 +1052,12 @@ function MessageBubble({ m, mine, meId, other }: { m: ChatMessage; mine: boolean
           )}
         >
           {mediaUrl && mediaType === "image" && (
-            <a href={mediaUrl} target="_blank" rel="noreferrer" className="block -mx-1 -mt-0.5 first:mt-0">
+            <a
+              href={mediaUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="block -mx-1 -mt-0.5 first:mt-0"
+            >
               <img
                 src={mediaUrl}
                 alt="attachment"
@@ -990,7 +1067,12 @@ function MessageBubble({ m, mine, meId, other }: { m: ChatMessage; mine: boolean
             </a>
           )}
           {mediaUrl && mediaType === "video" && (
-            <video src={mediaUrl} controls className="max-h-72 w-full rounded-xl" preload="metadata">
+            <video
+              src={mediaUrl}
+              controls
+              className="max-h-72 w-full rounded-xl"
+              preload="metadata"
+            >
               <track kind="captions" />
             </video>
           )}
