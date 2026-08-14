@@ -110,7 +110,7 @@ function ShopPage() {
     <div className="opacity-30 pointer-events-none select-none blur-sm">
       <ProductsTab />
     </div>
-    <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
+    <div className="fixed inset-0 flex flex-col items-center justify-center z-10">
       <div className="bg-white dark:bg-card rounded-3xl shadow-2xl px-8 py-10 flex flex-col items-center gap-4 max-w-sm w-full mx-4">
         <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center">
           <ShoppingBag className="h-10 w-10 text-primary" />
@@ -126,9 +126,27 @@ function ShopPage() {
     </div>
   </div>
 </TabsContent>
-        <TabsContent value="orders" className="mt-5 focus-visible:outline-none data-[state=inactive]:hidden animate-in fade-in slide-in-from-left-2 duration-300">
-          <OrdersTab />
-        </TabsContent>
+       <TabsContent value="orders" className="mt-5 focus-visible:outline-none data-[state=inactive]:hidden animate-in fade-in slide-in-from-left-2 duration-300">
+  <div className="relative">
+    <div className="opacity-30 pointer-events-none select-none blur-sm">
+      <OrdersTab />
+    </div>
+    <div className="fixed inset-0 flex flex-col items-center justify-center z-10">
+      <div className="bg-white dark:bg-card rounded-3xl shadow-2xl px-8 py-10 flex flex-col items-center gap-4 max-w-sm w-full mx-4">
+        <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center">
+          <ShoppingBag className="h-10 w-10 text-primary" />
+        </div>
+        <h2 className="text-2xl font-extrabold tracking-tight text-center">Shop Coming Soon</h2>
+        <p className="text-sm text-muted-foreground text-center">
+          We're working hard to bring you the best shopping experience. Stay tuned!
+        </p>
+        <Button className="h-12 px-8 rounded-full bg-gradient-brand w-full text-base font-semibold">
+          🔔 Notify Me
+        </Button>
+      </div>
+    </div>
+  </div>
+</TabsContent>
       </Tabs>
     </div>
   );
