@@ -203,7 +203,7 @@ export function TransactionsSection() {
   const totalLabel = isCustomer ? "Total spent" : "Total earned";
 
   return (
-    <div className="rounded-2xl glass-card p-4 sm:p-7 max-w-full">
+    <div className="rounded-2xl glass-card p-4 sm:p-7 max-w-full overflow-hidden">
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2 mb-4 sm:mb-5">
         <div className="min-w-0">
           <h2 className="font-bold text-lg sm:text-xl">Transactions</h2>
@@ -217,14 +217,14 @@ export function TransactionsSection() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4 sm:mb-5">
+      <div className="grid grid-cols-3 gap-1 sm:gap-3 mb-4 sm:mb-5 overflow-hidden">
         <StatCard icon={<Wallet className="h-3.5 w-3.5" />} label={totalLabel} value={formatNgn(totalAmount)} />
         <StatCard icon={<CheckCircle2 className="h-3.5 w-3.5" />} label="Completed" value={String(completedCount)} />
         <StatCard icon={<Shield className="h-3.5 w-3.5" />} label="In escrow" value={String(activeEscrowCount)} />
       </div>
 
       <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)} className="mb-4">
-        <div className="overflow-x-auto -mx-1 px-1">
+        <div className="overflow-x-auto -mx-4 px-4">
           <TabsList className="inline-flex h-auto w-max whitespace-nowrap">
             <TabsTrigger value="all">All</TabsTrigger>
             <TabsTrigger value="completed">Completed</TabsTrigger>
