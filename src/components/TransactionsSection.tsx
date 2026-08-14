@@ -377,7 +377,7 @@ function TxDetails({ t, className }: { t: Tx; className?: string }) {
           <div className="text-[11px] text-muted-foreground truncate">{t.service_title}</div>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-xs">
         <DetailRow label="Amount" value={formatNgn(t.amount)} />
         <DetailRow label="EasyMeet Protection Fee" value={formatNgn(t.commission)} />
         <DetailRow label="Payout" value={formatNgn(t.payout)} />
