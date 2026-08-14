@@ -78,7 +78,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" },
       { name: "theme-color", content: "#0D0D1A" },
       { name: "color-scheme", content: "dark" },
       { title: "EasyMeet — Find Verified Professionals Near You" },
@@ -121,7 +121,7 @@ function RootShell({ children }: { children: ReactNode }) {
           }}
         />
       </head>
-      <body className="bg-background text-foreground overflow-x-hidden">
+      <body className="bg-background text-foreground overflow-x-hidden max-w-[100vw] w-full">
         {children}
         <Scripts />
       </body>
