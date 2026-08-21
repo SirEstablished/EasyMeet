@@ -91,7 +91,7 @@ export default function CustomerHome() {
   useLiveData(user ? ["orders", "products"] : [], load);
 
   return (
-    <div className="bg-gray-50 min-h-full">
+    <div className="bg-gray-50 h-full overflow-y-auto">
       {/* Header */}
       <div className="bg-white px-5 pt-6 pb-4 border-b border-gray-100">
         <div className="flex items-center justify-between">
