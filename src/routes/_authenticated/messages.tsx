@@ -426,7 +426,6 @@ function Thread({
     status: string;
     title: string;
   } | null>(null);
-  const [showNewDealFab, setShowNewDealFab] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -540,19 +539,6 @@ function Thread({
     const t = setTimeout(scrollToBottom, 80);
     return () => clearTimeout(t);
   }, [messages.length]);
-
-  // Show/hide the "New Deal" FAB based on scroll position
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const onScroll = () => {
-      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
-      setShowNewDealFab(!atBottom);
-    };
-    el.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-    return () => el.removeEventListener("scroll", onScroll);
-  }, []);
 
   // Fetch active escrow for the deal banner
   useEffect(() => {
@@ -860,10 +846,10 @@ function Thread({
               <Button
                 size="sm"
                 onClick={startNewDeal}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-[12px] shrink-0 h-8 px-3 rounded-lg shadow-[0_2px_8px_-4px_color-mix(in_oklab,var(--primary)_60%,transparent)]"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-[13px] shrink-0 h-10 px-4 rounded-[10px] shadow-[0_2px_8px_-4px_rgba(108,71,255,0.5)]"
               >
-                <Plus className="h-3.5 w-3.5 mr-1" />
-                Start Deal
+                <Plus className="h-4 w-4 mr-1.5" />
+                Start Protected Deal
               </Button>
             )}
           </div>
@@ -909,15 +895,15 @@ function Thread({
         refreshKey={escrowRefreshKey}
       />
 
-      {/* New Deal FAB */}
-      {showNewDealFab && !activeEscrow && !isCustomer && (
+      {/* Start Protected Deal FAB — always visible when no active deal */}
+      {!activeEscrow && !isCustomer && (
         <div className="absolute bottom-24 right-4 z-50 sm:bottom-28 sm:right-6">
           <button
             onClick={startNewDeal}
-            className="flex items-center gap-2 h-12 px-4 rounded-full bg-gradient-to-r from-[#6C47FF] to-[#8B6AFF] text-white font-semibold text-[13px] shadow-[0_8px_24px_-6px_rgba(108,71,255,0.6)] hover:shadow-[0_12px_32px_-6px_rgba(108,71,255,0.7)] transition-all hover:scale-105 active:scale-95"
+            className="flex items-center gap-2 h-11 px-5 rounded-[10px] bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-[13px] shadow-[0_8px_24px_-6px_rgba(108,71,255,0.6)] transition-all hover:scale-[1.03] active:scale-95"
           >
-            <Shield className="h-4 w-4" />
-            New Deal
+            <Plus className="h-4 w-4" />
+            Start Protected Deal
           </button>
         </div>
       )}
