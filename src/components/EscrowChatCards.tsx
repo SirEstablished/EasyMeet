@@ -1077,13 +1077,13 @@ function CompletionCard({ payload }: { payload: CompletionCardPayload }) {
         <div className="rounded-xl bg-muted/40 border border-border/60 divide-y divide-border/60">
           <Row label="Amount customer paid" value={formatNgn(payload.amount)} />
           <Row
-            label="🛡️ EasyMeet Protection Fee"
+            label="EasyMeet Protection Fee"
             value={formatNgn(
               Number(payload.protection_fee || 0) + Number(payload.paystack_fee || 0),
             )}
             muted
           />
-          <Row label="✅ Professional received" value={formatNgn(payload.payout)} green bold />
+          <Row label="Professional received" value={formatNgn(payload.payout)} green bold />
         </div>
       </div>
     </CardShell>
@@ -1255,21 +1255,21 @@ function DealSummaryCard({ payload }: { payload: DealSummaryCardPayload }) {
             <div className="rounded-xl bg-muted/40 border border-border/60 divide-y divide-border/60">
               <Row label="Amount customer paid" value={formatNgn(totalCustomerPaid)} />
               <Row
-                label="🛡️ EasyMeet Protection Fee"
+                label="EasyMeet Protection Fee"
                 value={formatNgn(
                   (isServiceLowTier ? 0 : protectionFee) + (isServiceHighTier ? 0 : paystackFee),
                 )}
                 muted
               />
               <Row
-                label="✅ Professional received"
+                label="Professional received"
                 value={formatNgn(professionalReceived)}
                 green
                 bold
               />
               {completedAt && (
                 <Row
-                  label="📅 Completed"
+                  label="Completed"
                   value={completedAt.toLocaleString(undefined, {
                     dateStyle: "medium",
                     timeStyle: "short",
@@ -1434,7 +1434,7 @@ function ViewAgreementModal({
                           <>
                             <Row label="Service Fee" value={formatNgn(laborCost)} />
                             <Row
-                              label="🛡️ EasyMeet Protection Fee"
+                              label="EasyMeet Protection Fee"
                               value={formatNgn(highTier ? commission : paystackFee)}
                               muted
                             />

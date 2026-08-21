@@ -360,7 +360,7 @@ function MessagesPage() {
       </aside>
 
       {/* Thread */}
-      <section className={cn("flex-1 flex flex-col", !activeId && "hidden sm:flex")}>
+      <section className={cn("relative flex-1 flex flex-col", !activeId && "hidden sm:flex")}>
         {activeConvo ? (
           <Thread
             key={activeConvo.id}
@@ -705,6 +705,12 @@ function Thread({
 
   const other = conversation.other;
   const name = other?.full_name || other?.username || "User";
+  const isCustomer = profile?.role === "customer";
+  const startNewDeal = () => {
+    window.dispatchEvent(
+      new CustomEvent("escrow:new-deal", { detail: { conversation_id: conversation.id } }),
+    );
+  };
 
   // group with date separators
   const items: Array<{ type: "sep"; key: string; label: string } | { type: "msg"; msg: Message }> =
@@ -722,7 +728,7 @@ function Thread({
   return (
     <>
       {/* Header */}
-      <div className="h-16 border-b border-border/40 bg-white px-3 flex items-center gap-2">
+      <div className="h-16 border-b border-border/40 bg-background px-3 flex items-center gap-2">
         <Button variant="ghost" size="icon" className="sm:hidden -ml-1" onClick={onBack}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
@@ -739,7 +745,7 @@ function Thread({
               </AvatarFallback>
             </Avatar>
             {otherOnline && (
-              <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-white" />
+              <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-background" />
             )}
           </div>
           <div className="min-w-0 flex flex-col items-start">
@@ -807,16 +813,16 @@ function Thread({
       {/* Scrollable body */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto bg-white px-4 pt-4 pb-4 space-y-1 relative"
+        className="flex-1 overflow-y-auto bg-background px-4 pt-4 pb-4 space-y-1 relative"
       >
         {/* Escrow protection banner */}
         {activeEscrow ? (
-          <div className="flex items-center gap-3 rounded-2xl bg-emerald-50 border border-emerald-200 px-3.5 py-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-            <div className="h-9 w-9 rounded-full bg-emerald-100 grid place-items-center shrink-0">
-              <Shield className="h-[18px] w-[18px] text-emerald-600" />
+          <div className="flex items-center gap-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 px-3.5 py-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+            <div className="h-9 w-9 rounded-full bg-emerald-100 dark:bg-emerald-900/60 grid place-items-center shrink-0">
+              <Shield className="h-[18px] w-[18px] text-emerald-600 dark:text-emerald-400" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-semibold text-emerald-700 leading-tight">
+              <p className="text-[13px] font-semibold text-emerald-700 dark:text-emerald-400 leading-tight">
                 Deal in Escrow
               </p>
               <p className="text-[13px] font-bold text-foreground leading-tight mt-0.5">
@@ -826,14 +832,14 @@ function Thread({
                 </span>
               </p>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-emerald-700 hover:text-emerald-800 font-semibold text-[13px] shrink-0"
+            <Link
+              to="/deal/$id"
+              params={{ id: activeEscrow.id }}
+              className="inline-flex items-center text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 font-semibold text-[13px] shrink-0"
             >
               View Deal
               <ChevronRight className="h-4 w-4 ml-0.5" />
-            </Button>
+            </Link>
           </div>
         ) : (
           <div className="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 px-3.5 py-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
@@ -842,19 +848,24 @@ function Thread({
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-[13px] font-semibold text-foreground leading-tight">
-                No active deal yet
+                {isCustomer ? "Protected deals available" : "No active deal yet"}
               </p>
               <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
-                Start a protected deal to work with peace of mind
+                {isCustomer
+                  ? "Ask the professional to start a protected deal"
+                  : "Start a protected deal to work with peace of mind"}
               </p>
             </div>
-            <Button
-              size="sm"
-              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-[12px] shrink-0 h-8 px-3 rounded-lg shadow-[0_2px_8px_-4px_color-mix(in_oklab,var(--primary)_60%,transparent)]"
-            >
-              <Plus className="h-3.5 w-3.5 mr-1" />
-              Start Deal
-            </Button>
+            {!isCustomer && (
+              <Button
+                size="sm"
+                onClick={startNewDeal}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-[12px] shrink-0 h-8 px-3 rounded-lg shadow-[0_2px_8px_-4px_color-mix(in_oklab,var(--primary)_60%,transparent)]"
+              >
+                <Plus className="h-3.5 w-3.5 mr-1" />
+                Start Deal
+              </Button>
+            )}
           </div>
         )}
 
@@ -863,7 +874,7 @@ function Thread({
         {items.map((it) =>
           it.type === "sep" ? (
             <div key={it.key} className="flex justify-center my-4">
-              <span className="text-[11px] font-medium text-muted-foreground bg-gray-100 px-3 py-1 rounded-full">
+              <span className="text-[11px] font-medium text-muted-foreground bg-muted px-3 py-1 rounded-full">
                 {it.label}
               </span>
             </div>
@@ -899,16 +910,10 @@ function Thread({
       />
 
       {/* New Deal FAB */}
-      {showNewDealFab && !activeEscrow && (
+      {showNewDealFab && !activeEscrow && !isCustomer && (
         <div className="absolute bottom-24 right-4 z-50 sm:bottom-28 sm:right-6">
           <button
-            onClick={() => {
-              window.dispatchEvent(
-                new CustomEvent("escrow:new-deal", {
-                  detail: { conversation_id: conversation.id },
-                }),
-              );
-            }}
+            onClick={startNewDeal}
             className="flex items-center gap-2 h-12 px-4 rounded-full bg-gradient-to-r from-[#6C47FF] to-[#8B6AFF] text-white font-semibold text-[13px] shadow-[0_8px_24px_-6px_rgba(108,71,255,0.6)] hover:shadow-[0_12px_32px_-6px_rgba(108,71,255,0.7)] transition-all hover:scale-105 active:scale-95"
           >
             <Shield className="h-4 w-4" />
@@ -918,27 +923,7 @@ function Thread({
       )}
 
       {/* Composer */}
-      <div className="border-t border-border/40 bg-white px-3 pt-3 pb-4">
-        {/* Action buttons */}
-        {!activeEscrow && (
-          <div className="flex items-center gap-2 mb-3">
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1 h-10 rounded-xl border-border/60 text-foreground font-semibold text-[13px] hover:bg-muted/50"
-            >
-              <Shield className="h-4 w-4 mr-1.5" />
-              View Deal
-            </Button>
-            <Button
-              size="sm"
-              className="flex-1 h-10 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-[13px] shadow-[0_2px_8px_-4px_color-mix(in_oklab,var(--primary)_50%,transparent)]"
-            >
-              <Plus className="h-4 w-4 mr-1.5" />
-              Start Protected Deal
-            </Button>
-          </div>
-        )}
+      <div className="border-t border-border/40 bg-background px-3 pt-3 pb-4">
         {warn && <div className="text-xs text-destructive mb-2 px-1">{warn}</div>}
         <div className="flex items-center gap-2">
           <input
@@ -962,7 +947,7 @@ function Thread({
               <Paperclip className="h-5 w-5" />
             )}
           </Button>
-          <div className="flex-1 flex items-center h-12 rounded-full bg-gray-100 border border-border/30 px-4">
+          <div className="flex-1 flex items-center h-12 rounded-full bg-muted border border-border/40 px-4">
             <Input
               value={text}
               onChange={(e) => {
@@ -1047,8 +1032,8 @@ function MessageBubble({
           className={cn(
             "text-[14px] leading-relaxed whitespace-pre-wrap break-words overflow-hidden",
             mine
-              ? "bg-[#E8DEFF] text-foreground rounded-[18px] rounded-br-md px-4 py-2.5 shadow-[0_1px_3px_rgba(15,23,42,0.08)]"
-              : "bg-white text-foreground rounded-[18px] rounded-bl-md border border-border/50 px-4 py-2.5 shadow-[0_1px_3px_rgba(15,23,42,0.06)]",
+              ? "bg-[#E8DEFF] dark:bg-primary/25 text-foreground rounded-[18px] rounded-br-md px-4 py-2.5 shadow-[0_1px_3px_rgba(15,23,42,0.08)]"
+              : "bg-card text-foreground rounded-[18px] rounded-bl-md border border-border/50 px-4 py-2.5 shadow-[0_1px_3px_rgba(15,23,42,0.06)]",
           )}
         >
           {mediaUrl && mediaType === "image" && (
