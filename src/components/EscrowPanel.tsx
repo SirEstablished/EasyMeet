@@ -1205,27 +1205,11 @@ console.log("[escrow] skipping server verify, trusting Flutterwave callback");
     );
   }
 
-  // A user who explicitly chose "I'm the Buyer" for this conversation never
-  // sees the 🤝 shield button — the provider starts the deal.
-  const buyerLocked = iAmProvider === false && readSavedRole() === false && !order && !agreement;
-
-  if (hidden) {
-    return (
-      <div className="border-t border-border bg-card/60 backdrop-blur p-3 flex justify-end relative">
-        {meRole !== "customer" && !buyerLocked && <NewDealFab onClick={openNewDealFlow} />}
-      </div>
-    );
-  }
-
-  // No agreement, no escrow and no user-started deal → show nothing but the
-  // single floating "New Deal" button. Never render a stage card here.
-  if (!agreement && !order && !dealFlowActive) {
-    return (
-      <div className="border-t border-border bg-card/60 backdrop-blur p-3 flex justify-end relative">
-        {meRole !== "customer" && !buyerLocked && <NewDealFab onClick={openNewDealFlow} />}
-      </div>
-    );
-  }
+  // Hidden or no-deal states render nothing here: the chat screen's own
+  // banner CTA / floating "New Deal" button dispatch "escrow:new-deal"
+  // to start the flow, so no reserved band (or duplicate FAB) is needed.
+  if (hidden) return null;
+  if (!agreement && !order && !dealFlowActive) return null;
 
   // Post-payment popup removed — payment/completion state is shown as
   // rich chat cards (payment card, completion card, permanent deal summary
@@ -1780,25 +1764,6 @@ function PaymentBreakdownDialog({
         </div>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function NewDealFab({ onClick }: { onClick: () => void }) {
-  return (
-    <div className="relative">
-      <span className="absolute inset-0 rounded-full bg-primary/40 animate-ping" aria-hidden />
-      <button
-        type="button"
-        onClick={onClick}
-        className="relative flex flex-col items-center justify-center gap-0.5 h-16 w-16 rounded-full
-          bg-gradient-to-br from-[#6C47FF] to-[#8E5BFF] text-white shadow-xl shadow-primary/40
-          hover:scale-105 active:scale-95 transition-transform"
-        aria-label="Start new deal"
-      >
-        <Handshake className="h-6 w-6" strokeWidth={2.2} />
-        <span className="text-[9px] font-semibold leading-none">New Deal</span>
-      </button>
-    </div>
   );
 }
 
