@@ -395,7 +395,6 @@ function Dashboard() {
   }
 
   return (
-  return (
     <div className="max-w-7xl mx-auto px-5 sm:px-8 lg:px-12 py-4 sm:py-8 pb-28 md:pb-10 space-y-5 sm:space-y-6">
       {/* Welcome section */}
       <section>
