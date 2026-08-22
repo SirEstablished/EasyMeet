@@ -10,6 +10,9 @@ import { useLiveData } from "@/hooks/use-live-data";
 
 export const Route = createFileRoute("/_authenticated/explore")({
   component: Explore,
+  validateSearch: (search: Record<string, unknown>) => ({
+    q: typeof search.q === "string" ? search.q : "",
+  }),
 });
 
 type Filter = "all" | "professional" | "business" | "top" | "verified" | "near";
@@ -26,7 +29,8 @@ const filters: { id: Filter; label: string; Icon: typeof LayoutGrid }[] = [
 function Explore() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [q, setQ] = useState("");
+  const { q: initialQ } = Route.useSearch();
+  const [q, setQ] = useState(initialQ);
   const [filter, setFilter] = useState<Filter>("all");
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
 
