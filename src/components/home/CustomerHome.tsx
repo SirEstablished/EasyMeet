@@ -34,7 +34,7 @@ function activityLabel(order: CustomerOrder): { status: string; color: string; i
   if (es === "holding" || es === "pending_payment") {
     return { status: "In Escrow", color: "bg-amber-100 text-amber-700", icon: Lock, action: "View Agreement" };
   }
-  if (es === "released"  es === "completed"  os === "completed") {
+  if (es === "released" || es === "completed" || os === "completed") {
     return { status: "Completed", color: "bg-emerald-100 text-emerald-700", icon: Package, action: "View" };
   }
   if (os === "cancelled") {
