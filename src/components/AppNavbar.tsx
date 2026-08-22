@@ -40,7 +40,7 @@ export function AppNavbar() {
       .toUpperCase();
 
   return (
-    <header className="sticky top-0 z-40 glass-panel">
+    <header className="hidden md:block sticky top-0 z-40 glass-panel">
       <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 h-16 flex items-center justify-between gap-2 sm:gap-4">
         <div className="flex items-center gap-1 min-w-0">
           <Logo />
