@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/lib/providers";
 import { supabase, formatNgn, type Profile, type Product } from "@/integrations/supabase/client";
 import { useLiveData } from "@/hooks/use-live-data";
 import { VerificationTicks } from "@/components/VerificationTicks";
 import { StarRating } from "@/components/StarRating";
-import { Search, Lock, Package, Bell, ShieldCheck } from "lucide-react";
+import { Search, Lock, Package, Bell, ShieldCheck, Calendar, Wallet, MapPin, Handshake } from "lucide-react";
 
 type CustomerOrder = {
   id: string;
@@ -25,20 +25,38 @@ const quickActions = [
   { label: "My Orders", to: "/my-orders", Icon: Package, color: "bg-sky-50 text-sky-700" },
 ];
 
-function activityLabel(order: CustomerOrder): { status: string; color: string; icon: typeof Lock } {
+function activityLabel(order: CustomerOrder): { status: string; color: string; icon: typeof Lock; action: string } {
   const es = (order.escrow_status || "").toLowerCase();
   const os = (order.status || "").toLowerCase();
+  const isProduct = order.kind === "product";
   if (es === "holding" || es === "pending_payment") {
-    return { status: "In Escrow", color: "bg-amber-100 text-amber-700", icon: Lock };
+    return { status: "In Escrow", color: "bg-amber-100 text-amber-700", icon: Lock, action: "View Agreement" };
+  }
+  if (es === "released" || es === "completed" || os === "completed") {
+    return { status: "Completed", color: "bg-emerald-100 text-emerald-700", icon: Package, action: "View" };
+  }
+  if (os === "cancelled") {
+    return { status: "Cancelled", color: "bg-gray-200 text-gray-600", icon: Package, action: "View" };
   }
   if (os === "pending" || os === "confirmed") {
-    return { status: "Processing", color: "bg-sky-100 text-sky-700", icon: Package };
+    return {
+      status: "Processing",
+      color: "bg-sky-100 text-sky-700",
+      icon: Package,
+      action: isProduct ? "Track Order" : "View",
+    };
   }
-  return { status: os || "Active", color: "bg-gray-100 text-gray-700", icon: Package };
+  return { status: os || "Active", color: "bg-gray-100 text-gray-700", icon: Package, action: "View" };
 }
 
 export default function CustomerHome() {
   const { user, profile } = useAuth();
+  const navigate = useNavigate();
+  const [searchText, setSearchText] = useState("");
+
+  const handleSearch = () => {
+    navigate({ to: "/explore", search: { q: searchText } });
+  };
   const name = profile?.full_name || user?.email?.split("@")[0] || "there";
 
   const [orders, setOrders] = useState<CustomerOrder[]>([]);
@@ -91,45 +109,88 @@ export default function CustomerHome() {
   useLiveData(user ? ["orders", "products"] : [], load);
 
   return (
-    <div className="bg-gray-50 min-h-full">
-      {/* Header */}
+    <div className="bg-gray-50 min-h-full pb-28 md:pb-10">
+      {/* Brand header */}
       <div className="bg-white px-5 pt-6 pb-4 border-b border-gray-100">
         <div className="flex items-center justify-between">
-          <div>
-            <p className="text-gray-400 text-xs">Welcome back</p>
-            <p className="font-bold text-gray-900 text-lg">{name}</p>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-violet-600 rounded-xl flex items-center justify-center">
+              <span className="text-white text-sm font-bold">EM</span>
+            </div>
+            <span className="font-bold text-gray-900 text-lg tracking-tight">EasyMeet</span>
           </div>
-          <Link
-            to="/settings"
-            className="relative w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center"
-          >
-            <Bell className="w-4 h-4 text-gray-500" />
-          </Link>
+          <div className="flex items-center gap-2.5">
+            <Link
+              to="/settings"
+              className="relative w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center"
+            >
+              <Bell className="w-4 h-4 text-gray-500" />
+            </Link>
+            <Link
+              to="/profile"
+              className="w-9 h-9 rounded-full overflow-hidden bg-violet-100 border-2 border-violet-200 flex items-center justify-center flex-shrink-0"
+            >
+              {profile?.avatar_url ? (
+                <img src={profile.avatar_url} alt={name} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-violet-700 text-xs font-bold">{name.charAt(0).toUpperCase()}</span>
+              )}
+            </Link>
+          </div>
         </div>
-        <Link
-          to="/explore"
-          className="mt-4 flex items-center gap-2 bg-gray-100 rounded-2xl px-4 py-3 text-gray-400 text-sm"
-        >
-          <Search className="w-4 h-4" />
-          Find professionals, services, products...
-        </Link>
       </div>
 
-      <div className="px-5 py-5 space-y-6">
-        {/* Quick Actions */}
-        <div className="grid grid-cols-4 gap-2.5">
+      {/* Hero / Search */}
+      <div className="bg-violet-700 px-5 pt-5 pb-7 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-52 h-52 bg-violet-600 rounded-full -translate-y-1/3 translate-x-1/3 opacity-40 pointer-events-none" />
+        <div className="relative">
+          <div className="flex items-center gap-2 mb-1">
+            <MapPin className="w-3 h-3 text-violet-300" />
+            <span className="text-violet-300 text-xs font-medium">{profile?.location || "Nigeria"}</span>
+          </div>
+          <h1 className="text-white font-bold text-[22px] leading-tight mb-4">
+            Find trusted professionals
+            <br />
+            and services near you
+          </h1>
+          <div className="bg-white rounded-2xl flex items-center gap-3 px-4 py-3 shadow-md">
+            <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            <input
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+              placeholder="Services, pros, products..."
+              className="text-gray-900 text-sm flex-1 bg-transparent outline-none placeholder:text-gray-400"
+            />
+            <button
+              onClick={handleSearch}
+              className="bg-violet-600 text-white text-[11px] font-bold px-3 py-1.5 rounded-xl flex-shrink-0"
+            >
+              Search
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="bg-white border-b border-gray-100 px-5 py-4">
+        <div className="grid grid-cols-4 gap-2">
           {quickActions.map((action) => (
             <Link
               key={action.label}
               to={action.to}
-              className={`flex flex-col items-center gap-1.5 py-3 rounded-2xl ${action.color}`}
+              className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform"
             >
-              <action.Icon className="w-5 h-5" />
-              <span className="text-[10px] font-semibold text-center leading-tight">{action.label}</span>
+              <div className={`w-11 h-11 ${action.color} rounded-2xl flex items-center justify-center`}>
+                <action.Icon className="w-5 h-5" />
+              </div>
+              <span className="text-[9px] font-semibold text-gray-500 text-center leading-tight">{action.label}</span>
             </Link>
           ))}
         </div>
+      </div>
 
+      <div className="px-5 py-5 space-y-6">
         {/* Active Activity */}
         {orders.length > 0 && (
           <section>
@@ -166,7 +227,7 @@ export default function CustomerHome() {
                             to="/my-orders"
                             className="text-violet-600 text-xs font-semibold border border-violet-200 px-3 py-1 rounded-xl"
                           >
-                            View
+                            {meta.action}
                           </Link>
                         </div>
                       </div>
@@ -333,7 +394,7 @@ export default function CustomerHome() {
 
         {/* EasyMeet Promise */}
         <div className="bg-gradient-to-r from-violet-700 to-violet-500 rounded-2xl p-4 flex items-center gap-4">
-          <ShieldCheck className="w-8 h-8 text-white flex-shrink-0" />
+          <Handshake className="w-8 h-8 text-white flex-shrink-0" />
           <div>
             <p className="text-white font-bold text-sm">EasyMeet Promise</p>
             <p className="text-violet-200 text-xs mt-0.5 leading-snug">

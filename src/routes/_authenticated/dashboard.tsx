@@ -3,6 +3,7 @@ import { useAuth } from "@/lib/providers";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import CustomerHome from "@/components/home/CustomerHome";
 import ProfessionalHome from "@/components/home/ProfessionalHome";
+import BusinessHome from "@/components/home/BusinessHome";
 import { fetchCompletion } from "@/lib/profileCompletion";
 import { WithdrawDialog } from "@/components/WithdrawDialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -384,9 +385,14 @@ function Dashboard() {
   if (role === "customer") {
     return <CustomerHome />;
   }
+
   if (role === "professional") {
-  return <ProfessionalHome />;
-}
+    return <ProfessionalHome />;
+  }
+
+  if (role === "business") {
+    return <BusinessHome />;
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-5 sm:px-8 lg:px-12 py-4 sm:py-8 pb-28 md:pb-10 space-y-5 sm:space-y-6">
