@@ -23,8 +23,6 @@ const quickActions = [
   { label: "Services", to: "/explore", Icon: ShieldCheck, color: "bg-amber-50 text-amber-700" },
   { label: "Shop", to: "/shop", Icon: Package, color: "bg-emerald-50 text-emerald-700" },
   { label: "My Orders", to: "/my-orders", Icon: Package, color: "bg-sky-50 text-sky-700" },
-  { label: "Bookings", to: "/my-bookings", Icon: Calendar, color: "bg-rose-50 text-rose-700" },
-  { label: "Wallet", to: "/wallet", Icon: Wallet, color: "bg-purple-50 text-purple-700" },
 ];
 
 function activityLabel(order: CustomerOrder): { status: string; color: string; icon: typeof Lock; action: string } {
@@ -162,7 +160,7 @@ export default function CustomerHome() {
 
       {/* Quick Actions */}
       <div className="bg-white border-b border-gray-100 px-5 py-4">
-        <div className="grid grid-cols-6 gap-2">
+        <div className="grid grid-cols-4 gap-2">
           {quickActions.map((action) => (
             <Link
               key={action.label}
