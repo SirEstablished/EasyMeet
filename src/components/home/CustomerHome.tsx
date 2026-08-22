@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/lib/providers";
 import { supabase, formatNgn, type Profile, type Product } from "@/integrations/supabase/client";
 import { useLiveData } from "@/hooks/use-live-data";
@@ -51,6 +51,12 @@ function activityLabel(order: CustomerOrder): { status: string; color: string; i
 
 export default function CustomerHome() {
   const { user, profile } = useAuth();
+  const navigate = useNavigate();
+  const [searchText, setSearchText] = useState("");
+
+  const handleSearch = () => {
+    navigate({ to: "/explore", search: { q: searchText } });
+  };
   const name = profile?.full_name || user?.email?.split("@")[0] || "there";
 
   const [orders, setOrders] = useState<CustomerOrder[]>([]);
@@ -147,14 +153,22 @@ export default function CustomerHome() {
             <br />
             and services near you
           </h1>
-          <Link
-            to="/explore"
-            className="bg-white rounded-2xl flex items-center gap-3 px-4 py-3 shadow-md"
-          >
+          <div className="bg-white rounded-2xl flex items-center gap-3 px-4 py-3 shadow-md">
             <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
-            <span className="text-gray-400 text-sm flex-1">Services, pros, products...</span>
-            <span className="bg-violet-600 text-white text-[11px] font-bold px-3 py-1.5 rounded-xl">Search</span>
-          </Link>
+            <input
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+              placeholder="Services, pros, products..."
+              className="text-gray-900 text-sm flex-1 bg-transparent outline-none placeholder:text-gray-400"
+            />
+            <button
+              onClick={handleSearch}
+              className="bg-violet-600 text-white text-[11px] font-bold px-3 py-1.5 rounded-xl flex-shrink-0"
+            >
+              Search
+            </button>
+          </div>
         </div>
       </div>
 
