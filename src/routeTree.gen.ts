@@ -34,6 +34,7 @@ import { Route as AuthenticatedProfileIndexRouteImport } from './routes/_authent
 import { Route as ApiPublicFlutterwaveWebhookRouteImport } from './routes/api/public/flutterwave-webhook'
 import { Route as AuthenticatedProfileIdRouteImport } from './routes/_authenticated/profile.$id'
 import { Route as AuthenticatedProductIdRouteImport } from './routes/_authenticated/product.$id'
+import { Route as AuthenticatedDealIdRouteImport } from './routes/_authenticated/deal.$id'
 import { Route as AuthenticatedAdminDisputesRouteImport } from './routes/_authenticated/admin.disputes'
 
 const TermsRoute = TermsRouteImport.update({
@@ -163,6 +164,11 @@ const AuthenticatedProductIdRoute = AuthenticatedProductIdRouteImport.update({
   path: '/product/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedDealIdRoute = AuthenticatedDealIdRouteImport.update({
+  id: '/deal/$id',
+  path: '/deal/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAdminDisputesRoute =
   AuthenticatedAdminDisputesRouteImport.update({
     id: '/admin/disputes',
@@ -192,6 +198,7 @@ export interface FileRoutesByFullPath {
   '/transactions': typeof AuthenticatedTransactionsRoute
   '/wallet': typeof AuthenticatedWalletRoute
   '/admin/disputes': typeof AuthenticatedAdminDisputesRoute
+  '/deal/$id': typeof AuthenticatedDealIdRoute
   '/product/$id': typeof AuthenticatedProductIdRoute
   '/profile/$id': typeof AuthenticatedProfileIdRoute
   '/api/public/flutterwave-webhook': typeof ApiPublicFlutterwaveWebhookRoute
@@ -218,6 +225,7 @@ export interface FileRoutesByTo {
   '/transactions': typeof AuthenticatedTransactionsRoute
   '/wallet': typeof AuthenticatedWalletRoute
   '/admin/disputes': typeof AuthenticatedAdminDisputesRoute
+  '/deal/$id': typeof AuthenticatedDealIdRoute
   '/product/$id': typeof AuthenticatedProductIdRoute
   '/profile/$id': typeof AuthenticatedProfileIdRoute
   '/api/public/flutterwave-webhook': typeof ApiPublicFlutterwaveWebhookRoute
@@ -247,6 +255,7 @@ export interface FileRoutesById {
   '/_authenticated/transactions': typeof AuthenticatedTransactionsRoute
   '/_authenticated/wallet': typeof AuthenticatedWalletRoute
   '/_authenticated/admin/disputes': typeof AuthenticatedAdminDisputesRoute
+  '/_authenticated/deal/$id': typeof AuthenticatedDealIdRoute
   '/_authenticated/product/$id': typeof AuthenticatedProductIdRoute
   '/_authenticated/profile/$id': typeof AuthenticatedProfileIdRoute
   '/api/public/flutterwave-webhook': typeof ApiPublicFlutterwaveWebhookRoute
@@ -276,6 +285,7 @@ export interface FileRouteTypes {
     | '/transactions'
     | '/wallet'
     | '/admin/disputes'
+    | '/deal/$id'
     | '/product/$id'
     | '/profile/$id'
     | '/api/public/flutterwave-webhook'
@@ -302,6 +312,7 @@ export interface FileRouteTypes {
     | '/transactions'
     | '/wallet'
     | '/admin/disputes'
+    | '/deal/$id'
     | '/product/$id'
     | '/profile/$id'
     | '/api/public/flutterwave-webhook'
@@ -330,6 +341,7 @@ export interface FileRouteTypes {
     | '/_authenticated/transactions'
     | '/_authenticated/wallet'
     | '/_authenticated/admin/disputes'
+    | '/_authenticated/deal/$id'
     | '/_authenticated/product/$id'
     | '/_authenticated/profile/$id'
     | '/api/public/flutterwave-webhook'
@@ -523,6 +535,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProductIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/deal/$id': {
+      id: '/_authenticated/deal/$id'
+      path: '/deal/$id'
+      fullPath: '/deal/$id'
+      preLoaderRoute: typeof AuthenticatedDealIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin/disputes': {
       id: '/_authenticated/admin/disputes'
       path: '/admin/disputes'
@@ -563,6 +582,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTransactionsRoute: typeof AuthenticatedTransactionsRoute
   AuthenticatedWalletRoute: typeof AuthenticatedWalletRoute
   AuthenticatedAdminDisputesRoute: typeof AuthenticatedAdminDisputesRoute
+  AuthenticatedDealIdRoute: typeof AuthenticatedDealIdRoute
   AuthenticatedProductIdRoute: typeof AuthenticatedProductIdRoute
 }
 
@@ -583,6 +603,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedTransactionsRoute: AuthenticatedTransactionsRoute,
   AuthenticatedWalletRoute: AuthenticatedWalletRoute,
   AuthenticatedAdminDisputesRoute: AuthenticatedAdminDisputesRoute,
+  AuthenticatedDealIdRoute: AuthenticatedDealIdRoute,
   AuthenticatedProductIdRoute: AuthenticatedProductIdRoute,
 }
 

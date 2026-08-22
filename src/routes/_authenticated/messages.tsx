@@ -30,11 +30,12 @@ import {
   Loader2,
   Phone,
   MoreVertical,
+  Plus,
 } from "lucide-react";
 import { containsPhone, PHONE_BLOCK_MESSAGE } from "@/lib/phoneCheck";
 import { cn } from "@/lib/utils";
 import { EscrowPanel } from "@/components/EscrowPanel";
-import { EscrowChatCard, parseCardMessage } from "@/components/EscrowChatCards";
+import { EscrowChatCard, parseCardMessage, StatusLegend } from "@/components/EscrowChatCards";
 
 const searchSchema = z.object({ c: z.string().optional(), m: z.string().optional() });
 
@@ -70,7 +71,20 @@ function dayLabel(d: string) {
   const same = (a: Date, b: Date) => a.toDateString() === b.toDateString();
   if (same(date, today)) return "Today";
   if (same(date, yest)) return "Yesterday";
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
   return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
 }
 
@@ -259,8 +273,7 @@ function MessagesPage() {
               const name = c.other?.full_name || c.other?.username || "User";
               const unread = c.unread_count > 0;
               const lm = c.last_message as
-                | (Message & { media_url?: string | null; media_type?: string | null })
-                | null;
+                (Message & { media_url?: string | null; media_type?: string | null }) | null;
               let preview = "No messages yet";
               if (lm) {
                 const mediaType = (lm.media_type || "").toLowerCase();
@@ -347,7 +360,7 @@ function MessagesPage() {
       </aside>
 
       {/* Thread */}
-      <section className={cn("flex-1 flex flex-col", !activeId && "hidden sm:flex")}>
+      <section className={cn("relative flex-1 flex flex-col", !activeId && "hidden sm:flex")}>
         {activeConvo ? (
           <Thread
             key={activeConvo.id}
@@ -541,7 +554,12 @@ function Thread({
         .maybeSingle();
       if (cancelled || !data) return;
       const status = (data.status as string) || "pending_payment";
-      if (status !== "cancelled" && status !== "refunded" && status !== "released" && status !== "completed") {
+      if (
+        status !== "cancelled" &&
+        status !== "refunded" &&
+        status !== "released" &&
+        status !== "completed"
+      ) {
         setActiveEscrow({
           id: data.id,
           amount: Number(data.amount_ngn ?? 0),
@@ -552,7 +570,9 @@ function Thread({
         setActiveEscrow(null);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [conversation.id, escrowRefreshKey]);
 
   // Presence: track this user online in a shared conversation channel and
@@ -671,6 +691,12 @@ function Thread({
 
   const other = conversation.other;
   const name = other?.full_name || other?.username || "User";
+  const isCustomer = profile?.role === "customer";
+  const startNewDeal = () => {
+    window.dispatchEvent(
+      new CustomEvent("escrow:new-deal", { detail: { conversation_id: conversation.id } }),
+    );
+  };
 
   // group with date separators
   const items: Array<{ type: "sep"; key: string; label: string } | { type: "msg"; msg: Message }> =
@@ -688,7 +714,7 @@ function Thread({
   return (
     <>
       {/* Header */}
-      <div className="h-16 border-b border-border/40 bg-white px-3 flex items-center gap-2">
+      <div className="h-16 border-b border-border/40 bg-background px-3 flex items-center gap-2">
         <Button variant="ghost" size="icon" className="sm:hidden -ml-1" onClick={onBack}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
@@ -705,7 +731,7 @@ function Thread({
               </AvatarFallback>
             </Avatar>
             {otherOnline && (
-              <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-white" />
+              <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-background" />
             )}
           </div>
           <div className="min-w-0 flex flex-col items-start">
@@ -726,12 +752,14 @@ function Thread({
             </div>
             <div className="flex items-center gap-2">
               {other?.role && (
-                <span className={cn(
-                  "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize",
-                  other.role === "customer"
-                    ? "bg-blue-100 text-blue-700"
-                    : "bg-primary/10 text-primary"
-                )}>
+                <span
+                  className={cn(
+                    "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize",
+                    other.role === "customer"
+                      ? "bg-blue-100 text-blue-700"
+                      : "bg-primary/10 text-primary",
+                  )}
+                >
                   {other.role}
                 </span>
               )}
@@ -751,10 +779,18 @@ function Thread({
           </div>
         </Link>
         <div className="flex items-center gap-0.5">
-          <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-primary">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 text-muted-foreground hover:text-primary"
+          >
             <Phone className="h-[18px] w-[18px]" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-primary">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 text-muted-foreground hover:text-primary"
+          >
             <MoreVertical className="h-[18px] w-[18px]" />
           </Button>
         </div>
@@ -763,16 +799,16 @@ function Thread({
       {/* Scrollable body */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto bg-white px-4 pt-4 pb-4 space-y-1"
+        className="flex-1 overflow-y-auto bg-background px-4 pt-4 pb-4 space-y-1 relative"
       >
         {/* Escrow protection banner */}
         {activeEscrow ? (
-          <div className="flex items-center gap-3 rounded-2xl bg-emerald-50 border border-emerald-200 px-3.5 py-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-            <div className="h-9 w-9 rounded-full bg-emerald-100 grid place-items-center shrink-0">
-              <Shield className="h-[18px] w-[18px] text-emerald-600" />
+          <div className="flex items-center gap-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 px-3.5 py-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+            <div className="h-9 w-9 rounded-full bg-emerald-100 dark:bg-emerald-900/60 grid place-items-center shrink-0">
+              <Shield className="h-[18px] w-[18px] text-emerald-600 dark:text-emerald-400" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-semibold text-emerald-700 leading-tight">
+              <p className="text-[13px] font-semibold text-emerald-700 dark:text-emerald-400 leading-tight">
                 Deal in Escrow
               </p>
               <p className="text-[13px] font-bold text-foreground leading-tight mt-0.5">
@@ -782,14 +818,14 @@ function Thread({
                 </span>
               </p>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-emerald-700 hover:text-emerald-800 font-semibold text-[13px] shrink-0"
+            <Link
+              to="/deal/$id"
+              params={{ id: activeEscrow.id }}
+              className="inline-flex items-center text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 font-semibold text-[13px] shrink-0"
             >
               View Deal
               <ChevronRight className="h-4 w-4 ml-0.5" />
-            </Button>
+            </Link>
           </div>
         ) : (
           <div className="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 px-3.5 py-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
@@ -798,12 +834,24 @@ function Thread({
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-[13px] font-semibold text-foreground leading-tight">
-                No active deal yet
+                {isCustomer ? "Protected deals available" : "No active deal yet"}
               </p>
               <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
-                Start a protected deal to work with peace of mind
+                {isCustomer
+                  ? "Ask the professional to start a protected deal"
+                  : "Start a protected deal to work with peace of mind"}
               </p>
             </div>
+            {!isCustomer && (
+              <Button
+                size="sm"
+                onClick={startNewDeal}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-[13px] shrink-0 h-10 px-4 rounded-[10px] shadow-[0_2px_8px_-4px_rgba(108,71,255,0.5)]"
+              >
+                <Plus className="h-4 w-4 mr-1.5" />
+                Start Protected Deal
+              </Button>
+            )}
           </div>
         )}
 
@@ -812,7 +860,7 @@ function Thread({
         {items.map((it) =>
           it.type === "sep" ? (
             <div key={it.key} className="flex justify-center my-4">
-              <span className="text-[11px] font-medium text-muted-foreground bg-gray-100 px-3 py-1 rounded-full">
+              <span className="text-[11px] font-medium text-muted-foreground bg-muted px-3 py-1 rounded-full">
                 {it.label}
               </span>
             </div>
@@ -831,6 +879,11 @@ function Thread({
             No messages yet. Say hello!
           </div>
         )}
+
+        {/* Status legend */}
+        <div className="pt-4 pb-2">
+          <StatusLegend />
+        </div>
       </div>
 
       <EscrowPanel
@@ -842,8 +895,21 @@ function Thread({
         refreshKey={escrowRefreshKey}
       />
 
+      {/* Start Protected Deal FAB — always visible when no active deal */}
+      {!activeEscrow && !isCustomer && (
+        <div className="absolute bottom-24 right-4 z-50 sm:bottom-28 sm:right-6">
+          <button
+            onClick={startNewDeal}
+            className="flex items-center gap-2 h-11 px-5 rounded-[10px] bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-[13px] shadow-[0_8px_24px_-6px_rgba(108,71,255,0.6)] transition-all hover:scale-[1.03] active:scale-95"
+          >
+            <Plus className="h-4 w-4" />
+            Start Protected Deal
+          </button>
+        </div>
+      )}
+
       {/* Composer */}
-      <div className="border-t border-border/40 bg-white px-3 pt-3 pb-4">
+      <div className="border-t border-border/40 bg-background px-3 pt-3 pb-4">
         {warn && <div className="text-xs text-destructive mb-2 px-1">{warn}</div>}
         <div className="flex items-center gap-2">
           <input
@@ -867,7 +933,7 @@ function Thread({
               <Paperclip className="h-5 w-5" />
             )}
           </Button>
-          <div className="flex-1 flex items-center h-12 rounded-full bg-gray-100 border border-border/30 px-4">
+          <div className="flex-1 flex items-center h-12 rounded-full bg-muted border border-border/40 px-4">
             <Input
               value={text}
               onChange={(e) => {
@@ -897,7 +963,17 @@ function Thread({
   );
 }
 
-function MessageBubble({ m, mine, meId, other }: { m: ChatMessage; mine: boolean; meId: string; other?: Profile | null }) {
+function MessageBubble({
+  m,
+  mine,
+  meId,
+  other,
+}: {
+  m: ChatMessage;
+  mine: boolean;
+  meId: string;
+  other?: Profile | null;
+}) {
   const card = parseCardMessage(m.body);
   if (card) {
     return (
@@ -942,12 +1018,17 @@ function MessageBubble({ m, mine, meId, other }: { m: ChatMessage; mine: boolean
           className={cn(
             "text-[14px] leading-relaxed whitespace-pre-wrap break-words overflow-hidden",
             mine
-              ? "bg-[#E8DEFF] text-foreground rounded-[18px] rounded-br-md px-4 py-2.5 shadow-[0_1px_3px_rgba(15,23,42,0.08)]"
-              : "bg-white text-foreground rounded-[18px] rounded-bl-md border border-border/50 px-4 py-2.5 shadow-[0_1px_3px_rgba(15,23,42,0.06)]",
+              ? "bg-[#E8DEFF] dark:bg-primary/25 text-foreground rounded-[18px] rounded-br-md px-4 py-2.5 shadow-[0_1px_3px_rgba(15,23,42,0.08)]"
+              : "bg-card text-foreground rounded-[18px] rounded-bl-md border border-border/50 px-4 py-2.5 shadow-[0_1px_3px_rgba(15,23,42,0.06)]",
           )}
         >
           {mediaUrl && mediaType === "image" && (
-            <a href={mediaUrl} target="_blank" rel="noreferrer" className="block -mx-1 -mt-0.5 first:mt-0">
+            <a
+              href={mediaUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="block -mx-1 -mt-0.5 first:mt-0"
+            >
               <img
                 src={mediaUrl}
                 alt="attachment"
@@ -957,7 +1038,12 @@ function MessageBubble({ m, mine, meId, other }: { m: ChatMessage; mine: boolean
             </a>
           )}
           {mediaUrl && mediaType === "video" && (
-            <video src={mediaUrl} controls className="max-h-72 w-full rounded-xl" preload="metadata">
+            <video
+              src={mediaUrl}
+              controls
+              className="max-h-72 w-full rounded-xl"
+              preload="metadata"
+            >
               <track kind="captions" />
             </video>
           )}

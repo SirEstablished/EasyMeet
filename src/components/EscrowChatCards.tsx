@@ -3,6 +3,7 @@ import { supabase, formatNgn } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Link } from "@tanstack/react-router";
 import {
   FileText,
   Lock,
@@ -1048,7 +1049,6 @@ function PaymentCard({ payload }: { payload: PaymentCardPayload }) {
   );
 }
 
-
 // ---- Completion Card ----
 function CompletionCard({ payload }: { payload: CompletionCardPayload }) {
   return (
@@ -1077,13 +1077,13 @@ function CompletionCard({ payload }: { payload: CompletionCardPayload }) {
         <div className="rounded-xl bg-muted/40 border border-border/60 divide-y divide-border/60">
           <Row label="Amount customer paid" value={formatNgn(payload.amount)} />
           <Row
-            label="🛡️ EasyMeet Protection Fee"
+            label="EasyMeet Protection Fee"
             value={formatNgn(
               Number(payload.protection_fee || 0) + Number(payload.paystack_fee || 0),
             )}
             muted
           />
-          <Row label="✅ Professional received" value={formatNgn(payload.payout)} green bold />
+          <Row label="Professional received" value={formatNgn(payload.payout)} green bold />
         </div>
       </div>
     </CardShell>
@@ -1130,9 +1130,7 @@ function DealSummaryCard({ payload }: { payload: DealSummaryCardPayload }) {
     };
   }, [payload.escrow_id]);
 
-  const completedAtFromPayload = payload.completed_at
-    ? new Date(payload.completed_at)
-    : null;
+  const completedAtFromPayload = payload.completed_at ? new Date(payload.completed_at) : null;
   const serviceAmount = Number(escrow?.amount ?? payload.total ?? 0);
   const protectionFee = Number(escrow?.commission_amount ?? payload.protection_fee ?? 0);
   const rawPaystackFee = escrow?.paystack_fee ?? payload.paystack_fee;
@@ -1159,88 +1157,86 @@ function DealSummaryCard({ payload }: { payload: DealSummaryCardPayload }) {
     : isServiceLowTier
       ? serviceAmount
       : Number(escrow?.payout_amount ?? payload.released ?? 0);
-  const completedAt = escrow?.released_at
-    ? new Date(escrow.released_at)
-    : completedAtFromPayload;
+  const completedAt = escrow?.released_at ? new Date(escrow.released_at) : completedAtFromPayload;
 
   return (
     <>
-    <CardShell accent="green">
-      <div className="p-4 space-y-3">
-        <div className="flex items-start gap-3">
-          <div className="h-10 w-10 rounded-xl bg-emerald-100 grid place-items-center shrink-0">
-            <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+      <CardShell accent="green">
+        <div className="p-4 space-y-3">
+          <div className="flex items-start gap-3">
+            <div className="h-10 w-10 rounded-xl bg-emerald-100 grid place-items-center shrink-0">
+              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Deal Completed
+              </div>
+              <div className="text-[11px] text-muted-foreground mt-0.5">
+                Payment released to professional
+              </div>
+              <div className="font-semibold text-[15px] text-foreground truncate mt-1">
+                {payload.title}
+              </div>
+              <div className="flex items-center gap-2 mt-1.5">
+                <Badge variant="outline" className="text-[10px] capitalize">
+                  {agreementTypeLabel(payload.agreement_type)}
+                </Badge>
+                <span className="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 px-2 py-0.5 text-[10px] font-semibold capitalize">
+                  Completed
+                </span>
+              </div>
+            </div>
           </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Deal Completed
-            </div>
-            <div className="text-[11px] text-muted-foreground mt-0.5">
-              Payment released to professional
-            </div>
-            <div className="font-semibold text-[15px] text-foreground truncate mt-1">
-              {payload.title}
-            </div>
-            <div className="flex items-center gap-2 mt-1.5">
-              <Badge variant="outline" className="text-[10px] capitalize">
-                {agreementTypeLabel(payload.agreement_type)}
-              </Badge>
-              <span className="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 px-2 py-0.5 text-[10px] font-semibold capitalize">
-                Completed
-              </span>
-            </div>
-          </div>
-        </div>
 
-        <div className="rounded-xl bg-card border border-border/60 divide-y divide-border/50">
-          <IconRow
-            icon={<FileText className="h-4 w-4 text-primary" />}
-            label={agreementTypeLabel(payload.agreement_type)}
-            sub={payload.title}
-            value={formatNgn(serviceAmount)}
-            valueCaption="Amount"
-            bold
-          />
-          <IconRow
-            icon={<Wallet className="h-4 w-4 text-emerald-600" />}
-            label="Customer Paid"
-            value={formatNgn(totalCustomerPaid)}
-          />
-          <IconRow
-            icon={<Shield className="h-4 w-4 text-amber-500" />}
-            label="EasyMeet Protection Fee"
-            value={formatNgn(
-              (isServiceLowTier ? 0 : protectionFee) +
-                (isServiceHighTier ? 0 : paystackFee),
-            )}
-          />
-          <IconRow
-            icon={<User className="h-4 w-4 text-primary" />}
-            label="Professional Received"
-            value={formatNgn(professionalReceived)}
-            green
-            bold
-          />
-          {completedAt && (
+          <div className="rounded-xl bg-card border border-border/60 divide-y divide-border/50">
             <IconRow
-              icon={<Calendar className="h-4 w-4 text-muted-foreground" />}
-              label="Completed on"
-              value={completedAt.toLocaleString(undefined, {
-                dateStyle: "medium",
-                timeStyle: "short",
-              })}
+              icon={<FileText className="h-4 w-4 text-primary" />}
+              label={agreementTypeLabel(payload.agreement_type)}
+              sub={payload.title}
+              value={formatNgn(serviceAmount)}
+              valueCaption="Amount"
+              bold
             />
-          )}
-        </div>
+            <IconRow
+              icon={<Wallet className="h-4 w-4 text-emerald-600" />}
+              label="Customer Paid"
+              value={formatNgn(totalCustomerPaid)}
+            />
+            <IconRow
+              icon={<Shield className="h-4 w-4 text-amber-500" />}
+              label="EasyMeet Protection Fee"
+              value={formatNgn(
+                (isServiceLowTier ? 0 : protectionFee) + (isServiceHighTier ? 0 : paystackFee),
+              )}
+            />
+            <IconRow
+              icon={<User className="h-4 w-4 text-primary" />}
+              label="Professional Received"
+              value={formatNgn(professionalReceived)}
+              green
+              bold
+            />
+            {completedAt && (
+              <IconRow
+                icon={<Calendar className="h-4 w-4 text-muted-foreground" />}
+                label="Completed on"
+                value={completedAt.toLocaleString(undefined, {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })}
+              />
+            )}
+          </div>
 
-        <button
-          onClick={() => setDetailsOpen(true)}
-          className="w-full text-center text-[13px] font-semibold text-primary hover:underline inline-flex items-center justify-center gap-1 pt-1"
-        >
-          View Full Deal Details <ChevronRight className="h-4 w-4" />
-        </button>
-      </div>
-    </CardShell>
+          <Link
+            to="/deal/$id"
+            params={{ id: payload.escrow_id ?? "" }}
+            className="w-full text-center text-[13px] font-semibold text-primary hover:underline inline-flex items-center justify-center gap-1 pt-1"
+          >
+            View Full Deal Details <ChevronRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </CardShell>
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
         <DialogContent className="sm:max-w-lg rounded-3xl overflow-hidden">
           <DialogHeader>
@@ -1257,27 +1253,23 @@ function DealSummaryCard({ payload }: { payload: DealSummaryCardPayload }) {
               </div>
             </div>
             <div className="rounded-xl bg-muted/40 border border-border/60 divide-y divide-border/60">
+              <Row label="Amount customer paid" value={formatNgn(totalCustomerPaid)} />
               <Row
-                label="Amount customer paid"
-                value={formatNgn(totalCustomerPaid)}
-              />
-              <Row
-                label="🛡️ EasyMeet Protection Fee"
+                label="EasyMeet Protection Fee"
                 value={formatNgn(
-                  (isServiceLowTier ? 0 : protectionFee) +
-                    (isServiceHighTier ? 0 : paystackFee),
+                  (isServiceLowTier ? 0 : protectionFee) + (isServiceHighTier ? 0 : paystackFee),
                 )}
                 muted
               />
               <Row
-                label="✅ Professional received"
+                label="Professional received"
                 value={formatNgn(professionalReceived)}
                 green
                 bold
               />
               {completedAt && (
                 <Row
-                  label="📅 Completed"
+                  label="Completed"
                   value={completedAt.toLocaleString(undefined, {
                     dateStyle: "medium",
                     timeStyle: "short",
@@ -1334,9 +1326,7 @@ export function StatusLegend() {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-x-3 gap-y-2">
         {items.map((item) => (
           <div key={item.label} className="flex items-start gap-2 min-w-0">
-            <span
-              className={cn("h-6 w-6 rounded-lg grid place-items-center shrink-0", item.tint)}
-            >
+            <span className={cn("h-6 w-6 rounded-lg grid place-items-center shrink-0", item.tint)}>
               {item.icon}
             </span>
             <div className="min-w-0">
@@ -1409,125 +1399,128 @@ function ViewAgreementModal({
               </span>
             </div>
           </div>
-        <div className="p-6 space-y-4">
-          {loading ? (
-            <div className="text-sm text-muted-foreground">Loading…</div>
-          ) : (
-            <>
-              {a.job_description ? (
-                <Section title="Description">
-                  <p className="text-sm text-foreground/90 whitespace-pre-wrap">
-                    {a.job_description as string}
-                  </p>
-                </Section>
-              ) : null}
+          <div className="p-6 space-y-4">
+            {loading ? (
+              <div className="text-sm text-muted-foreground">Loading…</div>
+            ) : (
+              <>
+                {a.job_description ? (
+                  <Section title="Description">
+                    <p className="text-sm text-foreground/90 whitespace-pre-wrap">
+                      {a.job_description as string}
+                    </p>
+                  </Section>
+                ) : null}
 
-              <Section title="Amounts">
-                <div className="rounded-xl bg-muted/40 border border-border/60 divide-y divide-border/60">
-                  {type === "service" ? (
-                    (() => {
-                      const laborCost = Number(a.labor_cost ?? 0);
-                      const rawCommission = Number(a.commission_amount ?? 0);
-                      const rawPaystack = Number(a.paystack_fee ?? 0);
-                      const highTier = laborCost > 5000;
-                      const commission = highTier ? rawCommission : 0;
-                      const paystackFee = highTier
-                        ? computeGatewayFee(laborCost)
-                        : rawPaystack || computeGatewayFee(laborCost);
-                      const totalYouPay = highTier
-                        ? laborCost + commission
-                        : laborCost + paystackFee;
-                      const professionalReceives = highTier
-                        ? Math.max(0, laborCost - paystackFee)
-                        : laborCost;
-                      return (
-                        <>
-                          <Row label="Service Fee" value={formatNgn(laborCost)} />
-                          <Row
-                            label="🛡️ EasyMeet Protection Fee"
-                            value={formatNgn(highTier ? commission : paystackFee)}
-                            muted
-                          />
-                          <div className="px-3 py-2">
-                            <div className="h-px bg-border/60" />
-                          </div>
-                          <Row label="Total You'll Pay" value={formatNgn(totalYouPay)} bold />
-                          <Row
-                            label="Professional Receives"
-                            value={formatNgn(professionalReceives)}
-                            green
-                            bold
-                          />
-                        </>
-                      );
-                    })()
-                  ) : type === "product_sale" ? (
-                    <>
-                      {Number(a.labor_cost ?? 0) > 0 && (
-                        <Row
-                          label="Product Price — Held in escrow until delivery confirmed"
-                          value={formatNgn(Number(a.labor_cost))}
-                        />
-                      )}
-                      {Number(a.materials_cost ?? 0) > 0 && (
-                        <Row
-                          label="Delivery Fee — Released immediately"
-                          value={formatNgn(Number(a.materials_cost))}
-                        />
-                      )}
-                    </>
-                  ) : type === "delivery" ? (
-                    <>
-                      {Number(a.labor_cost ?? 0) > 0 && (
-                        <Row
-                          label="Delivery Fee — Goes to rider in full"
-                          value={formatNgn(Number(a.labor_cost))}
-                        />
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      {Number(a.materials_cost ?? 0) > 0 && (
-                        <Row
-                          label="Materials (released immediately)"
-                          value={formatNgn(Number(a.materials_cost))}
-                        />
-                      )}
-                      {Number(a.labor_cost ?? 0) > 0 && (
-                        <Row label="Labor / Service fee" value={formatNgn(Number(a.labor_cost))} />
-                      )}
-                    </>
-                  )}
-                  {type !== "service" && <Row label="Total" value={formatNgn(price)} bold />}
-                </div>
-              </Section>
-
-              {type === "delivery" && (pickup || dropoff) ? (
-                <Section title="Delivery route">
+                <Section title="Amounts">
                   <div className="rounded-xl bg-muted/40 border border-border/60 divide-y divide-border/60">
-                    {pickup && <Row label="📍 Pickup" value={pickup} />}
-                    {dropoff && <Row label="📍 Delivery to" value={dropoff} />}
+                    {type === "service" ? (
+                      (() => {
+                        const laborCost = Number(a.labor_cost ?? 0);
+                        const rawCommission = Number(a.commission_amount ?? 0);
+                        const rawPaystack = Number(a.paystack_fee ?? 0);
+                        const highTier = laborCost > 5000;
+                        const commission = highTier ? rawCommission : 0;
+                        const paystackFee = highTier
+                          ? computeGatewayFee(laborCost)
+                          : rawPaystack || computeGatewayFee(laborCost);
+                        const totalYouPay = highTier
+                          ? laborCost + commission
+                          : laborCost + paystackFee;
+                        const professionalReceives = highTier
+                          ? Math.max(0, laborCost - paystackFee)
+                          : laborCost;
+                        return (
+                          <>
+                            <Row label="Service Fee" value={formatNgn(laborCost)} />
+                            <Row
+                              label="EasyMeet Protection Fee"
+                              value={formatNgn(highTier ? commission : paystackFee)}
+                              muted
+                            />
+                            <div className="px-3 py-2">
+                              <div className="h-px bg-border/60" />
+                            </div>
+                            <Row label="Total You'll Pay" value={formatNgn(totalYouPay)} bold />
+                            <Row
+                              label="Professional Receives"
+                              value={formatNgn(professionalReceives)}
+                              green
+                              bold
+                            />
+                          </>
+                        );
+                      })()
+                    ) : type === "product_sale" ? (
+                      <>
+                        {Number(a.labor_cost ?? 0) > 0 && (
+                          <Row
+                            label="Product Price — Held in escrow until delivery confirmed"
+                            value={formatNgn(Number(a.labor_cost))}
+                          />
+                        )}
+                        {Number(a.materials_cost ?? 0) > 0 && (
+                          <Row
+                            label="Delivery Fee — Released immediately"
+                            value={formatNgn(Number(a.materials_cost))}
+                          />
+                        )}
+                      </>
+                    ) : type === "delivery" ? (
+                      <>
+                        {Number(a.labor_cost ?? 0) > 0 && (
+                          <Row
+                            label="Delivery Fee — Goes to rider in full"
+                            value={formatNgn(Number(a.labor_cost))}
+                          />
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        {Number(a.materials_cost ?? 0) > 0 && (
+                          <Row
+                            label="Materials (released immediately)"
+                            value={formatNgn(Number(a.materials_cost))}
+                          />
+                        )}
+                        {Number(a.labor_cost ?? 0) > 0 && (
+                          <Row
+                            label="Labor / Service fee"
+                            value={formatNgn(Number(a.labor_cost))}
+                          />
+                        )}
+                      </>
+                    )}
+                    {type !== "service" && <Row label="Total" value={formatNgn(price)} bold />}
                   </div>
                 </Section>
-              ) : null}
 
-              {a.terms ? (
-                <Section title="Terms">
-                  <p className="text-sm text-foreground/90 whitespace-pre-wrap">
-                    {a.terms as string}
-                  </p>
-                </Section>
-              ) : null}
+                {type === "delivery" && (pickup || dropoff) ? (
+                  <Section title="Delivery route">
+                    <div className="rounded-xl bg-muted/40 border border-border/60 divide-y divide-border/60">
+                      {pickup && <Row label="📍 Pickup" value={pickup} />}
+                      {dropoff && <Row label="📍 Delivery to" value={dropoff} />}
+                    </div>
+                  </Section>
+                ) : null}
 
-              {a.delivery_date ? (
-                <Section title="Delivery / Completion date">
-                  <p className="text-sm text-foreground/90">
-                    {new Date(a.delivery_date as string).toLocaleDateString(undefined, {
-                      dateStyle: "long",
-                    })}
-                  </p>
-                </Section>
-              ) : null}
+                {a.terms ? (
+                  <Section title="Terms">
+                    <p className="text-sm text-foreground/90 whitespace-pre-wrap">
+                      {a.terms as string}
+                    </p>
+                  </Section>
+                ) : null}
+
+                {a.delivery_date ? (
+                  <Section title="Delivery / Completion date">
+                    <p className="text-sm text-foreground/90">
+                      {new Date(a.delivery_date as string).toLocaleDateString(undefined, {
+                        dateStyle: "long",
+                      })}
+                    </p>
+                  </Section>
+                ) : null}
               </>
             )}
           </div>
